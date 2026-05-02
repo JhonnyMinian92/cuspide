@@ -19,73 +19,32 @@ header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(400);
-    echo json_encode([
-        'status' => 'error',
-        'data' => null,
-        'message' => 'Método HTTP no permitido para este endpoint.',
-    ], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['status' => 'error', 'data' => null, 'message' => 'Método HTTP no permitido para este endpoint.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 try {
-    $rawBody = file_get_contents('php://input');
-    if (!is_string($rawBody) || trim($rawBody) === '') {
-        throw new InvalidArgumentException('El body no puede estar vacío.', 400);
+    $encryptedPayload = trim((string) file_get_contents('php://input'));
+    $encryptedPayload = trim($encryptedPayload, "\"\n\r\t ");
+
+    if ($encryptedPayload === '') {
+        throw new RuntimeException('El body cifrado es obligatorio.', 400);
     }
 
-    // El $rawBody esta cifrado con la llave publica, se debe decirfrar para obtener el JSON con los datos de autenticación, todo esto en el services no en el controllador
-
-    $payload = json_decode($rawBody, true, 512, JSON_THROW_ON_ERROR);
-    if (!is_array($payload)) {
-        throw new InvalidArgumentException('Formato JSON inválido.', 400);
-    }
-
-    $username = filter_var((string) ($payload['username'] ?? ''), FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-    $encryptedPassword = trim((string) ($payload['password'] ?? ''));
-
-    if ($username === '' || $encryptedPassword === '') {
-        throw new InvalidArgumentException('username y password son obligatorios.', 400);
-    }
-
-    $securityConfig = require __DIR__ . '/../../../properties/security.php';
-
-    $privateKeyPem = (string) ($securityConfig['rsa_private_key'] ?? '');
-    $jwtSecret = (string) ($securityConfig['jwt_secret'] ?? '');
-
-    if ($privateKeyPem === '' || $jwtSecret === '') {
-        throw new RuntimeException('Error de configuración del servicio.', 500);
-    }
-
-    $service = new AuthServices(new UserRepository(), $privateKeyPem, $jwtSecret);
-    $result = $service->login($username, $encryptedPassword);
+    $service = new AuthServices(new UserRepository());
+    $result = $service->login($encryptedPayload);
 
     http_response_code(200);
-    echo json_encode([
-        'status' => 'success',
-        'data' => $result,
-        'message' => 'Autenticación exitosa.',
-    ], JSON_UNESCAPED_UNICODE);
-} catch (InvalidArgumentException $exception) {
-    http_response_code(400);
-    echo json_encode([
-        'status' => 'error',
-        'data' => null,
-        'message' => $exception->getMessage(),
-    ], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['status' => 'success', 'data' => $result, 'message' => 'Autenticación exitosa.'], JSON_UNESCAPED_UNICODE);
 } catch (RuntimeException $exception) {
-    $statusCode = $exception->getCode() === 401 ? 401 : 500;
-
+    $statusCode = in_array($exception->getCode(), [400, 401, 500], true) ? $exception->getCode() : 400;
     http_response_code($statusCode);
     echo json_encode([
         'status' => 'error',
         'data' => null,
-        'message' => $statusCode === 401 ? 'Credenciales inválidas.' : 'Error interno de autenticación.',
+        'message' => $statusCode === 401 ? 'Credenciales inválidas.' : ($statusCode === 500 ? 'Error interno de autenticación.' : $exception->getMessage()),
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $exception) {
     http_response_code(500);
-    echo json_encode([
-        'status' => 'error',
-        'data' => null,
-        'message' => 'Error interno del servidor.',
-    ], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['status' => 'error', 'data' => null, 'message' => 'Error interno del servidor.'], JSON_UNESCAPED_UNICODE);
 }
