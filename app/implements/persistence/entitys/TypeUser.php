@@ -2,6 +2,8 @@
 
 namespace Entitys;
 
+require_once __DIR__ . '/../repository/TypeUserRepository.php';
+
 class TypeUser
 {
   private $nemonico;

@@ -2,6 +2,8 @@
 
 namespace Entitys;
 
+require_once __DIR__ . '/TypeUser.php';
+
 class User
 {
   private $id;

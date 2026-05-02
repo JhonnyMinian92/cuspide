@@ -1,19 +1,9 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__ . '/../../../implements/services/AuthServices.php';
 
-use Repositories\UserRepository;
 use Services\AuthServices;
-
-require_once __DIR__ . '/../../../implements/persistence/conexion/Database.php';
-require_once __DIR__ . '/../../../implements/persistence/entitys/TypeUser.php';
-require_once __DIR__ . '/../../../implements/persistence/entitys/User.php';
-require_once __DIR__ . '/../../../implements/persistence/repository/TypeUserRepository.php';
-require_once __DIR__ . '/../../../implements/persistence/repository/UserRepository.php';
-require_once __DIR__ . '/../../../services/AuthServices.php';
-require_once __DIR__ . '/../../../../interfaces/AuthServiceInterface.php';
-require_once __DIR__ . '/../../../utils/Encripter.php';
-require_once __DIR__ . '/../../../utils/Token.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -31,7 +21,7 @@ try {
         throw new RuntimeException('El body cifrado es obligatorio.', 400);
     }
 
-    $service = new AuthServices(new UserRepository());
+    $service = new AuthServices();
     $result = $service->login($encryptedPayload);
 
     http_response_code(200);
@@ -42,9 +32,10 @@ try {
     echo json_encode([
         'status' => 'error',
         'data' => null,
-        'message' => $statusCode === 401 ? 'Credenciales inválidas.' : ($statusCode === 500 ? 'Error interno de autenticación.' : $exception->getMessage()),
+        'message' => $exception->getMessage(),
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $exception) {
+    $message = 'Error no capturado: ' . $exception->getMessage() . ' - ' . $exception->getFile() . ':' . $exception->getLine();
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'data' => null, 'message' => 'Error interno del servidor.'], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['status' => 'error', 'data' => null, 'message' => $message], JSON_UNESCAPED_UNICODE);
 }

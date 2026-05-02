@@ -2,6 +2,8 @@
 
 namespace Repositories;
 
+require_once __DIR__ . '/../conexion/Database.php';
+
 use Core\Database;
 use Entitys\TypeUser;
 use PDO;

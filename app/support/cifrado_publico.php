@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-$config = require __DIR__ . '/../app/properties/security.php';
+$config = require __DIR__ . '/../properties/security.php';
 
-$username = $argv[1] ?? 'admin';
-$password = $argv[2] ?? 'admin123';
+$username = $argv[1] ?? 'jminan';
+$password = $argv[2] ?? 'Zeus2@26';
 $plainJson = json_encode(['username' => $username, 'password' => $password], JSON_UNESCAPED_UNICODE);
 
 $publicKey = openssl_pkey_get_public($config['rsa_public_key']);
