@@ -33,6 +33,8 @@ try {
         throw new InvalidArgumentException('El body no puede estar vacío.', 400);
     }
 
+    // El $rawBody esta cifrado con la llave publica, se debe decirfrar para obtener el JSON con los datos de autenticación, todo esto en el services no en el controllador
+
     $payload = json_decode($rawBody, true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($payload)) {
         throw new InvalidArgumentException('Formato JSON inválido.', 400);

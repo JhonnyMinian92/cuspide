@@ -12,12 +12,12 @@ use Utils\Token;
 
 final class AuthServices implements AuthServiceInterface
 {
+    //la llave privada y la clave secreta debe obtenerse aquí no en el controlador, el controlador solo debe recibir los datos de autenticación y pasarla al servicio, el servicio se encarga de todo lo demás, incluido el manejo de errores y la generación del token
     public function __construct(
         private readonly UserRepository $userRepository,
         private readonly string $privateKeyPem,
         private readonly string $jwtSecret
-    ) {
-    }
+    ) {}
 
     public function login(string $username, string $encryptedPassword): array
     {
