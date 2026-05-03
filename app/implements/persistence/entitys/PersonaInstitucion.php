@@ -18,10 +18,10 @@ class PersonaInstitucion
   public function __construct($id, $id_persona, $id_institucion, $tipo, $estado)
   {
     $this->id = $id;
-    $this->id_persona = is_string($id_persona) ? $id_persona : $id_persona->getId();
-    $this->id_institucion = is_string($id_institucion) ? $id_institucion : $id_institucion->getId();
-    $this->tipo = is_string($tipo) ? $tipo : $tipo->getId();
-    $this->estado = is_string($estado) ? $estado : $estado->getId();
+    $this->id_persona = $this->extractId($id_persona);
+    $this->id_institucion = $this->extractId($id_institucion);
+    $this->tipo = $this->extractId($tipo);
+    $this->estado = $this->extractId($estado);
   }
 
   public function getId()
@@ -56,21 +56,29 @@ class PersonaInstitucion
 
   public function setIdPersona($id_persona)
   {
-    $this->id_persona = is_string($id_persona) ? intval($id_persona) : $id_persona;
+    $this->id_persona = $this->extractId($id_persona);
   }
 
   public function setIdInstitucion($id_institucion)
   {
-    $this->id_institucion = is_string($id_institucion) ? intval($id_institucion) : $id_institucion;
+    $this->id_institucion = $this->extractId($id_institucion);
   }
 
   public function setTipo($tipo)
   {
-    $this->tipo = is_string($tipo) ? intval($tipo) : $tipo;
+    $this->tipo = $this->extractId($tipo);
   }
 
   public function setEstado($estado)
   {
-    $this->estado = is_string($estado) ? intval($estado) : $estado;
+    $this->estado = $this->extractId($estado);
+  }
+
+  private function extractId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
   }
 }

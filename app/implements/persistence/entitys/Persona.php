@@ -34,13 +34,13 @@ class Persona
     $this->segundo_nombre = $segundo_nombre;
     $this->primer_apellido = $primer_apellido;
     $this->segundo_apellido = $segundo_apellido;
-    $this->nacionalidad = is_string($nacionalidad) ? $nacionalidad : $nacionalidad->getId();
-    $this->genero = is_string($genero) ? $genero : $genero->getId();
-    $this->etnia = is_string($etnia) ? $etnia : $etnia->getId();
+    $this->nacionalidad = $this->extractId($nacionalidad);
+    $this->genero = $this->extractId($genero);
+    $this->etnia = $this->extractId($etnia);
     $this->fecha_nacimiento = $fecha_nacimiento;
-    $this->ciudad = is_string($ciudad) ? $ciudad : $ciudad->getId();
+    $this->ciudad = $this->extractId($ciudad);
     $this->direccion = $direccion;
-    $this->user = is_string($user) ? $user : $user->getId();
+    $this->user = $this->extractId($user);
   }
 
   public function getId()
@@ -140,17 +140,17 @@ class Persona
 
   public function setNacionalidad($nacionalidad)
   {
-    $this->nacionalidad = is_string($nacionalidad) ? $nacionalidad : $nacionalidad->getId();
+    $this->nacionalidad = $this->extractId($nacionalidad);
   }
 
   public function setGenero($genero)
   {
-    $this->genero = is_string($genero) ? $genero : $genero->getId();
+    $this->genero = $this->extractId($genero);
   }
 
   public function setEtnia($etnia)
   {
-    $this->etnia = is_string($etnia) ? $etnia : $etnia->getId();
+    $this->etnia = $this->extractId($etnia);
   }
 
   public function setFechaNacimiento($fecha_nacimiento)
@@ -160,7 +160,7 @@ class Persona
 
   public function setCiudad($ciudad)
   {
-    $this->ciudad = is_string($ciudad) ? $ciudad : $ciudad->getId();
+    $this->ciudad = $this->extractId($ciudad);
   }
 
   public function setDireccion($direccion)
@@ -170,7 +170,15 @@ class Persona
 
   public function setUser($user)
   {
-    $this->user = is_string($user) ? $user : $user->getId();
+    $this->user = $this->extractId($user);
+  }
+
+  private function extractId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
   }
 
   public static function from($id): ?self
