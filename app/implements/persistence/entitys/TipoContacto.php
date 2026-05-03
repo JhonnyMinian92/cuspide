@@ -2,7 +2,7 @@
 
 namespace Entitys;
 
-require_once __DIR__ . '/repositories/TipoContactoRepository.php';
+require_once __DIR__ . '/../repository/TipoContactoRepository.php';
 
 class TipoContacto
 {

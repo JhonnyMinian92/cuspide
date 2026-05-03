@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Services;
 
+require_once __DIR__ . '/../implements/interfaces/AuthServiceInterface.php';
+require_once __DIR__ . '/../implements/persistence/repository/UserRepository.php';
+require_once __DIR__ . '/../implements/utils/Encripter.php';
+require_once __DIR__ . '/../implements/utils/Token.php';
+
 use Interfaces\AuthServiceInterface;
 use Repositories\UserRepository;
 use RuntimeException;
@@ -14,9 +19,11 @@ final class AuthServices implements AuthServiceInterface
 {
     private string $privateKeyPem;
     private string $jwtSecret;
+    private UserRepository $userRepository;
 
-    public function __construct(private readonly UserRepository $userRepository)
+    public function __construct()
     {
+        $this->userRepository = new UserRepository();
         $securityConfig = require __DIR__ . '/../properties/security.php';
 
         $this->privateKeyPem = (string) ($securityConfig['rsa_private_key'] ?? '');
