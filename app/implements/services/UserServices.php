@@ -9,13 +9,16 @@ require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/repository/InstitucionRepository.php';
 require_once __DIR__ . '/../persistence/repository/BotonRepository.php';
+require_once __DIR__ . '/../persistence/repository/BotonUserRepository.php';
+require_once __DIR__ . '/../persistence/repository/UserRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\UserServiceInterface;
-use Repositories\BotonRepository;
+use Repositories\BotonUserRepository;
 use Repositories\InstitucionRepository;
 use Repositories\PersonaInstitucionRepository;
 use Repositories\PersonaRepository;
+use Repositories\UserRepository;
 use RuntimeException;
 use Utils\Token;
 
@@ -44,7 +47,7 @@ final class UserServices implements UserServiceInterface
         return match ($resource) {
             'profile' => $this->fetchProfile($userId),
             'institucion' => $this->fetchInstitucion($userId),
-            'menu' => $this->fetchMenu(),
+            'menu' => $this->fetchMenu($userId),
             'estadistica' => [],
             default => throw new RuntimeException('Ruta de API no soportada: ' . (string) $resource, 404),
         };
@@ -90,11 +93,17 @@ final class UserServices implements UserServiceInterface
         ];
     }
 
-    private function fetchMenu(): array
+    private function fetchMenu(int $userId): array
     {
-        $botones = (new BotonRepository())->findAll();
+        $user = (new UserRepository())->findById($userId);
+        if ($user === null) {
+            throw new RuntimeException('No se encontró usuario autenticado.', 404);
+        }
+
+        $botonesUser = (new BotonUserRepository())->findByTypeUser((string) $user->getType()->getNemonico());
         $menu = [];
-        foreach ($botones as $boton) {
+        foreach ($botonesUser as $botonUser) {
+            $boton = $botonUser->getBoton();
             $menu[] = [
                 'orden' => (int) $boton->getOrden(),
                 'nombre' => (string) $boton->getNombre(),
@@ -102,6 +111,8 @@ final class UserServices implements UserServiceInterface
                 'tipo' => (string) $boton->getTipo(),
             ];
         }
+        usort($menu, fn(array $a, array $b): int => $a['orden'] <=> $b['orden']);
+
         return $menu;
     }
 }

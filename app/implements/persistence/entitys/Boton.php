@@ -96,7 +96,7 @@ class Boton
     $this->estado = is_string($estado) ? $estado : $estado->getId();
   }
 
-    public static function from($id): ?self
+  public static function from($id): ?self
   {
     try {
       $repositorio = new \Repositories\BotonRepository();
@@ -106,6 +106,6 @@ class Boton
       }
     } catch (\Exception $e) {
     }
-    return new self($id, '', '', '', '', '', 0, 0, 0, '', '', '', 0);
+    return new self($id, 0, '', '', '', '', 0);
   }
 }
