@@ -18,9 +18,9 @@ class Correo
   {
     $this->id = $id;
     $this->email = $email;
-    $this->tipo = is_string($tipo) ? $tipo : $tipo->getId();
-    $this->persona = is_string($persona) ? $persona : $persona->getId();
-    $this->estado = is_string($estado) ? $estado : $estado->getId();
+    $this->tipo = $this->extractId($tipo);
+    $this->persona = $this->extractId($persona);
+    $this->estado = $this->extractId($estado);
   }
 
   public function getId()
@@ -60,16 +60,24 @@ class Correo
 
   public function setTipo($tipo)
   {
-    $this->tipo = is_string($tipo) ? $tipo : $tipo->getId();
+    $this->tipo = $this->extractId($tipo);
   }
 
   public function setPersona($persona)
   {
-    $this->persona = is_string($persona) ? $persona : $persona->getId();
+    $this->persona = $this->extractId($persona);
   }
 
   public function setEstado($estado)
   {
-    $this->estado = is_string($estado) ? $estado : $estado->getId();
+    $this->estado = $this->extractId($estado);
+  }
+
+  private function extractId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
   }
 }

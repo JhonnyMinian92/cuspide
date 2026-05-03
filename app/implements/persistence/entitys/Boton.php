@@ -23,7 +23,7 @@ class Boton
     $this->icono = $icono;
     $this->tipo = $tipo;
     $this->color = $color;
-    $this->estado = $estado;
+    $this->estado = $this->extractId($estado);
   }
 
   public function getId()
@@ -93,7 +93,15 @@ class Boton
 
   public function setEstado($estado)
   {
-    $this->estado = is_string($estado) ? $estado : $estado->getId();
+    $this->estado = $this->extractId($estado);
+  }
+
+  private function extractId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
   }
 
   public static function from($id): ?self

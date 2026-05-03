@@ -18,7 +18,7 @@ class User
     $this->id = $id;
     $this->username = $username;
     $this->password = $password;
-    $this->type = is_string($type) ? $type : $type->getNemonico();
+    $this->type = $this->extractId($type);
     $this->image = $image;
   }
 
@@ -63,12 +63,20 @@ class User
 
   public function setType($type)
   {
-    $this->type = is_string($type) ? $type : $type->getNemonico();
+    $this->type = $this->extractId($type);
   }
 
   public function setImage($image)
   {
     $this->image = $image;
+  }
+
+  private function extractId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
   }
 
   public static function from($id): ?self

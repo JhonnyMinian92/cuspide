@@ -45,7 +45,7 @@ final class UserServices implements UserServiceInterface
 
         $resource = null;
 
-        $tipo = strtolower(trim((string) ($queryParams['tipo'] ?? '')));
+        $tipo = strtolower(trim((string) ($queryParams['api'] ?? '')));
         if ($tipo !== '') {
             $resource = $tipo;
         }
@@ -119,9 +119,11 @@ final class UserServices implements UserServiceInterface
         }
 
         $idInstitucion = $personaInstitucion->getIdInstitucion();
-        $institucionId = is_object($idInstitucion) && method_exists($idInstitucion, 'getId')
-            ? (int) $idInstitucion->getId()
-            : (int) $idInstitucion;
+        if (is_object($idInstitucion)) {
+            $institucionId = (int) $idInstitucion->getId();
+        } else {
+            $institucionId = (int) $idInstitucion;
+        }
 
         $institucion = (new InstitucionRepository())->findById($institucionId);
         if ($institucion === null) {

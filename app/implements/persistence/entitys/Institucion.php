@@ -22,7 +22,7 @@ class Institucion
     $this->razon_social = $razon_social;
     $this->nombre = $nombre;
     $this->logotipo = $logotipo;
-    $this->estado = is_string($estado) ? $estado : $estado->getId();
+    $this->estado = $this->extractId($estado);
   }
 
   public function getId()
@@ -82,7 +82,15 @@ class Institucion
 
   public function setEstado($estado)
   {
-    $this->estado = is_string($estado) ? $estado : $estado->getId();
+    $this->estado = $this->extractId($estado);
+  }
+
+  private function extractId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
   }
 
   public static function from($id): ?self
