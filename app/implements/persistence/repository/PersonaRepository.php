@@ -3,6 +3,7 @@
 namespace Repositories;
 
 require_once __DIR__ . '/../conexion/Database.php';
+require_once __DIR__ . '/../entitys/Persona.php';
 
 use Core\Database;
 use Entitys\Persona;
@@ -60,6 +61,19 @@ class PersonaRepository
   {
     $stmt = $this->db->prepare("SELECT * FROM personas WHERE id = :id");
     $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($row) {
+      return new Persona($row['id'], $row['identificacion'], $row['primer_nombre'], $row['segundo_nombre'], $row['primer_apellido'], $row['segundo_apellido'], $row['nacionalidad'], $row['genero'], $row['etnia'], $row['fecha_nacimiento'], $row['ciudad'], $row['direccion'], $row['user']);
+    }
+
+    return null;
+  }
+
+  public function findByUserId(int $userId): ?Persona
+  {
+    $stmt = $this->db->prepare("SELECT * FROM personas WHERE user = :user LIMIT 1");
+    $stmt->execute([':user' => $userId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
