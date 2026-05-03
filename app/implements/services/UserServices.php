@@ -44,13 +44,25 @@ final class UserServices implements UserServiceInterface
         $segments = array_values(array_filter(explode('/', trim($path, '/'))));
 
         $resource = null;
+
+        $tipo = strtolower(trim((string) ($queryParams['tipo'] ?? '')));
+        if ($tipo !== '') {
+            $resource = $tipo;
+        }
+
         $usersIndex = array_search('users', $segments, true);
-        if ($usersIndex !== false) {
-            $resource = $segments[$usersIndex + 1] ?? null;
+        if ($resource === null && $usersIndex !== false) {
+            $candidate = $segments[$usersIndex + 1] ?? null;
+            if ($candidate !== null && strtolower($candidate) !== 'index.php') {
+                $resource = strtolower($candidate);
+            }
         }
 
         if ($resource === null && $segments !== []) {
-            $resource = $segments[array_key_last($segments)];
+            $candidate = strtolower((string) $segments[array_key_last($segments)]);
+            if ($candidate !== 'index.php') {
+                $resource = $candidate;
+            }
         }
 
         return match ($resource) {
