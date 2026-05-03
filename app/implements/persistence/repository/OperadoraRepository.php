@@ -3,6 +3,7 @@
 namespace Repositories;
 
 require_once __DIR__ . '/../conexion/Database.php';
+require_once __DIR__ . '/../entitys/Operadora.php';
 
 use Core\Database;
 use Entitys\Operadora;

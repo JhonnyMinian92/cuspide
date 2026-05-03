@@ -3,6 +3,7 @@
 namespace Repositories;
 
 require_once __DIR__ . '/../conexion/Database.php';
+require_once __DIR__ . '/../entitys/PersonaInstitucion.php';
 
 use Core\Database;
 use Entitys\PersonaInstitucion;
@@ -39,6 +40,20 @@ class PersonaInstitucionRepository
       ]);
     }
     return $personaInstitucion;
+  }
+
+  public function findByPersonaId(int $personaId): ?PersonaInstitucion
+  {
+    $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id_persona = :id_persona ORDER BY id ASC LIMIT 1');
+    $stmt->bindParam(':id_persona', $personaId, PDO::PARAM_INT);
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($result) {
+      return new PersonaInstitucion($result['id'], $result['id_persona'], $result['id_institucion'], $result['tipo'], $result['estado']);
+    }
+
+    return null;
   }
 
   public function findById($id): ?PersonaInstitucion
