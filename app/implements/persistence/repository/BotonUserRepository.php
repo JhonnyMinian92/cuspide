@@ -48,4 +48,16 @@ class BotonUserRepository
 
     return $row ? new BotonUser($row['id'], $row['boton'], $row['type_user']) : null;
   }
+
+  public function findByTypeUser(string $typeUser): array
+  {
+    $stmt = $this->db->prepare('SELECT * FROM boton_user WHERE type_user = :type_user ORDER BY id ASC');
+    $stmt->execute([':type_user' => $typeUser]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return array_map(
+      fn($row) => new BotonUser($row['id'], $row['boton'], $row['type_user']),
+      $rows ?: []
+    );
+  }
 }
