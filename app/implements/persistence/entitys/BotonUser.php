@@ -14,8 +14,8 @@ class BotonUser
   public function __construct($id, $boton, $typeUser)
   {
     $this->id = $id;
-    $this->boton = $boton;
-    $this->typeUser = $typeUser;
+    $this->boton = $this->extractBotonId($boton);
+    $this->typeUser = $this->extractTypeUserNemonico($typeUser);
   }
 
   public function getId()
@@ -40,11 +40,27 @@ class BotonUser
 
   public function setBoton($boton)
   {
-    $this->boton = is_string($boton) ? $boton : $boton->getId();
+    $this->boton = $this->extractBotonId($boton);
   }
 
   public function setTypeUser($typeUser)
   {
-    $this->typeUser = is_string($typeUser) ? $typeUser : $typeUser->getNemonico();
+    $this->typeUser = $this->extractTypeUserNemonico($typeUser);
+  }
+
+  private function extractBotonId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
+  }
+
+  private function extractTypeUserNemonico($value)
+  {
+    if (is_object($value) && method_exists($value, 'getNemonico')) {
+      return $value->getNemonico();
+    }
+    return $value;
   }
 }

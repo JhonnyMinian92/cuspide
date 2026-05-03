@@ -42,7 +42,16 @@ final class UserServices implements UserServiceInterface
 
         $path = parse_url($requestUri, PHP_URL_PATH) ?? '';
         $segments = array_values(array_filter(explode('/', trim($path, '/'))));
-        $resource = (($segments[0] ?? null) === 'api' && ($segments[1] ?? null) === 'users') ? ($segments[2] ?? null) : ($segments[0] ?? null);
+
+        $resource = null;
+        $usersIndex = array_search('users', $segments, true);
+        if ($usersIndex !== false) {
+            $resource = $segments[$usersIndex + 1] ?? null;
+        }
+
+        if ($resource === null && $segments !== []) {
+            $resource = $segments[array_key_last($segments)];
+        }
 
         return match ($resource) {
             'profile' => $this->fetchProfile($userId),
