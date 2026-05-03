@@ -6,5 +6,5 @@ namespace Interfaces;
 
 interface AuthServiceInterface
 {
-    public function login(string $encryptedPayload): array;
+    public function login(string $encryptedPayload): string;
 }

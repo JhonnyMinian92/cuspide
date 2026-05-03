@@ -56,6 +56,11 @@ class Telefono
     return Estado::from($this->estado);
   }
 
+  public function setId($id)
+  {
+    $this->id = $id;
+  }
+
   public function setNumero($numero)
   {
     $this->numero = $numero;

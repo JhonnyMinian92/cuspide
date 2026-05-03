@@ -34,7 +34,7 @@ final class AuthServices implements AuthServiceInterface
         }
     }
 
-    public function login(string $encryptedPayload): array
+    public function login(string $encryptedPayload): string
     {
         $decryptedJson = Encripter::decryptWithPrivateKey($encryptedPayload, $this->privateKeyPem);
         $credentials = json_decode($decryptedJson, true);
@@ -65,10 +65,6 @@ final class AuthServices implements AuthServiceInterface
             'role' => $user->getType()->getNemonico(),
         ], $this->jwtSecret, 3600);
 
-        return [
-            'token' => $token,
-            'expires_in' => 3600,
-            'token_type' => 'Bearer',
-        ];
+        return $token;
     }
 }
