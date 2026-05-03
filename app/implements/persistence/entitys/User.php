@@ -3,6 +3,7 @@
 namespace Entitys;
 
 require_once __DIR__ . '/TypeUser.php';
+require_once __DIR__ . '/../repository/UserRepository.php';
 
 class User
 {
@@ -68,5 +69,18 @@ class User
   public function setImage($image)
   {
     $this->image = $image;
+  }
+
+  public static function from($id): ?self
+  {
+    try {
+      $repositorio = new \Repositories\UserRepository();
+      $user = $repositorio->findById($id);
+      if ($user) {
+        return $user;
+      }
+    } catch (\Exception $e) {
+    }
+    return new self($id, '', '', '');
   }
 }
