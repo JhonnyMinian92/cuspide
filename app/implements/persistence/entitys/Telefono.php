@@ -20,10 +20,10 @@ class Telefono
   {
     $this->id = $id;
     $this->numero = $numero;
-    $this->operadora = is_string($operadora) ? $operadora : $operadora->getId();
-    $this->persona = $persona;
-    $this->tipo = $tipo;
-    $this->estado = $estado;
+    $this->operadora = $this->extractId($operadora);
+    $this->persona = $this->extractId($persona);
+    $this->tipo = $this->extractId($tipo);
+    $this->estado = $this->extractId($estado);
   }
 
   public function getId()
@@ -68,21 +68,29 @@ class Telefono
 
   public function setOperadora($operadora)
   {
-    $this->operadora = is_string($operadora) ? $operadora : $operadora->getId();
+    $this->operadora = $this->extractId($operadora);
   }
 
   public function setPersona($persona)
   {
-    $this->persona = $persona;
+    $this->persona = $this->extractId($persona);
   }
 
   public function setTipo($tipo)
   {
-    $this->tipo = $tipo;
+    $this->tipo = $this->extractId($tipo);
   }
 
   public function setEstado($estado)
   {
-    $this->estado = $estado;
+    $this->estado = $this->extractId($estado);
   }
+  private function extractId($value)
+  {
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
+    return $value;
+  }
+
 }
