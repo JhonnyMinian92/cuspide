@@ -83,11 +83,26 @@ final class UserServices implements UserServiceInterface
 
         $personaInstitucion = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
 
+        $tipo = '';
+        if ($personaInstitucion !== null) {
+            $tipoPersona = $personaInstitucion->getTipo();
+            $tipo = is_object($tipoPersona) && method_exists($tipoPersona, 'getNombre')
+                ? (string) $tipoPersona->getNombre()
+                : (string) $tipoPersona;
+        }
+
+        if ($tipo === '') {
+            $user = (new UserRepository())->findById($userId);
+            if ($user !== null) {
+                $tipo = (string) $user->getType()->getNombre();
+            }
+        }
+
         return [
             'identificacion' => (string) $persona->getIdentificacion(),
             'primer_nombre' => (string) $persona->getPrimerNombre(),
             'primer_apellido' => (string) $persona->getPrimerApellido(),
-            'tipo' => $personaInstitucion ? (string) $personaInstitucion->getTipo()->getNombre() : '',
+            'tipo' => $tipo,
         ];
     }
 
@@ -103,7 +118,12 @@ final class UserServices implements UserServiceInterface
             throw new RuntimeException('No se encontró institución asociada.', 404);
         }
 
-        $institucion = (new InstitucionRepository())->findById((int) $personaInstitucion->getIdInstitucion()->getId());
+        $idInstitucion = $personaInstitucion->getIdInstitucion();
+        $institucionId = is_object($idInstitucion) && method_exists($idInstitucion, 'getId')
+            ? (int) $idInstitucion->getId()
+            : (int) $idInstitucion;
+
+        $institucion = (new InstitucionRepository())->findById($institucionId);
         if ($institucion === null) {
             throw new RuntimeException('No se encontró institución.', 404);
         }
