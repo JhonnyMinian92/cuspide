@@ -62,7 +62,8 @@ function authFetch(url) {
 async function loadUserProfile() {
   try {
     const res  = await authFetch('/app/controllers/api/users/index.php?api=profile');
-    const data = await res.json();
+    const json = await res.json();
+    const data = json.data;
 
     if (!data || !data.primer_nombre) return;
 
@@ -98,7 +99,8 @@ async function loadUserProfile() {
 async function loadInstitucion() {
   try {
     const res  = await authFetch('/app/controllers/api/users/index.php?api=institucion');
-    const data = await res.json();
+    const json = await res.json();
+    const data = json.data;
 
     if (!data || !data.nombre) return;
 
@@ -148,7 +150,8 @@ async function loadInstitucion() {
 async function loadMenu() {
   try {
     const res   = await authFetch('/app/controllers/api/users/index.php?api=menu');
-    const items = await res.json();
+    const json  = await res.json();
+    const items = json.data;
 
     if (!Array.isArray(items) || items.length === 0) return;
 

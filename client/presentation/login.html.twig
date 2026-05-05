@@ -140,20 +140,18 @@
 		        // Cifrar el payload con cifrar.js (RSA-OAEP con llave pública CUSPIDE_PUBLIC_KEY)
 		        const encryptedPayload = await cifrarLogin(username, password);
 		
-            console.log("Cifrado:",encryptedPayload);
 		        // POST al endpoint de autenticación con el cuerpo cifrado
 		        const response = await fetch('/app/controllers/api/auth/index.php', {
 		          method: 'POST',
 		          headers: { 'Content-Type': 'application/json' },
 		          body: JSON.stringify(encryptedPayload),
 		        });
-		        console.log("Res:",response);
 		
 		        const result = await response.json();
 		
-		        if (result.status === 'success' && result.data && result.data.token) {
+		        if (result.status === 'success' && result.data) {
 		          // Guardar token JWT en localStorage para peticiones posteriores
-		          localStorage.setItem('token', result.data.token);
+		          localStorage.setItem('token', result.data);
 		          window.location.href = '/dashboard';
 		        } else {
 		          showLoginError(result.message || 'Credenciales inválidas. Inténtalo de nuevo.');
