@@ -1,0 +1,305 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'configuracion' %}
+
+{% block title %}Configuración — Huaquillas F.C.{% endblock %}
+{% block page_title %}Configuración{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- ===== SECCIÓN 1: Perfil de usuario =====
+       Datos cargados via JS fetch a ?api=profile:
+       identificacion, primer_nombre, primer_apellido, tipo -->
+  <div class="col-12 col-lg-6">
+    <div class="card chart-card h-100">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-4"><i class="bi bi-person-fill me-2 text-primary"></i>Perfil de Usuario</h6>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Identificación</label>
+          <input type="text" class="form-control" id="perfil-identificacion" value="—" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Primer Nombre</label>
+          <input type="text" class="form-control" id="perfil-nombre" value="—" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Primer Apellido</label>
+          <input type="text" class="form-control" id="perfil-apellido" value="—" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tipo de usuario</label>
+          <input type="text" class="form-control" id="perfil-tipo" value="—" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Contraseña actual</label>
+          <input type="password" class="form-control" placeholder="••••••••">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Nueva contraseña</label>
+          <input type="password" class="form-control" placeholder="Nueva contraseña">
+        </div>
+        <button class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECCIÓN 2: Institución =====
+       Datos cargados via JS fetch a ?api=institucion: nombre, logo -->
+  <div class="col-12 col-lg-6">
+    <div class="card chart-card h-100">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-4"><i class="bi bi-building me-2 text-primary"></i>Institución</h6>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre de la institución</label>
+          <input type="text" class="form-control" id="inst-nombre" value="—" readonly>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Logo</label>
+          <div id="inst-logo-container" class="mb-2">
+            <!-- Logo cargado vía JS -->
+          </div>
+          <input type="file" class="form-control" accept="image/*">
+          <div class="form-text">Formatos: PNG, JPG, SVG. Máx. 2 MB.</div>
+        </div>
+
+        <!-- Toggle de tema -->
+        <h6 class="fw-bold mb-3 mt-4"><i class="bi bi-palette me-2 text-primary"></i>Tema de la interfaz</h6>
+        <div class="d-flex gap-4 mb-4">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="tema" id="temaOscuro" value="dark" checked>
+            <label class="form-check-label" for="temaOscuro">
+              <i class="bi bi-moon-fill me-1"></i>Tema Oscuro
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="tema" id="temaClaro" value="light">
+            <label class="form-check-label" for="temaClaro">
+              <i class="bi bi-sun-fill me-1"></i>Tema Claro
+            </label>
+          </div>
+        </div>
+        <button class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>Guardar Preferencias</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECCIÓN 3: Gestión de Usuarios ===== -->
+  <div class="col-12">
+    <div class="card chart-card">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h6 class="fw-bold mb-0"><i class="bi bi-people-fill me-2 text-primary"></i>Gestión de Usuarios</h6>
+          <button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#modalUsuario">
+            <i class="bi bi-plus-lg me-1"></i>Añadir Usuario
+          </button>
+        </div>
+
+        <!-- Alerta de éxito (oculta por defecto) -->
+        <div class="alert alert-success d-flex align-items-center d-none" id="alertaUsuario" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          Usuario registrado exitosamente.
+          <button type="button" class="btn-close ms-auto" onclick="document.getElementById('alertaUsuario').classList.add('d-none')"></button>
+        </div>
+
+        <!-- Los datos de usuarios se cargarán via API en el futuro -->
+        <div class="table-responsive table-container">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="usuarios-tbody">
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                  <i class="bi bi-person-x me-2"></i>
+                  Los usuarios se cargarán via API próximamente.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECCIÓN 4: Personalización de Botones ===== -->
+  <div class="col-12">
+    <div class="card chart-card">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-2"><i class="bi bi-palette-fill me-2 text-primary"></i>🎨 Personalización de Botones Corporativos</h6>
+        <p class="text-muted small mb-4">
+          Los botones del sistema usan la clase <code>.btn-brand</code> definida en <code>client/css/styles.css</code>.
+          Para cambiar el color corporativo de todos los botones, edita las variables CSS en <code>:root</code>:
+        </p>
+        <div class="bg-light rounded p-3 mb-4">
+          <pre class="mb-0 small"><code>/* En client/css/styles.css */
+:root {
+  --brand-color: #1a56db;  /* ← Cambia este color hex */
+  --brand-hover: #1648c0;  /* ← Y este para el hover  */
+}
+
+.btn-brand {
+  background-color: var(--brand-color);
+  color: #fff;
+  border: none;
+}
+.btn-brand:hover {
+  background-color: var(--brand-hover);
+  color: #fff;
+}</code></pre>
+        </div>
+        <p class="fw-semibold mb-3">Ejemplos de botones:</p>
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+          <button class="btn btn-brand">
+            <i class="bi bi-star-fill me-1"></i>.btn-brand (Azul corporativo)
+          </button>
+          <button class="btn btn-brand-outline">
+            <i class="bi bi-star me-1"></i>.btn-brand-outline
+          </button>
+          <button class="btn" style="background-color:#e8b84b; color:#1a2235; border:none; font-weight:600;">
+            <i class="bi bi-star-fill me-1"></i>Color hex directo (#e8b84b)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /row -->
+
+<!-- Modal Añadir Usuario -->
+<div class="modal fade" id="modalUsuario" tabindex="-1" aria-labelledby="modalUsuarioLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalUsuarioLabel"><i class="bi bi-person-plus-fill me-2"></i>Añadir Usuario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre completo</label>
+          <input type="text" class="form-control" id="nuevoNombre" placeholder="Ej: Juan Pérez">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Correo electrónico</label>
+          <input type="email" class="form-control" id="nuevoCorreo" placeholder="usuario@huaquillasfc.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Rol</label>
+          <select class="form-select" id="nuevoRol">
+            <option value="">Seleccionar rol...</option>
+            <option>Administrador</option>
+            <option>Editor</option>
+            <option>Visualizador</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Contraseña inicial</label>
+          <input type="password" class="form-control" placeholder="Contraseña temporal">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-brand" id="btnRegistrarUsuario">
+          <i class="bi bi-person-check-fill me-1"></i>Registrar Usuario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Sincronizar radio buttons de tema con el estado actual del localStorage
+  document.addEventListener('DOMContentLoaded', function () {
+    var temaActual = localStorage.getItem('theme');
+    if (temaActual === 'light') {
+      document.getElementById('temaClaro').checked = true;
+    } else {
+      document.getElementById('temaOscuro').checked = true;
+    }
+
+    document.getElementById('temaOscuro').addEventListener('change', function () {
+      document.body.classList.remove('theme-light');
+      localStorage.setItem('theme', 'dark');
+      var icon = document.getElementById('theme-icon');
+      if (icon) icon.className = 'bi bi-moon-fill';
+    });
+
+    document.getElementById('temaClaro').addEventListener('change', function () {
+      document.body.classList.add('theme-light');
+      localStorage.setItem('theme', 'light');
+      var icon = document.getElementById('theme-icon');
+      if (icon) icon.className = 'bi bi-sun-fill';
+    });
+
+    // Cerrar modal y mostrar alerta de éxito al registrar usuario
+    var btnRegistrar = document.getElementById('btnRegistrarUsuario');
+    if (btnRegistrar) {
+      btnRegistrar.addEventListener('click', function () {
+        var modal = bootstrap.Modal.getInstance(document.getElementById('modalUsuario'));
+        if (modal) modal.hide();
+        var alerta = document.getElementById('alertaUsuario');
+        alerta.classList.remove('d-none');
+        alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  });
+
+  /**
+   * loadPerfil: llama a ?api=profile y rellena los campos de perfil de usuario.
+   * Datos esperados: { identificacion, primer_nombre, primer_apellido, tipo }
+   */
+  async function loadPerfil() {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/app/controllers/api/users/index.php?api=profile', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (data && data.identificacion) {
+        document.getElementById('perfil-identificacion').value = data.identificacion || '—';
+        document.getElementById('perfil-nombre').value    = data.primer_nombre   || '—';
+        document.getElementById('perfil-apellido').value  = data.primer_apellido || '—';
+        document.getElementById('perfil-tipo').value      = data.tipo            || '—';
+      }
+    } catch (err) {
+      // Silencioso: los campos quedan con el placeholder
+    }
+  }
+
+  /**
+   * loadInstitucionConfig: llama a ?api=institucion y rellena nombre e imagen.
+   * Datos esperados: { nombre, logo }
+   */
+  async function loadInstitucionConfig() {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/app/controllers/api/users/index.php?api=institucion', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (data && data.nombre) {
+        document.getElementById('inst-nombre').value = data.nombre || '—';
+        if (data.logo) {
+          document.getElementById('inst-logo-container').innerHTML =
+            '<img src="' + data.logo + '" alt="Logo institución" style="max-height:60px;border-radius:8px;">';
+        }
+      }
+    } catch (err) {
+      // Silencioso
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    loadPerfil();
+    loadInstitucionConfig();
+  });
+</script>
+{% endblock %}
