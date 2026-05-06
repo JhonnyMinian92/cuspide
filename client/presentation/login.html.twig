@@ -141,7 +141,7 @@
 		        const encryptedPayload = await cifrarLogin(username, password);
 		
 		        // POST al endpoint de autenticación con el cuerpo cifrado
-		        const response = await fetch('/app/controllers/api/auth/index.php', {
+		        const response = await fetch(CONFIG.API_BASE_URL+'/app/controllers/api/auth/index.php', {
 		          method: 'POST',
 		          headers: { 'Content-Type': 'application/json' },
 		          body: JSON.stringify(encryptedPayload),
