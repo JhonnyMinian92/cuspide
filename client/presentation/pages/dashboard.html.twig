@@ -116,14 +116,8 @@
   }
 
   async function loadEstadisticas() {
-    const token = localStorage.getItem('token');
     try {
-      // Fetch al endpoint de estadísticas
-      const res = await fetch('/app/controllers/api/users/index.php?api=estadistica', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      const json = await res.json();
-      const data = json.data;
+      const data = await window.Cuspide.api.users('estadistica');
 
       // El endpoint actualmente devuelve [] — mostrar aviso y valores en 0
       if (Array.isArray(data) && data.length === 0) {

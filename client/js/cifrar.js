@@ -18,7 +18,8 @@ async function cifrar(textoPlano, llavePublicaPem = CUSPIDE_PUBLIC_KEY) {
   const cryptoKey = await window.crypto.subtle.importKey(
     'spki',
     binaryDer.buffer,
-    { name: 'RSA-OAEP', hash: 'SHA-256' },
+    // PHP usa OPENSSL_PKCS1_OAEP_PADDING, cuyo hash OAEP por defecto es SHA-1.
+    { name: 'RSA-OAEP', hash: 'SHA-1' },
     false,
     ['encrypt']
   );

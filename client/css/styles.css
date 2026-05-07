@@ -8,6 +8,7 @@
   --sidebar-active: #e8b84b;   /* Color item activo (dorado HFC) */
   --brand-color: #1a56db;      /* Color corporativo principal */
   --brand-hover: #1648c0;      /* Hover del color corporativo */
+  --topbar-height: 65px;
 }
 
 /* ==========================================
@@ -54,6 +55,15 @@
 .sidebar-brand {
   padding: 20px 16px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-logo-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
 .sidebar-brand .brand-name {
@@ -103,10 +113,43 @@ body.theme-light .main-content {
   position: sticky;
   top: 0;
   z-index: 900;
+  min-height: var(--topbar-height);
 }
 
 body.theme-light .topbar {
   background-color: #fff;
+}
+
+.page-heading {
+  max-width: 100%;
+}
+
+.page-heading-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.institution-chip {
+  min-width: 0;
+}
+
+.institution-chip-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+.institution-chip-name {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #e8b84b;
+  color: #1a2235;
 }
 
 /* ==========================================
@@ -208,6 +251,10 @@ body.theme-light .topbar {
   overflow: hidden;
 }
 
+.table {
+  min-width: 720px;
+}
+
 /* ==========================================
    CHARTS (SVG)
    ========================================== */
@@ -248,5 +295,34 @@ body.theme-light .topbar {
 
   .sidebar-overlay.show {
     display: block;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  .page-heading {
+    min-width: 0;
+  }
+
+  .page-heading-title {
+    font-size: 1rem;
+    max-width: 46vw;
+  }
+
+  .institution-chip-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .container-fluid {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .card-body {
+    padding: 1rem;
   }
 }

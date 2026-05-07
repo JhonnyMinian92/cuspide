@@ -15,18 +15,34 @@ $twig   = new \Twig\Environment($loader, [
 ]);
 
 // ── Routing ─────────────────────────────────────────────────────────────────
-// Strip query string and leading slash from the URI
-$uri = strtok($_SERVER['REQUEST_URI'], '?');
-$uri = '/' . trim($uri, '/');
+// Strip query string, decode URL chars and normalize leading slash.
+$uri = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/';
+$uri = '/' . trim(rawurldecode($uri), '/');
 
 $routes = [
     '/'             => 'login.html.twig',
     '/dashboard'    => 'pages/dashboard.html.twig',
+    '/panel'        => 'pages/dashboard.html.twig',
+    '/inicio'       => 'pages/dashboard.html.twig',
     '/alumnos'      => 'pages/alumnos.html.twig',
+    '/alumno'       => 'pages/alumnos.html.twig',
+    '/estudiantes'  => 'pages/alumnos.html.twig',
+    '/estudiante'   => 'pages/alumnos.html.twig',
     '/membresias'   => 'pages/membresias.html.twig',
+    '/membresia'    => 'pages/membresias.html.twig',
+    '/membresías'   => 'pages/membresias.html.twig',
+    '/membresía'    => 'pages/membresias.html.twig',
+    '/socios'       => 'pages/membresias.html.twig',
+    '/socio'        => 'pages/membresias.html.twig',
     '/inventario'   => 'pages/inventario.html.twig',
     '/categorias'   => 'pages/categorias.html.twig',
+    '/categoria'    => 'pages/categorias.html.twig',
+    '/categorías'   => 'pages/categorias.html.twig',
+    '/categoría'    => 'pages/categorias.html.twig',
     '/configuracion'=> 'pages/configuracion.html.twig',
+    '/configuración'=> 'pages/configuracion.html.twig',
+    '/ajustes'      => 'pages/configuracion.html.twig',
+    '/perfil'       => 'pages/configuracion.html.twig',
 ];
 
 if (isset($routes[$uri])) {

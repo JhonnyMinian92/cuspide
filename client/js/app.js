@@ -1,193 +1,206 @@
-/**
- * app.js — Lógica JS global del panel Huaquillas F.C.
- *
- * Gestiona la autenticación via JWT (localStorage) y las llamadas fetch
- * a los endpoints del backend:
- *   GET /app/controllers/api/users/index.php?api=profile    → perfil de usuario
- *   GET /app/controllers/api/users/index.php?api=institucion → datos de institución
- *   GET /app/controllers/api/users/index.php?api=menu        → menú dinámico
- *
- * El token JWT se gestiona 100% en el cliente (localStorage + fetch headers).
- * El backend NO almacena sesiones PHP.
- */
-
-/* ─────────────────────────────────────────────────────────────
-   AUTH
-───────────────────────────────────────────────────────────── */
+const FALLBACK_LOGO_URL = '/assets/logo/huaquillasfc.jpg';
 
 /**
- * checkAuth: verifica que existe un token en localStorage.
- * Si no hay token, redirige a la raíz (/) para que el router PHP
- * sirva el login.html.twig.
+ * app.js - comportamiento global del panel.
+ *
+ * Este archivo coordina UI compartida. Las llamadas HTTP viven en api.js para
+ * que las paginas no dupliquen rutas, headers ni manejo de token.
  */
+
 function checkAuth() {
-  if (!localStorage.getItem('token')) {
-    window.location.href = '/';
-  }
+  return window.Cuspide.auth.requireAuth();
 }
 
-/**
- * logout: elimina el token del localStorage y redirige al login.
- */
 function logout() {
-  localStorage.removeItem('token');
-  window.location.href = '/';
+  window.Cuspide.auth.logout();
 }
 
-/* ─────────────────────────────────────────────────────────────
-   FETCH HELPERS
-───────────────────────────────────────────────────────────── */
-
-/**
- * authFetch: wrapper sobre fetch que añade el header Authorization: Bearer <token>.
- * @param {string} url
- * @returns {Promise<Response>}
- */
-function authFetch(url) {
-  const token = localStorage.getItem('token');
-  return fetch(url, {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-}
-
-/* ─────────────────────────────────────────────────────────────
-   USER PROFILE — ?api=profile
-   Respuesta esperada: { identificacion, primer_nombre, primer_apellido, tipo }
-───────────────────────────────────────────────────────────── */
-
-/**
- * loadUserProfile: obtiene el perfil del usuario autenticado y actualiza
- * los elementos del sidebar (avatar, nombre) y del topbar.
- */
-async function loadUserProfile() {
-  try {
-    const res  = await authFetch(CONFIG.API_BASE_URL+'/app/controllers/api/users/index.php?api=profile');
-    const json = await res.json();
-    const data = json.data;
-
-    if (!data || !data.primer_nombre) return;
-
-    const fullName = (data.primer_nombre + ' ' + data.primer_apellido).trim();
-    const initial  = (data.primer_nombre[0] || 'U').toUpperCase();
-
-    // Sidebar footer
-    var sbUsername = document.getElementById('sidebar-username');
-    var sbAvatar   = document.getElementById('sidebar-avatar');
-    if (sbUsername) sbUsername.textContent = fullName;
-    if (sbAvatar)   sbAvatar.textContent   = initial;
-
-    // Topbar dropdown
-    var tbUsername = document.getElementById('topbar-username');
-    var tbAvatar   = document.getElementById('topbar-avatar');
-    if (tbUsername) tbUsername.textContent = fullName;
-    if (tbAvatar)   tbAvatar.textContent   = initial;
-
-  } catch (err) {
-    // Si el token expiró o el endpoint falla, ignorar silenciosamente
+function setText(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value;
   }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   INSTITUCIÓN — ?api=institucion
-   Respuesta esperada: { nombre, logo }
-───────────────────────────────────────────────────────────── */
+function safeInitial(value) {
+  return value && value.length > 0 ? value.charAt(0).toUpperCase() : 'U';
+}
 
-/**
- * loadInstitucion: obtiene los datos de la institución y actualiza
- * el sidebar (logo + nombre) y la badge del topbar.
- */
-async function loadInstitucion() {
-  try {
-    const res  = await authFetch(CONFIG.API_BASE_URL+'/app/controllers/api/users/index.php?api=institucion');
-    const json = await res.json();
-    const data = json.data;
+function normalizeRouteKey(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
-    if (!data || !data.nombre) return;
+function routeFromAlias(value) {
+  const key = normalizeRouteKey(value);
+  if (CONFIG.ROUTE_ALIASES[key]) {
+    return CONFIG.ROUTE_ALIASES[key];
+  }
 
-    // Sidebar: actualizar nombre
-    var sidebarNombre = document.getElementById('sidebar-institucion-nombre');
-    if (sidebarNombre) sidebarNombre.innerHTML = data.nombre;
+  if (key.includes('alumno') || key.includes('estudiante')) return '/alumnos';
+  if (key.includes('membres') || key.includes('socio')) return '/membresias';
+  if (key.includes('inventario') || key.includes('item')) return '/inventario';
+  if (key.includes('categoria')) return '/categorias';
+  if (key.includes('config') || key.includes('ajuste') || key.includes('perfil')) return '/configuracion';
+  if (key.includes('dashboard') || key.includes('panel') || key.includes('inicio')) return '/dashboard';
 
-    // Sidebar: actualizar logo (imagen o iniciales)
-    var sidebarLogoText = document.getElementById('sidebar-logo-text');
-    var sidebarLogoBox  = document.getElementById('sidebar-logo-box');
-    if (data.logo && sidebarLogoBox) {
-      sidebarLogoBox.innerHTML = '<img src="' + data.logo + '" alt="Logo" style="max-height:36px;max-width:36px;border-radius:6px;">';
-    } else if (sidebarLogoText) {
-      // Usar primeras letras del nombre como iniciales
-      var iniciales = data.nombre
-        .split(' ')
-        .slice(0, 2)
-        .map(function(w) { return w[0]; })
-        .join('')
-        .toUpperCase();
-      sidebarLogoText.textContent = iniciales;
+  return null;
+}
+
+function menuHref(item) {
+  const candidates = [
+    item.href,
+    item.path,
+    item.ruta,
+    item.tipo,
+    item.nemonico,
+    item.nombre,
+  ];
+
+  for (const candidate of candidates) {
+    const raw = String(candidate || '').trim();
+    if (!raw) continue;
+
+    if (raw.charAt(0) === '/') {
+      return routeFromAlias(raw.slice(1)) || raw;
     }
 
-    // Topbar: mostrar badge con el nombre de la institución
-    var badge = document.getElementById('topbar-institucion-badge');
+    const route = routeFromAlias(raw);
+    if (route) {
+      return route;
+    }
+  }
+
+  return '#';
+}
+
+function iconName(icon) {
+  const fallback = 'circle';
+  const value = String(icon || fallback).trim().toLowerCase().replace(/^bi-/, '');
+  return /^[a-z0-9-]+$/.test(value) ? value : fallback;
+}
+
+function assetUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return FALLBACK_LOGO_URL;
+  if (/^data:image\//i.test(raw)) return raw;
+  if (/^(https?:)?\/\//i.test(raw) || raw.charAt(0) === '/') return raw;
+  if (/^[\w.-]+\.(png|jpe?g|webp|gif|svg)$/i.test(raw)) return '/assets/logo/' + raw;
+  if (/\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(raw)) return '/' + raw.replace(/^\/+/, '');
+  return FALLBACK_LOGO_URL;
+}
+
+function setLogoImage(image, candidateUrl, altText) {
+  if (!image) return;
+
+  const nextUrl = assetUrl(candidateUrl);
+  image.alt = altText || 'Huaquillas F.C.';
+  image.onerror = function () {
+    image.onerror = null;
+    image.src = FALLBACK_LOGO_URL;
+  };
+
+  if (nextUrl === FALLBACK_LOGO_URL) {
+    image.src = FALLBACK_LOGO_URL;
+    return;
+  }
+
+  const probe = new Image();
+  probe.onload = function () {
+    image.src = nextUrl;
+  };
+  probe.onerror = function () {
+    image.src = FALLBACK_LOGO_URL;
+  };
+  probe.src = nextUrl;
+}
+
+function renderMenu(items) {
+  const menuEl = document.getElementById('sidebar-menu');
+  if (!menuEl || !Array.isArray(items) || items.length === 0) return;
+
+  const currentPath = routeFromAlias(window.location.pathname.slice(1)) || window.location.pathname;
+  menuEl.replaceChildren();
+
+  items
+    .slice()
+    .sort(function (a, b) {
+      return Number(a.orden || 0) - Number(b.orden || 0);
+    })
+    .forEach(function (item) {
+      const href = menuHref(item);
+      const link = document.createElement('a');
+      link.className = 'nav-link' + (currentPath === href ? ' active' : '');
+      link.href = href;
+
+      const icon = document.createElement('i');
+      icon.className = 'bi bi-' + iconName(item.icon) + ' me-2';
+
+      link.appendChild(icon);
+      link.append(document.createTextNode(String(item.nombre || 'Sin nombre')));
+
+      const li = document.createElement('li');
+      li.className = 'nav-item';
+      li.appendChild(link);
+      menuEl.appendChild(li);
+    });
+}
+
+async function loadUserProfile() {
+  try {
+    const data = await window.Cuspide.api.profile();
+    if (!data || !data.primer_nombre) return;
+
+    const fullName = [data.primer_nombre, data.primer_apellido].filter(Boolean).join(' ').trim();
+    const initial = safeInitial(data.primer_nombre);
+
+    setText('sidebar-username', fullName);
+    setText('sidebar-avatar', initial);
+    setText('topbar-username', fullName);
+    setText('topbar-avatar', initial);
+  } catch (error) {
+    // api.js redirige si el token ya no es valido.
+  }
+}
+
+async function loadInstitucion() {
+  try {
+    const data = await window.Cuspide.api.institucion();
+    if (!data || !data.nombre) return;
+
+    setText('sidebar-institucion-nombre', data.nombre);
+
+    const sidebarLogo = document.getElementById('sidebar-logo-img');
+    const topbarLogo = document.getElementById('topbar-institucion-logo');
+
+    setLogoImage(sidebarLogo, data.logo, data.nombre);
+    setLogoImage(topbarLogo, data.logo, data.nombre);
+
+    const badge = document.getElementById('topbar-institucion-badge');
     if (badge) {
       badge.textContent = data.nombre;
       badge.style.display = '';
     }
-
-  } catch (err) {
-    // Silencioso
+  } catch (error) {
+    // La UI mantiene los valores de respaldo renderizados por Twig.
   }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   MENÚ DINÁMICO — ?api=menu
-   Respuesta esperada: Array de { orden, nombre, icon, tipo }
-───────────────────────────────────────────────────────────── */
-
-/**
- * loadMenu: obtiene el menú dinámico del servidor y reemplaza el menú
- * estático del sidebar con los ítems devueltos por la API.
- * El campo `icon` debe ser un nombre de Bootstrap Icons (ej: "house-fill").
- * El campo `tipo` puede usarse como href para el enrutador PHP.
- */
 async function loadMenu() {
   try {
-    const res   = await authFetch(CONFIG.API_BASE_URL+'/app/controllers/api/users/index.php?api=menu');
-    const json  = await res.json();
-    const items = json.data;
-
-    if (!Array.isArray(items) || items.length === 0) return;
-
-    var menuEl = document.getElementById('sidebar-menu');
-    if (!menuEl) return;
-
-    // Determinar la ruta actual para marcar el ítem activo
-    var currentPath = window.location.pathname;
-
-    menuEl.innerHTML = items
-      .sort(function(a, b) { return a.orden - b.orden; })
-      .map(function(item) {
-        var href  = '/' + (item.tipo || '').toLowerCase();
-        var icon  = item.icon || 'circle';
-        var isActive = currentPath === href ? 'active' : '';
-        return '<li class="nav-item">' +
-          '<a class="nav-link ' + isActive + '" href="' + href + '">' +
-          '<i class="bi bi-' + icon + ' me-2"></i>' + item.nombre +
-          '</a></li>';
-      })
-      .join('');
-
-  } catch (err) {
-    // Si falla, se mantiene el menú estático del Twig
+    renderMenu(await window.Cuspide.api.menu());
+  } catch (error) {
+    // Si falla, queda el menu estatico del partial Twig.
   }
 }
 
-/* ─────────────────────────────────────────────────────────────
-   INICIALIZACIÓN
-───────────────────────────────────────────────────────────── */
-
 document.addEventListener('DOMContentLoaded', function () {
-  // Verificar autenticación antes de cargar cualquier dato
-  checkAuth();
+  if (!checkAuth()) return;
 
-  // Cargar datos del usuario, institución y menú en paralelo
   Promise.all([
     loadUserProfile(),
     loadInstitucion(),

@@ -21,20 +21,23 @@
 <div class="main-content">
 
   <!-- Topbar -->
-  <div class="topbar d-flex align-items-center justify-content-between">
-    <div class="d-flex align-items-center gap-3">
-      <button class="btn btn-sm btn-outline-secondary d-lg-none" onclick="toggleSidebar()">
+  <div class="topbar d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3 min-w-0 flex-grow-1">
+      <button class="btn btn-sm btn-outline-secondary d-lg-none flex-shrink-0" type="button" onclick="toggleSidebar()" aria-label="Abrir menú">
         <i class="bi bi-list fs-5"></i>
       </button>
-      <div>
-        <h5 class="mb-0 fw-bold">{% block page_title %}Panel{% endblock %}</h5>
+      <div class="page-heading min-w-0">
+        <h5 class="page-heading-title mb-0 fw-bold">{% block page_title %}Panel{% endblock %}</h5>
       </div>
       <!-- Nombre/logo de institución se carga vía JS fetch a ?api=institucion -->
-      <span class="badge" id="topbar-institucion-badge" style="background:#e8b84b;color:#1a2235;display:none;"></span>
+      <div class="institution-chip d-flex align-items-center gap-2 flex-shrink-0">
+        <img src="/assets/logo/huaquillasfc.jpg" class="institution-chip-logo" id="topbar-institucion-logo" alt="Huaquillas F.C." onerror="this.onerror=null;this.src='/assets/logo/huaquillasfc.jpg';">
+        <span class="badge rounded-pill institution-chip-name d-none d-sm-inline" id="topbar-institucion-badge">Huaquillas Fútbol Club</span>
+      </div>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="topbar-actions d-flex align-items-center gap-2 ms-auto">
       <!-- Botón toggle de tema -->
-      <button class="btn btn-sm btn-outline-secondary" onclick="toggleTheme()" title="Cambiar tema">
+      <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema">
         <i class="bi bi-moon-fill" id="theme-icon"></i>
       </button>
       <!-- Dropdown de usuario (nombre cargado via JS fetch a ?api=profile) -->
@@ -55,7 +58,7 @@
   </div>
 
   <!-- Contenido de la página -->
-  <div class="container-fluid p-4">
+  <div class="container-fluid px-3 px-lg-4 py-3 py-lg-4">
     {% block content %}{% endblock %}
   </div>
 
@@ -63,8 +66,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/client/js/theme.js"></script>
-<!-- app.js: autenticación, fetch de perfil, institución y menú dinámico -->
 <script src="/client/js/config.js"></script>
+<script src="/client/js/api.js"></script>
+<!-- app.js: autenticación, fetch de perfil, institución y menú dinámico -->
 <script src="/client/js/app.js"></script>
 {% block scripts %}{% endblock %}
 </body>
