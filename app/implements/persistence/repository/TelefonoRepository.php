@@ -57,4 +57,17 @@ class TelefonoRepository
 
     return null;
   }
+
+  public function findByPersonaId($personaId): array
+  {
+    $stmt = $this->db->prepare('SELECT * FROM telefonos WHERE persona = :personaId AND estado = 1');
+    $stmt->execute([':personaId' => $personaId]);
+    $telefonos = [];
+
+    while ($data = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      $telefonos[] = new Telefono($data['id'], $data['numero'], $data['operadora'], $data['persona'], $data['tipo'], $data['estado']);
+    }
+
+    return $telefonos;
+  }
 }

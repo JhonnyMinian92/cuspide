@@ -21,14 +21,18 @@ class EtniaRepository
   public function save(Etnia $etnia): Etnia
   {
     if ($etnia->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO etnias (nombre) VALUES (:nombre)");
-      $stmt->execute([':nombre' => $etnia->getNombre()]);
+      $stmt = $this->db->prepare("INSERT INTO etnias (nombre, nemonico) VALUES (:nombre, :nemonico)");
+      $stmt->execute([
+        ':nombre' => $etnia->getNombre(),
+        ':nemonico' => $etnia->getNemonico()
+      ]);
       $etnia->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE etnias SET nombre = :nombre WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE etnias SET nombre = :nombre, nemonico = :nemonico WHERE id = :id");
       $stmt->execute([
         ':id' => $etnia->getId(),
-        ':nombre' => $etnia->getNombre()
+        ':nombre' => $etnia->getNombre(),
+        ':nemonico' => $etnia->getNemonico()
       ]);
     }
 
@@ -42,9 +46,9 @@ class EtniaRepository
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
-      return new Etnia($row['id'], $row['nombre']);
+      return new Etnia($row['id'], $row['nombre'], $row['nemonico']);
     }
 
     return null;
-  } 
+  }
 }

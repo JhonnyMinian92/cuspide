@@ -58,7 +58,7 @@ class InstitucionRepository
 
   public function findById(int $id): ?Institucion
   {
-    $stmt = $this->db->prepare("SELECT * FROM instituciones WHERE id = :id");
+    $stmt = $this->db->prepare("SELECT * FROM instituciones WHERE id = :id AND estado = 1");
     $stmt->execute([':id' => $id]);
 
     $data = $stmt->fetch();

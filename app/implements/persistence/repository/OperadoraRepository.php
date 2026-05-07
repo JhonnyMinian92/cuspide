@@ -21,16 +21,18 @@ class OperadoraRepository
   public function save(Operadora $operadora): Operadora
   {
     if ($operadora->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO operadoras (nombre) VALUES (:nombre)");
+      $stmt = $this->db->prepare("INSERT INTO operadoras (nombre, nemonico) VALUES (:nombre, :nemonico)");
       $stmt->execute([
-        ':nombre' => $operadora->getNombre()
+        ':nombre' => $operadora->getNombre(),
+        ':nemonico' => $operadora->getNemonico()
       ]);
       $operadora->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE operadoras SET nombre = :nombre WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE operadoras SET nombre = :nombre, nemonico = :nemonico WHERE id = :id");
       $stmt->execute([
         ':id' => $operadora->getId(),
-        ':nombre' => $operadora->getNombre()
+        ':nombre' => $operadora->getNombre(),
+        ':nemonico' => $operadora->getNemonico()
       ]);
     }
 
@@ -44,7 +46,7 @@ class OperadoraRepository
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
-      return new Operadora($row['id'], $row['nombre']);
+      return new Operadora($row['id'], $row['nombre'], $row['nemonico']);
     }
 
     return null;

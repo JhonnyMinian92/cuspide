@@ -55,4 +55,17 @@ class CorreoRepository
 
     return null;
   }
+
+  public function findByPersonaId($personaId): array
+  {
+    $stmt = $this->db->prepare('SELECT * FROM correos WHERE persona = :personaId AND estado = 1');
+    $stmt->execute([':personaId' => $personaId]);
+    $correos = [];
+
+    while ($data = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      $correos[] = new Correo($data['id'], $data['email'], $data['tipo'], $data['persona'], $data['estado']);
+    }
+
+    return $correos;
+  }
 }

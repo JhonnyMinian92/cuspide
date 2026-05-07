@@ -8,11 +8,13 @@ class TipoContacto
 {
   private $id;
   private $nombre;
+  private $nemonico;
 
-  public function __construct($id, $nombre)
+  public function __construct($id, $nombre, $nemonico)
   {
     $this->id = $id;
     $this->nombre = $nombre;
+    $this->nemonico = $nemonico;
   }
 
   public function getId()
@@ -25,6 +27,11 @@ class TipoContacto
     return $this->nombre;
   }
 
+  public function getNemonico()
+  {
+    return $this->nemonico;
+  }
+
   public function setId($id)
   {
     $this->id = $id;
@@ -33,6 +40,11 @@ class TipoContacto
   public function setNombre($nombre)
   {
     $this->nombre = $nombre;
+  }
+
+  public function setNemonico($nemonico)
+  {
+    $this->nemonico = $nemonico;
   }
 
   public static function from($id): ?self
@@ -45,6 +57,6 @@ class TipoContacto
       }
     } catch (\Exception $e) {
     }
-    return new self($id, '');
+    return new self($id, '', '');
   }
 }

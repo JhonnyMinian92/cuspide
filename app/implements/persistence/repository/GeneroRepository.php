@@ -21,14 +21,18 @@ class GeneroRepository
   public function save(Genero $genero): Genero
   {
     if ($genero->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO generos (nombre) VALUES (:nombre)");
-      $stmt->execute([':nombre' => $genero->getNombre()]);
+      $stmt = $this->db->prepare("INSERT INTO generos (nombre, nemonico) VALUES (:nombre, :nemonico)");
+      $stmt->execute([
+        ':nombre' => $genero->getNombre(),
+        ':nemonico' => $genero->getNemonico()
+      ]);
       $genero->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE generos SET nombre = :nombre WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE generos SET nombre = :nombre, nemonico = :nemonico WHERE id = :id");
       $stmt->execute([
         ':id' => $genero->getId(),
-        ':nombre' => $genero->getNombre()
+        ':nombre' => $genero->getNombre(),
+        ':nemonico' => $genero->getNemonico()
       ]);
     }
 
@@ -42,7 +46,7 @@ class GeneroRepository
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
-      return new Genero($row['id'], $row['nombre']);
+      return new Genero($row['id'], $row['nombre'], $row['nemonico']);
     }
 
     return null;
