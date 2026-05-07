@@ -7,13 +7,13 @@ require_once __DIR__ . '/../repository/UserRepository.php';
 
 class User
 {
-  private $id;
-  private $username;
-  private $password;
-  private $type;
-  private $image;
+  private ?int $id;
+  private string $username;
+  private string $password;
+  private string $type;
+  private ?string $image;
 
-  public function __construct($id, $username, $password, $type, $image = null)
+  public function __construct(?int $id, string $username, string $password, mixed $type, ?string $image = null)
   {
     $this->id = $id;
     $this->username = $username;
@@ -22,57 +22,60 @@ class User
     $this->image = $image;
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getUsername()
+  public function getUsername(): string
   {
     return $this->username;
   }
-  public function getPassword()
+  public function getPassword(): string
   {
     return $this->password;
   }
 
-  public function getType()
+  public function getType(): ?TypeUser
   {
     return TypeUser::from($this->type);
   }
 
-  public function getImage()
+  public function getImage(): ?string
   {
     return $this->image;
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setUsername($username)
+  public function setUsername(string $username): void
   {
     $this->username = $username;
   }
 
-  public function setPassword($password)
+  public function setPassword(string $password): void
   {
     $this->password = $password;
   }
 
-  public function setType($type)
+  public function setType(mixed $type): void
   {
     $this->type = $this->extractId($type);
   }
 
-  public function setImage($image)
+  public function setImage(?string $image): void
   {
     $this->image = $image;
   }
 
-  private function extractId($value)
+  private function extractId(mixed $value): string
   {
+    if (is_object($value) && method_exists($value, 'getNemonico')) {
+      return $value->getNemonico();
+    }
     if (is_object($value) && method_exists($value, 'getId')) {
       return $value->getId();
     }

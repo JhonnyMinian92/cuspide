@@ -7,15 +7,15 @@ require_once __DIR__ . '/Estado.php';
 
 class Boton
 {
-  private $id;
-  private $orden;
-  private $nombre;
-  private $icono;
-  private $tipo;
-  private $color;
-  private $estado;
+  private ?int $id;
+  private ?int $orden;
+  private string $nombre;
+  private string $icono;
+  private string $tipo;
+  private ?string $color;
+  private int $estado;
 
-  public function __construct($id, $orden, $nombre, $icono, $tipo, $color, $estado)
+  public function __construct(?int $id, ?int $orden, string $nombre, string $icono, string $tipo, ?string $color, mixed $estado)
   {
     $this->id = $id;
     $this->orden = $orden;
@@ -26,77 +26,77 @@ class Boton
     $this->estado = $this->extractId($estado);
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getOrden()
+  public function getOrden(): ?int
   {
     return $this->orden;
   }
 
-  public function getNombre()
+  public function getNombre(): string
   {
     return $this->nombre;
   }
 
-  public function getIcono()
+  public function getIcono(): string
   {
     return $this->icono;
   }
 
-  public function getTipo()
+  public function getTipo(): string
   {
     return $this->tipo;
   }
 
-  public function getColor()
+  public function getColor(): ?string
   {
     return $this->color;
   }
 
-  public function getEstado()
+  public function getEstado(): ?Estado
   {
     return Estado::from($this->estado);
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setOrden($orden)
+  public function setOrden(?int $orden): void
   {
     $this->orden = $orden;
   }
 
-  public function setNombre($nombre)
+  public function setNombre(string $nombre): void
   {
     $this->nombre = $nombre;
   }
 
-  public function setIcono($icono)
+  public function setIcono(string $icono): void
   {
     $this->icono = $icono;
   }
 
-  public function setTipo($tipo)
+  public function setTipo(string $tipo): void
   {
     $this->tipo = $tipo;
   }
 
-  public function setColor($color)
+  public function setColor(?string $color): void
   {
     $this->color = $color;
   }
 
-  public function setEstado($estado)
+  public function setEstado(mixed $estado): void
   {
     $this->estado = $this->extractId($estado);
   }
 
-  private function extractId($value)
+  private function extractId(mixed $value): int
   {
     if (is_object($value) && method_exists($value, 'getId')) {
       return $value->getId();

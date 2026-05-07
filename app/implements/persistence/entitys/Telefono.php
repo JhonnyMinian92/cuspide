@@ -9,14 +9,14 @@ require_once __DIR__ . '/Estado.php';
 
 class Telefono
 {
-  private $id;
-  private $numero;
-  private $operadora;
-  private $persona;
-  private $tipo;
-  private $estado;
+  private ?int $id;
+  private string $numero;
+  private int $operadora;
+  private int $persona;
+  private int $tipo;
+  private int $estado;
 
-  public function __construct($id, $numero, $operadora, $persona, $tipo, $estado)
+  public function __construct(?int $id, string $numero, mixed $operadora, mixed $persona, mixed $tipo, mixed $estado)
   {
     $this->id = $id;
     $this->numero = $numero;
@@ -26,66 +26,66 @@ class Telefono
     $this->estado = $this->extractId($estado);
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getNumero()
+  public function getNumero(): string
   {
     return $this->numero;
   }
 
-  public function getOperadora()
+  public function getOperadora(): ?Operadora
   {
     return Operadora::from($this->operadora);
   }
 
-  public function getPersona()
+  public function getPersona(): ?Persona
   {
     return Persona::from($this->persona);
   }
 
-  public function getTipo()
+  public function getTipo(): ?TipoContacto
   {
     return TipoContacto::from($this->tipo);
   }
 
-  public function getEstado()
+  public function getEstado(): ?Estado
   {
     return Estado::from($this->estado);
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setNumero($numero)
+  public function setNumero(string $numero): void
   {
     $this->numero = $numero;
   }
 
-  public function setOperadora($operadora)
+  public function setOperadora(mixed $operadora): void
   {
     $this->operadora = $this->extractId($operadora);
   }
 
-  public function setPersona($persona)
+  public function setPersona(mixed $persona): void
   {
     $this->persona = $this->extractId($persona);
   }
 
-  public function setTipo($tipo)
+  public function setTipo(mixed $tipo): void
   {
     $this->tipo = $this->extractId($tipo);
   }
 
-  public function setEstado($estado)
+  public function setEstado(mixed $estado): void
   {
     $this->estado = $this->extractId($estado);
   }
-  private function extractId($value)
+  private function extractId(mixed $value): int
   {
     if (is_object($value) && method_exists($value, 'getId')) {
       return $value->getId();

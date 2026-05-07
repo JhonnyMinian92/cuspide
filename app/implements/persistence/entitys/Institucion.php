@@ -8,14 +8,14 @@ require_once __DIR__ . '/Estado.php';
 class Institucion
 {
 
-  private $id;
-  private $ruc;
-  private $razon_social;
-  private $nombre;
-  private $logotipo;
-  private $estado;
+  private ?int $id;
+  private ?string $ruc;
+  private string $razon_social;
+  private string $nombre;
+  private string $logotipo;
+  private int $estado;
 
-  public function __construct($id, $ruc, $razon_social, $nombre, $logotipo, $estado)
+  public function __construct(?int $id, ?string $ruc, string $razon_social, string $nombre, string $logotipo, mixed $estado)
   {
     $this->id = $id;
     $this->ruc = $ruc;
@@ -25,67 +25,67 @@ class Institucion
     $this->estado = $this->extractId($estado);
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getRuc()
+  public function getRuc(): ?string
   {
     return $this->ruc;
   }
 
-  public function getRazonSocial()
+  public function getRazonSocial(): string
   {
     return $this->razon_social;
   }
 
-  public function getNombre()
+  public function getNombre(): string
   {
     return $this->nombre;
   }
 
-  public function getLogotipo()
+  public function getLogotipo(): string
   {
     return $this->logotipo;
   }
 
-  public function getEstado()
+  public function getEstado(): ?Estado
   {
     return Estado::from($this->estado);
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setRuc($ruc)
+  public function setRuc(?string $ruc): void
   {
     $this->ruc = $ruc;
   }
 
-  public function setRazonSocial($razon_social)
+  public function setRazonSocial(string $razon_social): void
   {
     $this->razon_social = $razon_social;
   }
 
-  public function setNombre($nombre)
+  public function setNombre(string $nombre): void
   {
     $this->nombre = $nombre;
   }
 
-  public function setLogotipo($logotipo)
+  public function setLogotipo(string $logotipo): void
   {
     $this->logotipo = $logotipo;
   }
 
-  public function setEstado($estado)
+  public function setEstado(mixed $estado): void
   {
     $this->estado = $this->extractId($estado);
   }
 
-  private function extractId($value)
+  private function extractId(mixed $value): int
   {
     if (is_object($value) && method_exists($value, 'getId')) {
       return $value->getId();

@@ -11,7 +11,6 @@ require_once __DIR__ . '/../persistence/repository/TelefonoRepository.php';
 require_once __DIR__ . '/../persistence/repository/CorreoRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Entitys\Correo;
 use Interfaces\UserServiceInterface;
 use Repositories\PersonaInstitucionRepository;
 use Repositories\PersonaRepository;
@@ -181,7 +180,6 @@ final class UserServices implements UserServiceInterface
             ],
             //estructura para registros medicos, alergas, entre otros
             //tallas (S,M,L) (Calzado) (Altura, Peso, etc ....)
-            'alergias' => []
         ];
     }
 }

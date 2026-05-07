@@ -7,43 +7,43 @@ require_once __DIR__ . '/../repository/EtniaRepository.php';
 class Etnia
 {
 
-  private $id;
-  private $nombre;
-  private $nemonico;
+  private ?int $id;
+  private string $nombre;
+  private string $nemonico;
 
-  public function __construct($id, $nombre, $nemonico)
+  public function __construct(?int $id, string $nombre, string $nemonico)
   {
     $this->id = $id;
     $this->nombre = $nombre;
     $this->nemonico = $nemonico;
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getNombre()
+  public function getNombre(): string
   {
     return $this->nombre;
   }
 
-  public function getNemonico()
+  public function getNemonico(): string
   {
     return $this->nemonico;
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setNombre($nombre)
+  public function setNombre(string $nombre): void
   {
     $this->nombre = $nombre;
   }
 
-  public function setNemonico($nemonico)
+  public function setNemonico(string $nemonico): void
   {
     $this->nemonico = $nemonico;
   }

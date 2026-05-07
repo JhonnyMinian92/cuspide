@@ -12,21 +12,21 @@ require_once __DIR__ . '/User.php';
 class Persona
 {
 
-  private $id;
-  private $identificacion;
-  private $primer_nombre;
-  private $segundo_nombre;
-  private $primer_apellido;
-  private $segundo_apellido;
-  private $nacionalidad;
-  private $genero;
-  private $etnia;
-  private $fecha_nacimiento;
-  private $ciudad;
-  private $direccion;
-  private $user;
+  private ?int $id;
+  private string $identificacion;
+  private string $primer_nombre;
+  private ?string $segundo_nombre;
+  private string $primer_apellido;
+  private ?string $segundo_apellido;
+  private int $nacionalidad;
+  private int $genero;
+  private int $etnia;
+  private string $fecha_nacimiento;
+  private int $ciudad;
+  private string $direccion;
+  private int $user;
 
-  public function __construct($id, $identificacion, $primer_nombre, $segundo_nombre, $primer_apellido, $segundo_apellido, $nacionalidad, $genero, $etnia, $fecha_nacimiento, $ciudad, $direccion, $user)
+  public function __construct(?int $id, string $identificacion, string $primer_nombre, ?string $segundo_nombre, string $primer_apellido, ?string $segundo_apellido, mixed $nacionalidad, mixed $genero, mixed $etnia, string $fecha_nacimiento, mixed $ciudad, string $direccion, mixed $user)
   {
     $this->id = $id;
     $this->identificacion = $identificacion;
@@ -43,137 +43,137 @@ class Persona
     $this->user = $this->extractId($user);
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getIdentificacion()
+  public function getIdentificacion(): string
   {
     return $this->identificacion;
   }
 
-  public function getPrimerNombre()
+  public function getPrimerNombre(): string
   {
     return $this->primer_nombre;
   }
 
-  public function getSegundoNombre()
+  public function getSegundoNombre(): ?string
   {
     return $this->segundo_nombre;
   }
 
-  public function getPrimerApellido()
+  public function getPrimerApellido(): string
   {
     return $this->primer_apellido;
   }
 
-  public function getSegundoApellido()
+  public function getSegundoApellido(): ?string
   {
     return $this->segundo_apellido;
   }
 
-  public function getNacionalidad()
+  public function getNacionalidad(): ?Nacionalidad
   {
     return Nacionalidad::from($this->nacionalidad);
   }
 
-  public function getGenero()
+  public function getGenero(): ?Genero
   {
     return Genero::from($this->genero);
   }
 
-  public function getEtnia()
+  public function getEtnia(): ?Etnia
   {
     return Etnia::from($this->etnia);
   }
 
-  public function getFechaNacimiento()
+  public function getFechaNacimiento(): string
   {
     return $this->fecha_nacimiento;
   }
 
-  public function getCiudad()
+  public function getCiudad(): ?Ciudad
   {
     return Ciudad::from($this->ciudad);
   }
 
-  public function getDireccion()
+  public function getDireccion(): string
   {
     return $this->direccion;
   }
 
-  public function getUser()
+  public function getUser(): ?User
   {
     return User::from($this->user);
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setIdentificacion($identificacion)
+  public function setIdentificacion(string $identificacion): void
   {
     $this->identificacion = $identificacion;
   }
 
-  public function setPrimerNombre($primer_nombre)
+  public function setPrimerNombre(string $primer_nombre): void
   {
     $this->primer_nombre = $primer_nombre;
   }
 
-  public function setSegundoNombre($segundo_nombre)
+  public function setSegundoNombre(?string $segundo_nombre): void
   {
     $this->segundo_nombre = $segundo_nombre;
   }
 
-  public function setPrimerApellido($primer_apellido)
+  public function setPrimerApellido(string $primer_apellido): void
   {
     $this->primer_apellido = $primer_apellido;
   }
 
-  public function setSegundoApellido($segundo_apellido)
+  public function setSegundoApellido(?string $segundo_apellido): void
   {
     $this->segundo_apellido = $segundo_apellido;
   }
 
-  public function setNacionalidad($nacionalidad)
+  public function setNacionalidad(mixed $nacionalidad): void
   {
     $this->nacionalidad = $this->extractId($nacionalidad);
   }
 
-  public function setGenero($genero)
+  public function setGenero(mixed $genero): void
   {
     $this->genero = $this->extractId($genero);
   }
 
-  public function setEtnia($etnia)
+  public function setEtnia(mixed $etnia): void
   {
     $this->etnia = $this->extractId($etnia);
   }
 
-  public function setFechaNacimiento($fecha_nacimiento)
+  public function setFechaNacimiento(string $fecha_nacimiento): void
   {
     $this->fecha_nacimiento = $fecha_nacimiento;
   }
 
-  public function setCiudad($ciudad)
+  public function setCiudad(mixed $ciudad): void
   {
     $this->ciudad = $this->extractId($ciudad);
   }
 
-  public function setDireccion($direccion)
+  public function setDireccion(string $direccion): void
   {
     $this->direccion = $direccion;
   }
 
-  public function setUser($user)
+  public function setUser(mixed $user): void
   {
     $this->user = $this->extractId($user);
   }
 
-  private function extractId($value)
+  private function extractId(mixed $value): int
   {
     if (is_object($value) && method_exists($value, 'getId')) {
       return $value->getId();

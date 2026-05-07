@@ -6,12 +6,12 @@ require_once __DIR__ . '/../repository/CiudadRepository.php';
 
 class Ciudad
 {
-  private $id;
-  private $nemonico;
-  private $nombre;
-  private $provincia;
+  private ?int $id;
+  private string $nemonico;
+  private string $nombre;
+  private string $provincia;
 
-  public function __construct($id, $nemonico, $nombre, $provincia)
+  public function __construct(?int $id, string $nemonico, string $nombre, string $provincia)
   {
     $this->id = $id;
     $this->nemonico = $nemonico;
@@ -19,42 +19,42 @@ class Ciudad
     $this->provincia = $provincia;
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getNemonico()
+  public function getNemonico(): string
   {
     return $this->nemonico;
   }
 
-  public function getNombre()
+  public function getNombre(): string
   {
     return $this->nombre;
   }
 
-  public function getProvincia()
+  public function getProvincia(): string
   {
     return $this->provincia;
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setNemonico($nemonico)
+  public function setNemonico(string $nemonico): void
   {
     $this->nemonico = $nemonico;
   }
 
-  public function setNombre($nombre)
+  public function setNombre(string $nombre): void
   {
     $this->nombre = $nombre;
   }
 
-  public function setProvincia($provincia)
+  public function setProvincia(string $provincia): void
   {
     $this->provincia = $provincia;
   }

@@ -9,13 +9,13 @@ require_once __DIR__ . '/Estado.php';
 
 class PersonaInstitucion
 {
-  private $id;
-  private $id_persona;
-  private $id_institucion;
-  private $tipo;
-  private $estado;
+  private ?int $id;
+  private int $id_persona;
+  private int $id_institucion;
+  private int $tipo;
+  private int $estado;
 
-  public function __construct($id, $id_persona, $id_institucion, $tipo, $estado)
+  public function __construct(?int $id, mixed $id_persona, mixed $id_institucion, mixed $tipo, mixed $estado)
   {
     $this->id = $id;
     $this->id_persona = $this->extractId($id_persona);
@@ -24,57 +24,57 @@ class PersonaInstitucion
     $this->estado = $this->extractId($estado);
   }
 
-  public function getId()
+  public function getId(): ?int
   {
     return $this->id;
   }
 
-  public function getIdPersona()
+  public function getIdPersona(): ?Persona
   {
     return Persona::from($this->id_persona);
   }
 
-  public function getIdInstitucion()
+  public function getIdInstitucion(): ?Institucion
   {
     return Institucion::from($this->id_institucion);
   }
 
-  public function getTipo()
+  public function getTipo(): ?TipoPersona
   {
     return TipoPersona::from($this->tipo);
   }
 
-  public function getEstado()
+  public function getEstado(): ?Estado
   {
     return Estado::from($this->estado);
   }
 
-  public function setId($id)
+  public function setId(?int $id): void
   {
     $this->id = $id;
   }
 
-  public function setIdPersona($id_persona)
+  public function setIdPersona(mixed $id_persona): void
   {
     $this->id_persona = $this->extractId($id_persona);
   }
 
-  public function setIdInstitucion($id_institucion)
+  public function setIdInstitucion(mixed $id_institucion): void
   {
     $this->id_institucion = $this->extractId($id_institucion);
   }
 
-  public function setTipo($tipo)
+  public function setTipo(mixed $tipo): void
   {
     $this->tipo = $this->extractId($tipo);
   }
 
-  public function setEstado($estado)
+  public function setEstado(mixed $estado): void
   {
     $this->estado = $this->extractId($estado);
   }
 
-  private function extractId($value)
+  private function extractId(mixed $value): int
   {
     if (is_object($value) && method_exists($value, 'getId')) {
       return $value->getId();
