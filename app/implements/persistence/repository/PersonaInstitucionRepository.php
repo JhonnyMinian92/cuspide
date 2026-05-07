@@ -44,7 +44,7 @@ class PersonaInstitucionRepository
 
   public function findByPersonaId(int $personaId): ?PersonaInstitucion
   {
-    $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id_persona = :id_persona ORDER BY id ASC LIMIT 1');
+    $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id_persona = :id_persona AND estado = 1 ORDER BY id ASC LIMIT 1');
     $stmt->bindParam(':id_persona', $personaId, PDO::PARAM_INT);
     $stmt->execute();
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -58,7 +58,7 @@ class PersonaInstitucionRepository
 
   public function findById($id): ?PersonaInstitucion
   {
-    $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id = :id');
+    $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id = :id AND estado = 1');
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
     $stmt->execute();
     $result = $stmt->fetch(PDO::FETCH_ASSOC);

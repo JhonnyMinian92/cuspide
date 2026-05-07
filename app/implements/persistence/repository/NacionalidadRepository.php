@@ -22,14 +22,18 @@ class NacionalidadRepository
   public function save(Nacionalidad $nacionalidad): Nacionalidad
   {
     if ($nacionalidad->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO nacionalidades (nombre) VALUES (:nombre)");
-      $stmt->execute([':nombre' => $nacionalidad->getNombre()]);
+      $stmt = $this->db->prepare("INSERT INTO nacionalidades (nombre, nemonico) VALUES (:nombre, :nemonico)");
+      $stmt->execute([
+        ':nombre' => $nacionalidad->getNombre(),
+        ':nemonico' => $nacionalidad->getNemonico()
+      ]);
       $nacionalidad->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE nacionalidades SET nombre = :nombre WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE nacionalidades SET nombre = :nombre, nemonico = :nemonico WHERE id = :id");
       $stmt->execute([
         ':id' => $nacionalidad->getId(),
-        ':nombre' => $nacionalidad->getNombre()
+        ':nombre' => $nacionalidad->getNombre(),
+        ':nemonico' => $nacionalidad->getNemonico()
       ]);
     }
 
@@ -43,7 +47,7 @@ class NacionalidadRepository
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
-      return new Nacionalidad($row['id'], $row['nombre']);
+      return new Nacionalidad($row['id'], $row['nombre'], $row['nemonico']);
     }
 
     return null;

@@ -7,18 +7,16 @@ namespace Services;
 require_once __DIR__ . '/../interfaces/UserServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
-require_once __DIR__ . '/../persistence/repository/InstitucionRepository.php';
-require_once __DIR__ . '/../persistence/repository/BotonRepository.php';
-require_once __DIR__ . '/../persistence/repository/BotonUserRepository.php';
-require_once __DIR__ . '/../persistence/repository/UserRepository.php';
+require_once __DIR__ . '/../persistence/repository/TelefonoRepository.php';
+require_once __DIR__ . '/../persistence/repository/CorreoRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
+use Entitys\Correo;
 use Interfaces\UserServiceInterface;
-use Repositories\BotonUserRepository;
-use Repositories\InstitucionRepository;
 use Repositories\PersonaInstitucionRepository;
 use Repositories\PersonaRepository;
-use Repositories\UserRepository;
+use Repositories\TelefonoRepository;
+use Repositories\CorreoRepository;
 use RuntimeException;
 use Utils\Token;
 
@@ -66,15 +64,13 @@ final class UserServices implements UserServiceInterface
         }
 
         return match ($resource) {
-            'profile' => $this->fetchProfile($userId),
-            'institucion' => $this->fetchInstitucion($userId),
-            'menu' => $this->fetchMenu($userId),
-            'estadistica' => [],
+            'find' => $this->fetchFindPerson($userId),
+            'profile' => $this->fetchInfoPerson($userId),
             default => throw new RuntimeException('Ruta de API no soportada: ' . (string) $resource, 404),
         };
     }
 
-    private function fetchProfile(int $userId): array
+    private function fetchFindPerson(int $userId): array
     {
         $persona = (new PersonaRepository())->findByUserId($userId);
         if ($persona === null) {
@@ -91,13 +87,6 @@ final class UserServices implements UserServiceInterface
                 : (string) $tipoPersona;
         }
 
-        if ($tipo === '') {
-            $user = (new UserRepository())->findById($userId);
-            if ($user !== null) {
-                $tipo = (string) $user->getType()->getNombre();
-            }
-        }
-
         return [
             'identificacion' => (string) $persona->getIdentificacion(),
             'primer_nombre' => (string) $persona->getPrimerNombre(),
@@ -106,56 +95,93 @@ final class UserServices implements UserServiceInterface
         ];
     }
 
-    private function fetchInstitucion(int $userId): array
+    private function fetchInfoPerson(int $userId): array
     {
         $persona = (new PersonaRepository())->findByUserId($userId);
         if ($persona === null) {
-            throw new RuntimeException('No se encontró persona del usuario autenticado.', 404);
+            throw new RuntimeException('No se encontró perfil para el usuario autenticado.', 404);
         }
 
         $personaInstitucion = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
-        if ($personaInstitucion === null) {
-            throw new RuntimeException('No se encontró institución asociada.', 404);
+
+        $nemonicoTipo = '';
+        $ruc = '';
+        if ($personaInstitucion !== null) {
+            $tipoPersona = $personaInstitucion->getTipo();
+            $nemonicoTipo = is_object($tipoPersona) && method_exists($tipoPersona, 'getNemonico')
+                ? (string) $tipoPersona->getNemonico()
+                : (string) $tipoPersona;
+
+            $institucion = $personaInstitucion->getIdInstitucion();
+            $ruc = is_object($institucion) && method_exists($institucion, 'getRuc')
+                ? (string) $institucion->getRuc()
+                : '';
         }
 
-        $idInstitucion = $personaInstitucion->getIdInstitucion();
-        if (is_object($idInstitucion)) {
-            $institucionId = (int) $idInstitucion->getId();
-        } else {
-            $institucionId = (int) $idInstitucion;
+        $nacionalidad = $persona->getNacionalidad();
+        $nemonicoNacionalidad = is_object($nacionalidad) && method_exists($nacionalidad, 'getNemonico') ?
+            (string) $nacionalidad->getNemonico() : (string) $nacionalidad;
+
+        $genero = $persona->getGenero();
+        $nemonicoGenero = is_object($genero) && method_exists($genero, 'getNemonico') ?
+            (string) $genero->getNemonico() : (string) $genero;
+
+        $etnia = $persona->getEtnia();
+        $nemonicoEtnia = is_object($etnia) && method_exists($etnia, 'getNemonico') ?
+            (string) $etnia->getNemonico() : (string) $etnia;
+
+        $ciudad = $persona->getCiudad();
+        $nemonicoCiudad = is_object($ciudad) && method_exists($ciudad, 'getNemonico') ?
+            (string) $ciudad->getNemonico() : (string) $ciudad;
+
+        // OBTENER TELEFONOS
+        $telefonos = (new TelefonoRepository())->findByPersonaId((int) $persona->getId());
+        $telefonosData = [];
+        foreach ($telefonos as $telefono) {
+            $telefonosData[] = [
+                'numero' => (string) $telefono->getNumero(),
+                'operadora' => is_object($telefono->getOperadora()) && method_exists($telefono->getOperadora(), 'getNemonico')
+                    ? (string) $telefono->getOperadora()->getNemonico()
+                    : (string) $telefono->getOperadora(),
+                'tipo' => is_object($telefono->getTipo()) && method_exists($telefono->getTipo(), 'getNemonico')
+                    ? (string) $telefono->getTipo()->getNemonico()
+                    : (string) $telefono->getTipo()
+            ];
         }
 
-        $institucion = (new InstitucionRepository())->findById($institucionId);
-        if ($institucion === null) {
-            throw new RuntimeException('No se encontró institución.', 404);
+        // OBTENER CORREOS
+        $correos = (new CorreoRepository())->findByPersonaId((int) $persona->getId());
+        $correosData = [];
+        foreach ($correos as $correo) {
+            $correosData[] = [
+                'email' => (string) $correo->getEmail(),
+                'tipo' => is_object($telefono->getTipo()) && method_exists($telefono->getTipo(), 'getNemonico')
+                    ? (string) $telefono->getTipo()->getNemonico()
+                    : (string) $telefono->getTipo()
+            ];
         }
 
         return [
-            'nombre' => (string) $institucion->getNombre(),
-            'logo' => (string) $institucion->getLogotipo(),
+            'identificacion' => (string) $persona->getIdentificacion(),
+            'primer_nombre' => (string) $persona->getPrimerNombre(),
+            'segundo_nombre' => (string) $persona->getSegundoNombre(),
+            'primer_apellido' => (string) $persona->getPrimerApellido(),
+            'segundo_apellido' => (string) $persona->getSegundoApellido(),
+            'tipo' => $nemonicoTipo,
+            'empresa' => $ruc,
+            'nacionalidad' => $nemonicoNacionalidad,
+            'genero' => $nemonicoGenero,
+            'etnia' => $nemonicoEtnia,
+            'fecha_nacimiento' => (string) $persona->getFechaNacimiento(),
+            'ciudad' => $nemonicoCiudad,
+            'direccion' => (string) $persona->getDireccion(),
+            'contactos' => [
+                'telefonos' => $telefonosData,
+                'correos' => $correosData
+            ],
+            //estructura para registros medicos, alergas, entre otros
+            //tallas (S,M,L) (Calzado) (Altura, Peso, etc ....)
+            'alergias' => []
         ];
-    }
-
-    private function fetchMenu(int $userId): array
-    {
-        $user = (new UserRepository())->findById($userId);
-        if ($user === null) {
-            throw new RuntimeException('No se encontró usuario autenticado.', 404);
-        }
-
-        $botonesUser = (new BotonUserRepository())->findByTypeUser((string) $user->getType()->getNemonico());
-        $menu = [];
-        foreach ($botonesUser as $botonUser) {
-            $boton = $botonUser->getBoton();
-            $menu[] = [
-                'orden' => (int) $boton->getOrden(),
-                'nombre' => (string) $boton->getNombre(),
-                'icon' => (string) $boton->getIcono(),
-                'tipo' => (string) $boton->getTipo(),
-            ];
-        }
-        usort($menu, fn(array $a, array $b): int => $a['orden'] <=> $b['orden']);
-
-        return $menu;
     }
 }

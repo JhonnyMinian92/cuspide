@@ -21,16 +21,18 @@ class TipoContactoRepository
   public function save(TipoContacto $tipoContacto): TipoContacto
   {
     if ($tipoContacto->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO tipos_contacto (nombre) VALUES (:nombre)");
+      $stmt = $this->db->prepare("INSERT INTO tipos_contacto (nombre, nemonico) VALUES (:nombre, :nemonico)");
       $stmt->execute([
-        ':nombre' => $tipoContacto->getNombre()
+        ':nombre' => $tipoContacto->getNombre(),
+        ':nemonico' => $tipoContacto->getNemonico()
       ]);
       $tipoContacto->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE tipos_contacto SET nombre = :nombre WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE tipos_contacto SET nombre = :nombre, nemonico = :nemonico WHERE id = :id");
       $stmt->execute([
         ':id' => $tipoContacto->getId(),
-        ':nombre' => $tipoContacto->getNombre()
+        ':nombre' => $tipoContacto->getNombre(),
+        ':nemonico' => $tipoContacto->getNemonico()
       ]);
     }
 
@@ -44,7 +46,7 @@ class TipoContactoRepository
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
-      return new TipoContacto($row['id'], $row['nombre']);
+      return new TipoContacto($row['id'], $row['nombre'], $row['nemonico']);
     }
 
     return null;
