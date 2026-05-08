@@ -3,9 +3,10 @@
  *
  * Gestiona la autenticación via JWT (localStorage) y las llamadas fetch
  * a los endpoints del backend usando CONFIG (config.js):
- *   GET CONFIG.ENDPOINTS.users   ?api=profile    → perfil de usuario
- *   GET CONFIG.ENDPOINTS.company ?api=institucion → datos de institución
- *   GET CONFIG.ENDPOINTS.buttom  ?api=menu        → menú dinámico por rol
+ *   GET CONFIG.ENDPOINTS.users   ?api=find     → datos básicos del usuario (incluye tipo)
+ *   GET CONFIG.ENDPOINTS.users   ?api=profile&tipo=XXXX → perfil completo
+ *   GET CONFIG.ENDPOINTS.company ?api=find     → datos de institución (sin auth)
+ *   GET CONFIG.ENDPOINTS.buttom  ?api=menu      → menú dinámico por rol
  *
  * El token JWT se gestiona 100% en el cliente (localStorage + fetch headers).
  * El backend NO almacena sesiones PHP.
@@ -32,11 +33,12 @@ function logout() {
 
 /**
  * authGet: realiza un GET autenticado a un endpoint con un parámetro ?api=
- * Extrae automáticamente payload.data del wrapper { status, data, message }.
+ * Normaliza la URL para evitar doble slash y extrae payload.data automáticamente.
  */
 async function authGet(endpoint, apiParam) {
   const token = localStorage.getItem(CONFIG.STORAGE_KEYS.token);
-  const url   = CONFIG.API_BASE_URL + endpoint + '?api=' + encodeURIComponent(apiParam);
+  const base  = (CONFIG.API_BASE_URL + endpoint).replace(/\/+$/, '');
+  const url   = base + '/?api=' + encodeURIComponent(apiParam);
 
   const res  = await fetch(url, {
     headers: { 'Authorization': 'Bearer ' + token }
@@ -52,18 +54,33 @@ async function authGet(endpoint, apiParam) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   USER PROFILE — users ?api=profile
-   Respuesta esperada: { identificacion, primer_nombre, primer_apellido, tipo }
+   USER PROFILE — 2 pasos: users ?api=find → users ?api=profile&tipo=XXXX
+   Respuesta esperada paso 1: { tipo, ... }
+   Respuesta esperada paso 2: { primer_nombre, primer_apellido, ... }
 ───────────────────────────────────────────────────────────── */
 
 async function loadUserProfile() {
   try {
-    const data = await authGet(CONFIG.ENDPOINTS.users, 'profile');
+    // Paso 1: obtener datos básicos del usuario (incluye tipo)
+    const findData = await authGet(CONFIG.ENDPOINTS.users, 'find');
+    if (!findData) return;
 
-    if (!data || !data.primer_nombre) return;
+    const tipo = findData.tipo || findData.TipoPersona || findData.tipoPersona || '';
 
-    const fullName = (data.primer_nombre + ' ' + (data.primer_apellido || '')).trim();
-    const initial  = (data.primer_nombre[0] || 'U').toUpperCase();
+    // Paso 2: obtener perfil completo con el tipo dinámico
+    const token = localStorage.getItem(CONFIG.STORAGE_KEYS.token);
+    const base  = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.users).replace(/\/+$/, '');
+    const url   = base + '/?api=profile' + (tipo ? '&tipo=' + encodeURIComponent(tipo) : '');
+    const res   = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    const json  = await res.json();
+    const data  = json.data !== undefined ? json.data : json;
+
+    if (!data || (!data.primer_nombre && !data.nombre)) return;
+
+    const nombre   = data.primer_nombre || data.nombre || '';
+    const apellido = data.primer_apellido || data.apellido || '';
+    const fullName = (nombre + ' ' + apellido).trim();
+    const initial  = (fullName.charAt(0) || 'U').toUpperCase();
 
     var sbUsername = document.getElementById('sidebar-username');
     var sbAvatar   = document.getElementById('sidebar-avatar');
@@ -81,13 +98,18 @@ async function loadUserProfile() {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   INSTITUCIÓN — company ?api=institucion
+   INSTITUCIÓN — company ?api=find (sin Authorization header)
    Respuesta esperada: { nombre, logo }
 ───────────────────────────────────────────────────────────── */
 
 async function loadInstitucion() {
   try {
-    const data = await authGet(CONFIG.ENDPOINTS.company, 'institucion');
+    // company/?api=find no requiere auth según el back
+    const base = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.company).replace(/\/+$/, '');
+    const url  = base + '/?api=find';
+    const res  = await fetch(url);
+    const json = await res.json();
+    const data = json.data !== undefined ? json.data : json;
 
     if (!data || !data.nombre) return;
 
@@ -101,8 +123,8 @@ async function loadInstitucion() {
 
     var badge = document.getElementById('topbar-institucion-badge');
     if (badge) {
-      badge.textContent    = data.nombre;
-      badge.style.display  = '';
+      badge.textContent   = data.nombre;
+      badge.style.display = '';
     }
 
   } catch (err) {

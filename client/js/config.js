@@ -38,10 +38,10 @@
       theme: 'theme',
     }),
     ENDPOINTS: Object.freeze({
-      auth:       '/app/controllers/api/auth/index.php',
-      users:      '/app/controllers/api/users/index.php',
-      company:    '/app/controllers/api/company/index.php',
-      buttom:     '/app/controllers/api/buttom/index.php',
+      auth:       '/app/controllers/api/auth/',
+      users:      '/app/controllers/api/users/',
+      company:    '/app/controllers/api/company/',
+      buttom:     '/app/controllers/api/buttom/',
     }),
   });
 })(window);
