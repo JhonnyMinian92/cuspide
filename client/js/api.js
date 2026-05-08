@@ -125,7 +125,22 @@
   };
 
   const userResource = function (resource) {
-    return request(CONFIG.ENDPOINTS.users + '?api=' + encodeURIComponent(resource), {
+    const base = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.users).replace(/\/+$/, '');
+    return request(base + '/?api=' + encodeURIComponent(resource), {
+      auth: true,
+    });
+  };
+
+  const companyResource = function (resource) {
+    const base = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.company).replace(/\/+$/, '');
+    return request(base + '/?api=' + encodeURIComponent(resource), {
+      auth: false,
+    });
+  };
+
+  const buttomResource = function (resource) {
+    const base = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.buttom).replace(/\/+$/, '');
+    return request(base + '/?api=' + encodeURIComponent(resource), {
       auth: true,
     });
   };
@@ -168,10 +183,10 @@
       return userResource('profile');
     },
     institucion: function () {
-      return userResource('institucion');
+      return companyResource('find');
     },
     menu: function () {
-      return userResource('menu');
+      return buttomResource('menu');
     },
   };
   window.Cuspide.auth = {
