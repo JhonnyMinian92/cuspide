@@ -1,21 +1,216 @@
 /* ==========================================
-   VARIABLES DE TEMAS (Sidebar + Logo)
-   Cambia los valores hex para personalizar
+   VARIABLES DE TEMAS
+   Dark por defecto / Light con body.theme-light
    ========================================== */
 :root {
-  --sidebar-bg: #1a2235;       /* Fondo sidebar tema oscuro */
-  --sidebar-text: #c8d3e0;     /* Texto sidebar tema oscuro */
-  --sidebar-active: #e8b84b;   /* Color item activo (dorado HFC) */
-  --brand-color: #1a56db;      /* Color corporativo principal */
-  --brand-hover: #1648c0;      /* Hover del color corporativo */
+  color-scheme: dark;
+
   --topbar-height: 65px;
+
+  /* Base dark */
+  --app-bg: #101827;
+  --app-bg-soft: #162033;
+  --app-surface: #1b263b;
+  --app-surface-soft: #22304a;
+  --app-surface-hover: #283754;
+
+  --app-border: rgba(148, 163, 184, 0.18);
+  --app-border-strong: rgba(232, 184, 75, 0.32);
+
+  --app-text: #eef2f7;
+  --app-text-soft: #cbd5e1;
+  --app-text-muted: #94a3b8;
+  --app-text-faint: #64748b;
+
+  /* Marca */
+  --brand-color: #e8b84b;
+  --brand-hover: #f0c96b;
+  --brand-text: #1a2235;
+
+  /* Sidebar */
+  --sidebar-bg: #1a2235;
+  --sidebar-bg-soft: #111827;
+  --sidebar-text: #c8d3e0;
+  --sidebar-active: #e8b84b;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+
+  /* Componentes */
+  --topbar-bg: rgba(27, 38, 59, 0.94);
+  --topbar-border: rgba(148, 163, 184, 0.16);
+
+  --card-bg: #1b263b;
+  --card-bg-soft: #22304a;
+  --card-border: rgba(148, 163, 184, 0.16);
+  --card-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+
+  --table-bg: #1b263b;
+  --table-head-bg: #22304a;
+  --table-border: rgba(148, 163, 184, 0.14);
+  --table-hover: rgba(232, 184, 75, 0.08);
+
+  --input-bg: #121c2e;
+  --input-border: rgba(148, 163, 184, 0.28);
+  --input-focus: rgba(232, 184, 75, 0.72);
+  --input-placeholder: #718096;
+
+  --dropdown-bg: #1b263b;
+  --modal-bg: #1b263b;
+
+  --success-bg: rgba(34, 197, 94, 0.15);
+  --success-text: #86efac;
+  --success-border: rgba(34, 197, 94, 0.28);
+
+  --warning-bg: rgba(245, 158, 11, 0.16);
+  --warning-text: #facc15;
+  --warning-border: rgba(245, 158, 11, 0.30);
+
+  --danger-bg: rgba(239, 68, 68, 0.16);
+  --danger-text: #fca5a5;
+  --danger-border: rgba(239, 68, 68, 0.30);
+
+  --info-bg: rgba(59, 130, 246, 0.16);
+  --info-text: #93c5fd;
+  --info-border: rgba(59, 130, 246, 0.30);
+}
+
+/* Tema Claro */
+body.theme-light {
+  color-scheme: light;
+
+  --app-bg: #f4f6fb;
+  --app-bg-soft: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8fafc;
+  --app-surface-hover: #f1f5f9;
+
+  --app-border: rgba(15, 23, 42, 0.10);
+  --app-border-strong: rgba(26, 86, 219, 0.22);
+
+  --app-text: #172033;
+  --app-text-soft: #334155;
+  --app-text-muted: #64748b;
+  --app-text-faint: #94a3b8;
+
+  --brand-color: #1a56db;
+  --brand-hover: #1648c0;
+  --brand-text: #ffffff;
+
+  --sidebar-bg: #f0f4f8;
+  --sidebar-bg-soft: #ffffff;
+  --sidebar-text: #2d3748;
+  --sidebar-active: #e8b84b;
+  --sidebar-border: rgba(15, 23, 42, 0.10);
+
+  --topbar-bg: #ffffff;
+  --topbar-border: #e2e8f0;
+
+  --card-bg: #ffffff;
+  --card-bg-soft: #f8fafc;
+  --card-border: rgba(15, 23, 42, 0.10);
+  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+
+  --table-bg: #ffffff;
+  --table-head-bg: #f8fafc;
+  --table-border: rgba(15, 23, 42, 0.10);
+  --table-hover: rgba(26, 86, 219, 0.05);
+
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.16);
+  --input-focus: rgba(26, 86, 219, 0.55);
+  --input-placeholder: #94a3b8;
+
+  --dropdown-bg: #ffffff;
+  --modal-bg: #ffffff;
+
+  --success-bg: #dcfce7;
+  --success-text: #166534;
+  --success-border: #bbf7d0;
+
+  --warning-bg: #fef3c7;
+  --warning-text: #92400e;
+  --warning-border: #fde68a;
+
+  --danger-bg: #fee2e2;
+  --danger-text: #991b1b;
+  --danger-border: #fecaca;
+
+  --info-bg: #dbeafe;
+  --info-text: #1e40af;
+  --info-border: #bfdbfe;
+}
+
+/* ==========================================
+   BASE
+   ========================================== */
+html,
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(232, 184, 75, 0.12), transparent 34rem),
+    linear-gradient(135deg, var(--app-bg) 0%, var(--app-bg-soft) 100%);
+  color: var(--app-text);
+}
+
+body.theme-light {
+  background:
+    radial-gradient(circle at top left, rgba(26, 86, 219, 0.08), transparent 34rem),
+    linear-gradient(135deg, var(--app-bg) 0%, var(--app-bg-soft) 100%);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+a {
+  color: var(--brand-color);
+}
+
+a:hover {
+  color: var(--brand-hover);
+}
+
+/* Textos Bootstrap */
+.text-dark,
+.text-body,
+.text-black {
+  color: var(--app-text) !important;
+}
+
+.text-muted,
+.form-text,
+small,
+.small {
+  color: var(--app-text-muted) !important;
+}
+
+.fw-bold,
+.fw-semibold,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label,
+.form-label {
+  color: var(--app-text);
 }
 
 /* ==========================================
    SIDEBAR
    ========================================== */
 .sidebar {
-  background-color: var(--sidebar-bg);
+  background:
+    radial-gradient(circle at top left, rgba(232, 184, 75, 0.12), transparent 16rem),
+    linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg-soft) 100%);
   color: var(--sidebar-text);
   min-height: 100vh;
   width: 260px;
@@ -25,20 +220,27 @@
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--sidebar-border);
   transition: background-color 0.3s ease;
 }
 
 .sidebar .nav-link {
   color: var(--sidebar-text);
-  border-radius: 8px;
+  border-radius: 10px;
   margin: 2px 8px;
   padding: 10px 16px;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
 }
 
 .sidebar .nav-link:hover {
   background-color: rgba(255, 255, 255, 0.08);
   color: #fff;
+  transform: translateX(2px);
+}
+
+body.theme-light .sidebar .nav-link:hover {
+  color: #1a2235;
+  background-color: rgba(26, 86, 219, 0.08);
 }
 
 .sidebar .nav-link.active {
@@ -54,7 +256,7 @@
 
 .sidebar-brand {
   padding: 20px 16px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--sidebar-border);
 }
 
 .sidebar-logo-box {
@@ -74,19 +276,13 @@
 }
 
 .sidebar-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--sidebar-border);
   padding: 12px 8px;
   margin-top: auto;
 }
 
-/* Tema Claro para Sidebar */
-body.theme-light .sidebar {
-  --sidebar-bg: #f0f4f8;
-  --sidebar-text: #2d3748;
-}
-
-body.theme-light .sidebar .nav-link.active {
-  color: #1a2235;
+.sidebar-footer span {
+  color: var(--sidebar-text) !important;
 }
 
 /* ==========================================
@@ -95,29 +291,30 @@ body.theme-light .sidebar .nav-link.active {
 .main-content {
   margin-left: 260px;
   min-height: 100vh;
-  background-color: #f4f6fb;
+  background:
+    radial-gradient(circle at top right, rgba(232, 184, 75, 0.08), transparent 30rem),
+    linear-gradient(135deg, var(--app-bg) 0%, var(--app-bg-soft) 100%);
+  color: var(--app-text);
   transition: margin 0.3s ease;
 }
 
 body.theme-light .main-content {
-  background-color: #f8fafc;
+  background-color: var(--app-bg);
 }
 
 /* ==========================================
    TOPBAR
    ========================================== */
 .topbar {
-  background-color: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background-color: var(--topbar-bg);
+  border-bottom: 1px solid var(--topbar-border);
+  color: var(--app-text);
   padding: 12px 24px;
   position: sticky;
   top: 0;
   z-index: 900;
   min-height: var(--topbar-height);
-}
-
-body.theme-light .topbar {
-  background-color: #fff;
+  backdrop-filter: blur(14px);
 }
 
 .page-heading {
@@ -125,6 +322,7 @@ body.theme-light .topbar {
 }
 
 .page-heading-title {
+  color: var(--app-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -140,7 +338,7 @@ body.theme-light .topbar {
   border-radius: 8px;
   object-fit: cover;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--app-border);
 }
 
 .institution-chip-name {
@@ -148,13 +346,31 @@ body.theme-light .topbar {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: #e8b84b;
-  color: #1a2235;
+  background: var(--brand-color);
+  color: var(--brand-text);
+}
+
+#topbar-username,
+.dropdown .btn {
+  color: var(--app-text);
 }
 
 /* ==========================================
    CARDS
    ========================================== */
+.card,
+.chart-card {
+  background-color: var(--card-bg);
+  color: var(--app-text);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+
+.card-body {
+  color: var(--app-text);
+}
+
 .stat-card {
   border: none;
   border-radius: 12px;
@@ -164,7 +380,7 @@ body.theme-light .topbar {
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.24);
 }
 
 .stat-card .card-body {
@@ -194,6 +410,26 @@ body.theme-light .topbar {
   margin-top: 4px;
 }
 
+/* Fondos Bootstrap usados en Configuration */
+.bg-light,
+.bg-white {
+  background-color: var(--card-bg-soft) !important;
+  color: var(--app-text) !important;
+  border-color: var(--card-border) !important;
+}
+
+pre,
+code {
+  color: var(--app-text-soft);
+}
+
+pre {
+  background-color: var(--card-bg-soft);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
 /* ==========================================
    AVATAR CIRCLE
    ========================================== */
@@ -201,8 +437,8 @@ body.theme-light .topbar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: var(--brand-color);
-  color: #fff;
+  background: linear-gradient(135deg, var(--brand-color), var(--brand-hover));
+  color: var(--brand-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,24 +448,27 @@ body.theme-light .topbar {
 }
 
 /* ==========================================
-   CLASE DE BOTÓN CORPORATIVO PERSONALIZADO
-   Cambia --brand-color en :root para
-   actualizar todos los botones automáticamente
+   BOTONES
    ========================================== */
 .btn-brand {
   background-color: var(--brand-color);
-  color: #fff;
+  color: var(--brand-text);
   border: none;
+  font-weight: 600;
 }
 
 .btn-brand:hover {
   background-color: var(--brand-hover);
-  color: #fff;
+  color: var(--brand-text);
 }
 
 .btn-brand:focus {
+  box-shadow: 0 0 0 0.25rem rgba(232, 184, 75, 0.28);
+  color: var(--brand-text);
+}
+
+body.theme-light .btn-brand:focus {
   box-shadow: 0 0 0 0.25rem rgba(26, 86, 219, 0.3);
-  color: #fff;
 }
 
 .btn-brand-outline {
@@ -240,7 +479,33 @@ body.theme-light .topbar {
 
 .btn-brand-outline:hover {
   background-color: var(--brand-color);
-  color: #fff;
+  color: var(--brand-text);
+}
+
+.btn-outline-secondary,
+.btn-outline-primary {
+  color: var(--app-text-soft);
+  border-color: var(--input-border);
+  background-color: transparent;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-primary:hover {
+  color: var(--brand-text);
+  background-color: var(--brand-color);
+  border-color: var(--brand-color);
+}
+
+.btn-secondary {
+  background-color: var(--app-surface-hover);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+.btn-secondary:hover {
+  background-color: var(--app-surface-soft);
+  border-color: var(--app-border-strong);
+  color: var(--app-text);
 }
 
 /* ==========================================
@@ -249,19 +514,197 @@ body.theme-light .topbar {
 .table-container {
   border-radius: 12px;
   overflow: hidden;
+  border: 1px solid var(--table-border);
+  background-color: var(--table-bg);
 }
 
 .table {
   min-width: 720px;
+  --bs-table-bg: var(--table-bg);
+  --bs-table-color: var(--app-text);
+  --bs-table-border-color: var(--table-border);
+  --bs-table-striped-bg: var(--app-surface-soft);
+  --bs-table-hover-bg: var(--table-hover);
+  --bs-table-hover-color: var(--app-text);
+  color: var(--app-text);
+}
+
+.table > :not(caption) > * > * {
+  background-color: transparent;
+  color: var(--app-text);
+  border-bottom-color: var(--table-border);
+}
+
+.table-light {
+  --bs-table-bg: var(--table-head-bg);
+  --bs-table-color: var(--app-text);
+  --bs-table-border-color: var(--table-border);
+  color: var(--app-text);
+}
+
+.table thead th {
+  background-color: var(--table-head-bg) !important;
+  color: var(--app-text-soft) !important;
+  border-bottom: 1px solid var(--table-border);
+}
+
+.table tbody tr:hover {
+  background-color: var(--table-hover);
 }
 
 /* ==========================================
-   CHARTS (SVG)
+   FORMULARIOS
    ========================================== */
-.chart-card {
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+.form-control,
+.form-select,
+.input-group-text {
+  background-color: var(--input-bg);
+  color: var(--app-text);
+  border-color: var(--input-border);
+}
+
+.form-control::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--input-bg);
+  color: var(--app-text);
+  border-color: var(--input-focus);
+  box-shadow: 0 0 0 0.25rem rgba(232, 184, 75, 0.16);
+}
+
+body.theme-light .form-control:focus,
+body.theme-light .form-select:focus {
+  box-shadow: 0 0 0 0.25rem rgba(26, 86, 219, 0.16);
+}
+
+.form-control[readonly],
+.form-control:disabled,
+.form-select:disabled {
+  background-color: var(--app-surface-soft);
+  color: var(--app-text-muted);
+}
+
+.form-check-input {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+}
+
+.form-check-input:checked {
+  background-color: var(--brand-color);
+  border-color: var(--brand-color);
+}
+
+/* ==========================================
+   MODALES
+   ========================================== */
+.modal-content {
+  background-color: var(--modal-bg);
+  color: var(--app-text);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+
+.modal-header,
+.modal-footer {
+  border-color: var(--card-border);
+}
+
+.btn-close {
+  filter: invert(1) grayscale(100%) brightness(180%);
+}
+
+body.theme-light .btn-close {
+  filter: none;
+}
+
+/* ==========================================
+   DROPDOWNS
+   ========================================== */
+.dropdown-menu {
+  background-color: var(--dropdown-bg);
+  color: var(--app-text);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+
+.dropdown-item {
+  color: var(--app-text-soft);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.dropdown-divider {
+  border-top-color: var(--card-border);
+}
+
+/* ==========================================
+   ALERTAS
+   ========================================== */
+.alert {
+  border-width: 1px;
+}
+
+.alert-success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+.alert-warning {
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+}
+
+.alert-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}
+
+.alert-info {
+  background-color: var(--info-bg);
+  color: var(--info-text);
+  border-color: var(--info-border);
+}
+
+/* ==========================================
+   BADGES
+   ========================================== */
+.badge.bg-light,
+.bg-light.text-dark {
+  background-color: var(--app-surface-soft) !important;
+  color: var(--app-text-soft) !important;
+  border: 1px solid var(--app-border);
+}
+
+/* ==========================================
+   SCROLLBAR
+   ========================================== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--app-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--app-surface-hover);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-text-faint);
 }
 
 /* ==========================================
@@ -289,7 +732,7 @@ body.theme-light .topbar {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.55);
     z-index: 1040;
   }
 
