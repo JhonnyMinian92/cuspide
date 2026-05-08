@@ -5,16 +5,60 @@
 {% block page_title %}Membresías{% endblock %}
 
 {% block content %}
-<div class="card chart-card">
+
+<div class="card chart-card mb-4">
   <div class="card-body p-4">
-    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
-      <h6 class="fw-bold mb-0">Lista de Membresías</h6>
-      <button class="btn btn-brand align-self-start align-self-sm-auto" data-bs-toggle="modal" data-bs-target="#modalMembresia">
-        <i class="bi bi-plus-lg me-1"></i>Añadir Membresía
-      </button>
+
+    <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-center gap-3 mb-4">
+      <div>
+        <h6 class="fw-bold mb-1">Buscar Membresía</h6>
+        <p class="text-muted small mb-0">
+          Busca por alumno, tipo de membresía, estado o fechas. Si no existe, podrás registrarla aquí mismo.
+        </p>
+      </div>
     </div>
 
-    <!-- Los datos se cargarán via API en el futuro; por ahora se muestra tabla vacía -->
+    <!-- Buscador -->
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-9">
+        <label for="membresia-search" class="form-label fw-semibold">Buscar membresía</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-search"></i>
+          </span>
+          <input
+            type="search"
+            class="form-control"
+            id="membresia-search"
+            placeholder="Ej: Lionel Messi, Mensual, Activo, 2026-05-08"
+            autocomplete="off"
+          >
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-3">
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-busqueda">
+          <i class="bi bi-x-circle me-1"></i>Limpiar
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Tabla de resultados -->
+<div class="card chart-card mb-4" id="membresias-list-card">
+  <div class="card-body p-4">
+
+    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
+      <div>
+        <h6 class="fw-bold mb-1">Lista de Membresías</h6>
+        <p class="text-muted small mb-0" id="membresias-result-info">
+          Ingresa un criterio de búsqueda para filtrar las membresías.
+        </p>
+      </div>
+    </div>
+
     <div class="table-responsive table-container">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
@@ -32,61 +76,402 @@
           <tr>
             <td colspan="7" class="text-center text-muted py-4">
               <i class="bi bi-credit-card me-2"></i>
-              Los datos de membresías se cargarán via API próximamente.
+              Los datos de membresías se cargarán vía API próximamente.
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
   </div>
 </div>
 
-<!-- Modal Añadir Membresía -->
-<div class="modal fade" id="modalMembresia" tabindex="-1" aria-labelledby="modalMembresiaLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold" id="modalMembresiaLabel"><i class="bi bi-credit-card-fill me-2"></i>Añadir Membresía</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Alumno</label>
-          <input type="text" class="form-control" placeholder="Nombre del alumno">
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Tipo de Membresía</label>
-          <select class="form-select">
-            <option value="">Seleccionar...</option>
-            <option>Mensual</option>
-            <option>Trimestral</option>
-            <option>Anual</option>
-            <option>Socio GOLD</option>
-            <option>Socio PLATINUM</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Fecha Inicio</label>
-          <input type="date" class="form-control">
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Fecha Vencimiento</label>
-          <input type="date" class="form-control">
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Estado</label>
-          <select class="form-select">
-            <option>Activo</option>
-            <option>Vencido</option>
-            <option>Suspendido</option>
-          </select>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-brand" data-bs-dismiss="modal"><i class="bi bi-check-lg me-1"></i>Guardar</button>
+<!-- Formulario nueva membresía -->
+<div class="card chart-card d-none" id="nueva-membresia-card">
+  <div class="card-body p-4">
+
+    <div class="alert alert-warning d-flex align-items-center" role="alert" id="nueva-membresia-alert">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      <div>
+        No se encontraron coincidencias. Puedes registrar una nueva membresía.
       </div>
     </div>
+
+    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
+      <div>
+        <h6 class="fw-bold mb-1">
+          <i class="bi bi-credit-card-fill me-2"></i>Nueva Membresía
+        </h6>
+        <p class="text-muted small mb-0">
+          Completa los datos para registrar la membresía del alumno.
+        </p>
+      </div>
+    </div>
+
+    <form id="form-nueva-membresia">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="membresia-alumno">Alumno</label>
+          <input
+            type="text"
+            class="form-control"
+            id="membresia-alumno"
+            name="alumno"
+            placeholder="Ej: Carlos Soberon"
+            required
+          >
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="membresia-tipo">Tipo de Membresía</label>
+          <select class="form-select" id="membresia-tipo" name="tipo_membresia" required>
+            <option value="">Seleccionar...</option>
+            <option value="Mensual">Mensual</option>
+            <option value="Trimestral">Trimestral</option>
+            <option value="Anual">Anual</option>
+            <option value="Socio GOLD">Socio GOLD</option>
+            <option value="Socio PLATINUM">Socio PLATINUM</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="membresia-fecha-inicio">Fecha Inicio</label>
+          <input
+            type="date"
+            class="form-control"
+            id="membresia-fecha-inicio"
+            name="fecha_inicio"
+            required
+          >
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="membresia-fecha-vencimiento">Fecha Vencimiento</label>
+          <input
+            type="date"
+            class="form-control"
+            id="membresia-fecha-vencimiento"
+            name="fecha_vencimiento"
+            required
+          >
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-semibold" for="membresia-estado">Estado</label>
+          <select class="form-select" id="membresia-estado" name="estado">
+            <option value="Activo">Activo</option>
+            <option value="Vencido">Vencido</option>
+            <option value="Suspendido">Suspendido</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+        <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-nueva-membresia">
+          <i class="bi bi-arrow-left me-1"></i>Cancelar
+        </button>
+
+        <button type="submit" class="btn btn-brand">
+          <i class="bi bi-check-lg me-1"></i>Guardar Membresía
+        </button>
+      </div>
+    </form>
+
   </div>
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  /**
+   * Datos temporales.
+   * Cuando tengas API real, reemplaza este arreglo por la respuesta del backend.
+   */
+  var membresias = [
+    // Ejemplo:
+     {
+       id: 1,
+       alumno: 'Carlos Soberon',
+       tipo_membresia: 'Mensual',
+       fecha_inicio: '2026-05-01',
+       fecha_vencimiento: '2026-06-01',
+       estado: 'Activo'
+     },
+     {
+       id: 1,
+       alumno: 'Jhony Miñan',
+       tipo_membresia: 'Anual',
+       fecha_inicio: '2026-05-01',
+       fecha_vencimiento: '2027-05-01',
+       estado: 'Activo'
+     },
+     {
+       id: 1,
+       alumno: 'Carlos Soberon',
+       tipo_membresia: 'Mensual',
+       fecha_inicio: '2026-05-01',
+       fecha_vencimiento: '2026-06-01',
+       estado: 'Caducado'
+     }
+  ];
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var searchInput = document.getElementById('membresia-search');
+    var clearButton = document.getElementById('btn-limpiar-busqueda');
+    var cancelButton = document.getElementById('btn-cancelar-nueva-membresia');
+    var form = document.getElementById('form-nueva-membresia');
+
+    renderMembresias(membresias, '');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        var query = searchInput.value.trim();
+        var results = filterMembresias(query);
+
+        renderMembresias(results, query);
+
+        if (query.length > 0 && results.length === 0) {
+          showNuevaMembresiaForm(query);
+        } else if (membresias.length === 0) {
+          showNuevaMembresiaForm(query);
+        } else {
+          hideNuevaMembresiaForm();
+        }
+      });
+    }
+
+    if (clearButton) {
+      clearButton.addEventListener('click', function () {
+        searchInput.value = '';
+        renderMembresias(membresias, '');
+
+        if (membresias.length === 0) {
+          showNuevaMembresiaForm('');
+        } else {
+          hideNuevaMembresiaForm();
+        }
+
+        searchInput.focus();
+      });
+    }
+
+    if (cancelButton) {
+      cancelButton.addEventListener('click', function () {
+        hideNuevaMembresiaForm();
+
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+        }
+
+        renderMembresias(membresias, '');
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        var nuevaMembresia = {
+          id: membresias.length + 1,
+          alumno: document.getElementById('membresia-alumno').value.trim(),
+          tipo_membresia: document.getElementById('membresia-tipo').value,
+          fecha_inicio: document.getElementById('membresia-fecha-inicio').value,
+          fecha_vencimiento: document.getElementById('membresia-fecha-vencimiento').value,
+          estado: document.getElementById('membresia-estado').value
+        };
+
+        /**
+         * Aquí luego deberías llamar tu API, por ejemplo:
+         *
+         * await window.Cuspide.api.request('/app/controllers/api/membresias/', {
+         *   method: 'POST',
+         *   auth: true,
+         *   body: nuevaMembresia
+         * });
+         */
+
+        membresias.push(nuevaMembresia);
+
+        form.reset();
+        hideNuevaMembresiaForm();
+
+        if (searchInput) {
+          searchInput.value = '';
+        }
+
+        renderMembresias(membresias, '');
+
+        mostrarMensajeTemporal('Membresía registrada correctamente.', 'success');
+      });
+    }
+  });
+
+  function filterMembresias(query) {
+    if (!query) {
+      return membresias;
+    }
+
+    var normalizedQuery = normalizeText(query);
+
+    return membresias.filter(function (membresia) {
+      var searchable = [
+        membresia.id,
+        membresia.alumno,
+        membresia.tipo_membresia,
+        membresia.fecha_inicio,
+        membresia.fecha_vencimiento,
+        membresia.estado
+      ]
+        .filter(Boolean)
+        .join(' ');
+
+      return normalizeText(searchable).includes(normalizedQuery);
+    });
+  }
+
+  function renderMembresias(items, query) {
+    var tbody = document.getElementById('membresias-tbody');
+    var info = document.getElementById('membresias-result-info');
+
+    if (!tbody) return;
+
+    if (!items || items.length === 0) {
+      var message = query
+        ? 'No se encontraron membresías con "' + escapeHtml(query) + '".'
+        : 'No hay membresías registradas todavía.';
+
+      tbody.innerHTML =
+        '<tr>' +
+          '<td colspan="7" class="text-center text-muted py-4">' +
+            '<i class="bi bi-search me-2"></i>' +
+            message +
+          '</td>' +
+        '</tr>';
+
+      if (info) {
+        info.textContent = query
+          ? 'Sin coincidencias para la búsqueda actual.'
+          : 'No hay membresías registradas.';
+      }
+
+      showNuevaMembresiaForm(query || '');
+      return;
+    }
+
+    tbody.innerHTML = items.map(function (membresia) {
+      return (
+        '<tr>' +
+          '<td>' + escapeHtml(membresia.id || '') + '</td>' +
+          '<td>' + escapeHtml(membresia.alumno || '') + '</td>' +
+          '<td>' + escapeHtml(membresia.tipo_membresia || '') + '</td>' +
+          '<td>' + escapeHtml(membresia.fecha_inicio || '') + '</td>' +
+          '<td>' + escapeHtml(membresia.fecha_vencimiento || '') + '</td>' +
+          '<td>' +
+            '<span class="badge rounded-pill ' + getEstadoBadgeClass(membresia.estado) + '">' +
+              escapeHtml(membresia.estado || '—') +
+            '</span>' +
+          '</td>' +
+          '<td>' +
+            '<button type="button" class="btn btn-sm btn-outline-primary">' +
+              '<i class="bi bi-eye me-1"></i>Ver' +
+            '</button>' +
+          '</td>' +
+        '</tr>'
+      );
+    }).join('');
+
+    if (info) {
+      info.textContent = query
+        ? items.length + ' coincidencia(s) encontrada(s).'
+        : items.length + ' membresía(s) registrada(s).';
+    }
+  }
+
+  function showNuevaMembresiaForm(query) {
+    var card = document.getElementById('nueva-membresia-card');
+    var alumnoInput = document.getElementById('membresia-alumno');
+
+    if (card) {
+      card.classList.remove('d-none');
+    }
+
+    /**
+     * Si el usuario escribió un texto de búsqueda,
+     * lo precargamos como nombre del alumno.
+     */
+    if (query && alumnoInput && !alumnoInput.value) {
+      alumnoInput.value = query;
+    }
+  }
+
+  function hideNuevaMembresiaForm() {
+    var card = document.getElementById('nueva-membresia-card');
+
+    if (card) {
+      card.classList.add('d-none');
+    }
+  }
+
+  function normalizeText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function getEstadoBadgeClass(estado) {
+    var normalized = normalizeText(estado);
+
+    if (normalized === 'activo') {
+      return 'bg-success';
+    }
+
+    if (normalized === 'vencido') {
+      return 'bg-danger';
+    }
+
+    if (normalized === 'suspendido') {
+      return 'bg-warning text-dark';
+    }
+
+    return 'bg-light text-dark';
+  }
+
+  function mostrarMensajeTemporal(message, type) {
+    var alert = document.createElement('div');
+
+    alert.className = 'alert alert-' + (type || 'info') + ' alert-dismissible fade show mt-3';
+    alert.role = 'alert';
+    alert.innerHTML =
+      '<i class="bi bi-check-circle-fill me-2"></i>' +
+      escapeHtml(message) +
+      '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>';
+
+    var cardBody = document.querySelector('.card.chart-card .card-body');
+
+    if (cardBody) {
+      cardBody.appendChild(alert);
+
+      setTimeout(function () {
+        alert.classList.remove('show');
+        setTimeout(function () {
+          alert.remove();
+        }, 200);
+      }, 3000);
+    }
+  }
+</script>
 {% endblock %}

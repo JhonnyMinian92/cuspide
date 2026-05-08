@@ -16,19 +16,24 @@
       dashboard: '/dashboard',
       panel: '/dashboard',
       inicio: '/dashboard',
+
       alumno: '/alumnos',
       alumnos: '/alumnos',
       estudiante: '/alumnos',
       estudiantes: '/alumnos',
+
       membresia: '/membresias',
       membresias: '/membresias',
       socio: '/membresias',
       socios: '/membresias',
+
       inventario: '/inventario',
       item: '/inventario',
       items: '/inventario',
+
       categoria: '/categorias',
       categorias: '/categorias',
+
       configuracion: '/configuracion',
       ajustes: '/configuracion',
       perfil: '/configuracion',
@@ -38,10 +43,10 @@
       theme: 'theme',
     }),
     ENDPOINTS: Object.freeze({
-      auth:       '/app/controllers/api/auth/',
-      users:      '/app/controllers/api/users/',
-      company:    '/app/controllers/api/company/',
-      buttom:     '/app/controllers/api/buttom/',
+      auth: '/app/controllers/api/auth/',
+      users: '/app/controllers/api/users/',
+      company: '/app/controllers/api/company/',
+      buttom: '/app/controllers/api/buttom/',
     }),
   });
 })(window);

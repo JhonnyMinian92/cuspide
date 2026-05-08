@@ -37,10 +37,10 @@ function logout() {
  */
 async function authGet(endpoint, apiParam) {
   const token = localStorage.getItem(CONFIG.STORAGE_KEYS.token);
-  const base  = (CONFIG.API_BASE_URL + endpoint).replace(/\/+$/, '');
-  const url   = base + '/?api=' + encodeURIComponent(apiParam);
+  const base = (CONFIG.API_BASE_URL + endpoint).replace(/\/+$/, '');
+  const url = base + '/?api=' + encodeURIComponent(apiParam);
 
-  const res  = await fetch(url, {
+  const res = await fetch(url, {
     headers: { 'Authorization': 'Bearer ' + token }
   });
 
@@ -61,39 +61,46 @@ async function authGet(endpoint, apiParam) {
 
 async function loadUserProfile() {
   try {
-    // Paso 1: obtener datos básicos del usuario (incluye tipo)
-    const findData = await authGet(CONFIG.ENDPOINTS.users, 'find');
-    if (!findData) return;
+    const data = await window.Cuspide.api.users('find');
 
-    const tipo = findData.tipo || findData.TipoPersona || findData.tipoPersona || '';
+    if (!data) {
+      throw new Error('No se recibieron datos del usuario.');
+    }
 
-    // Paso 2: obtener perfil completo con el tipo dinámico
-    const token = localStorage.getItem(CONFIG.STORAGE_KEYS.token);
-    const base  = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.users).replace(/\/+$/, '');
-    const url   = base + '/?api=profile' + (tipo ? '&tipo=' + encodeURIComponent(tipo) : '');
-    const res   = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-    const json  = await res.json();
-    const data  = json.data !== undefined ? json.data : json;
+    const fullName = [
+      data.primer_nombre,
+      data.primer_apellido
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || 'Usuario';
 
-    if (!data || (!data.primer_nombre && !data.nombre)) return;
+    const initial = (fullName.charAt(0) || 'U').toUpperCase();
 
-    const nombre   = data.primer_nombre || data.nombre || '';
-    const apellido = data.primer_apellido || data.apellido || '';
-    const fullName = (nombre + ' ' + apellido).trim();
-    const initial  = (fullName.charAt(0) || 'U').toUpperCase();
+    const sidebarUsername = document.getElementById('sidebar-username');
+    const sidebarAvatar = document.getElementById('sidebar-avatar');
+    const topbarUsername = document.getElementById('topbar-username');
+    const topbarAvatar = document.getElementById('topbar-avatar');
 
-    var sbUsername = document.getElementById('sidebar-username');
-    var sbAvatar   = document.getElementById('sidebar-avatar');
-    if (sbUsername) sbUsername.textContent = fullName;
-    if (sbAvatar)   sbAvatar.textContent   = initial;
+    if (sidebarUsername) sidebarUsername.textContent = fullName;
+    if (sidebarAvatar) sidebarAvatar.textContent = initial;
 
-    var tbUsername = document.getElementById('topbar-username');
-    var tbAvatar   = document.getElementById('topbar-avatar');
-    if (tbUsername) tbUsername.textContent = fullName;
-    if (tbAvatar)   tbAvatar.textContent   = initial;
+    if (topbarUsername) topbarUsername.textContent = fullName;
+    if (topbarAvatar) topbarAvatar.textContent = initial;
 
   } catch (err) {
-    // Silencioso — si el token expiró, api.js maneja el redirect
+    console.error('Error cargando usuario:', err);
+
+    const sidebarUsername = document.getElementById('sidebar-username');
+    const sidebarAvatar = document.getElementById('sidebar-avatar');
+    const topbarUsername = document.getElementById('topbar-username');
+    const topbarAvatar = document.getElementById('topbar-avatar');
+
+    if (sidebarUsername) sidebarUsername.textContent = 'Usuario';
+    if (sidebarAvatar) sidebarAvatar.textContent = 'U';
+
+    if (topbarUsername) topbarUsername.textContent = 'Usuario';
+    if (topbarAvatar) topbarAvatar.textContent = 'U';
   }
 }
 
@@ -106,8 +113,8 @@ async function loadInstitucion() {
   try {
     // company/?api=find no requiere auth según el back
     const base = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.company).replace(/\/+$/, '');
-    const url  = base + '/?api=find';
-    const res  = await fetch(url);
+    const url = base + '/?api=find';
+    const res = await fetch(url);
     const json = await res.json();
     const data = json.data !== undefined ? json.data : json;
 
@@ -123,7 +130,7 @@ async function loadInstitucion() {
 
     var badge = document.getElementById('topbar-institucion-badge');
     if (badge) {
-      badge.textContent   = data.nombre;
+      badge.textContent = data.nombre;
       badge.style.display = '';
     }
 
@@ -137,6 +144,29 @@ async function loadInstitucion() {
    Respuesta esperada: Array de { orden, nombre, icon, tipo }
 ───────────────────────────────────────────────────────────── */
 
+function normalizeRouteKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // quita tildes
+    .replace(/\s+/g, '-')            // espacios a guiones
+    .replace(/[^a-z0-9-]/g, '');     // limpia caracteres raros
+}
+
+function resolveMenuIcon(icon, routeKey) {
+  var iconsByRoute = {
+    dashboard: 'house-fill',
+    alumnos: 'people-fill',
+    membresias: 'credit-card-fill',
+    inventario: 'box-seam-fill',
+    categorias: 'tags-fill',
+    configuracion: 'gear-fill'
+  };
+
+  return iconsByRoute[routeKey] || 'circle';
+}
+
 async function loadMenu() {
   try {
     const items = await authGet(CONFIG.ENDPOINTS.buttom, 'menu');
@@ -149,12 +179,13 @@ async function loadMenu() {
     var currentPath = window.location.pathname;
 
     menuEl.innerHTML = items
-      .sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); })
-      .map(function(item) {
-        var rawRoute = (item.tipo || '').toLowerCase();
-        var href     = CONFIG.ROUTE_ALIASES[rawRoute] || ('/' + rawRoute);
-        var icon     = item.icon || 'circle';
+      .sort(function (a, b) { return (a.orden || 0) - (b.orden || 0); })
+      .map(function (item) {
+        var rawRoute = normalizeRouteKey(item.nombre);
+        var href = CONFIG.ROUTE_ALIASES[rawRoute] || ('/' + rawRoute);
+        var icon = resolveMenuIcon(item.icon, rawRoute);
         var isActive = currentPath === href ? 'active' : '';
+
         return '<li class="nav-item">' +
           '<a class="nav-link ' + isActive + '" href="' + href + '">' +
           '<i class="bi bi-' + icon + ' me-2"></i>' + item.nombre +
