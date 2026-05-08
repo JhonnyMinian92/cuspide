@@ -1,205 +1,156 @@
-const FALLBACK_LOGO_URL = '/assets/logo/huaquillasfc.jpg';
-
 /**
- * app.js - comportamiento global del panel.
+ * app.js — Lógica JS global del panel Huaquillas F.C.
  *
- * Este archivo coordina UI compartida. Las llamadas HTTP viven en api.js para
- * que las paginas no dupliquen rutas, headers ni manejo de token.
+ * Gestiona la autenticación via JWT (localStorage) y las llamadas fetch
+ * a los endpoints del backend usando CONFIG (config.js):
+ *   GET CONFIG.ENDPOINTS.users   ?api=profile    → perfil de usuario
+ *   GET CONFIG.ENDPOINTS.company ?api=institucion → datos de institución
+ *   GET CONFIG.ENDPOINTS.buttom  ?api=menu        → menú dinámico por rol
+ *
+ * El token JWT se gestiona 100% en el cliente (localStorage + fetch headers).
+ * El backend NO almacena sesiones PHP.
  */
 
+/* ─────────────────────────────────────────────────────────────
+   AUTH
+───────────────────────────────────────────────────────────── */
+
 function checkAuth() {
-  return window.Cuspide.auth.requireAuth();
+  if (!localStorage.getItem(CONFIG.STORAGE_KEYS.token)) {
+    window.location.href = CONFIG.ROUTES.login;
+  }
 }
 
 function logout() {
-  window.Cuspide.auth.logout();
+  localStorage.removeItem(CONFIG.STORAGE_KEYS.token);
+  window.location.href = CONFIG.ROUTES.login;
 }
 
-function setText(id, value) {
-  const element = document.getElementById(id);
-  if (element) {
-    element.textContent = value;
-  }
-}
+/* ─────────────────────────────────────────────────────────────
+   FETCH HELPERS
+───────────────────────────────────────────────────────────── */
 
-function safeInitial(value) {
-  return value && value.length > 0 ? value.charAt(0).toUpperCase() : 'U';
-}
+/**
+ * authGet: realiza un GET autenticado a un endpoint con un parámetro ?api=
+ * Extrae automáticamente payload.data del wrapper { status, data, message }.
+ */
+async function authGet(endpoint, apiParam) {
+  const token = localStorage.getItem(CONFIG.STORAGE_KEYS.token);
+  const url   = CONFIG.API_BASE_URL + endpoint + '?api=' + encodeURIComponent(apiParam);
 
-function normalizeRouteKey(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+  const res  = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
 
-function routeFromAlias(value) {
-  const key = normalizeRouteKey(value);
-  if (CONFIG.ROUTE_ALIASES[key]) {
-    return CONFIG.ROUTE_ALIASES[key];
+  const json = await res.json();
+
+  if (!res.ok || json.status === 'error') {
+    throw new Error(json.message || 'Error en la solicitud.');
   }
 
-  if (key.includes('alumno') || key.includes('estudiante')) return '/alumnos';
-  if (key.includes('membres') || key.includes('socio')) return '/membresias';
-  if (key.includes('inventario') || key.includes('item')) return '/inventario';
-  if (key.includes('categoria')) return '/categorias';
-  if (key.includes('config') || key.includes('ajuste') || key.includes('perfil')) return '/configuracion';
-  if (key.includes('dashboard') || key.includes('panel') || key.includes('inicio')) return '/dashboard';
-
-  return null;
+  return json.data !== undefined ? json.data : json;
 }
 
-function menuHref(item) {
-  const candidates = [
-    item.href,
-    item.path,
-    item.ruta,
-    item.tipo,
-    item.nemonico,
-    item.nombre,
-  ];
-
-  for (const candidate of candidates) {
-    const raw = String(candidate || '').trim();
-    if (!raw) continue;
-
-    if (raw.charAt(0) === '/') {
-      return routeFromAlias(raw.slice(1)) || raw;
-    }
-
-    const route = routeFromAlias(raw);
-    if (route) {
-      return route;
-    }
-  }
-
-  return '#';
-}
-
-function iconName(icon) {
-  const fallback = 'circle';
-  const value = String(icon || fallback).trim().toLowerCase().replace(/^bi-/, '');
-  return /^[a-z0-9-]+$/.test(value) ? value : fallback;
-}
-
-function assetUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return FALLBACK_LOGO_URL;
-  if (/^data:image\//i.test(raw)) return raw;
-  if (/^(https?:)?\/\//i.test(raw) || raw.charAt(0) === '/') return raw;
-  if (/^[\w.-]+\.(png|jpe?g|webp|gif|svg)$/i.test(raw)) return '/assets/logo/' + raw;
-  if (/\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(raw)) return '/' + raw.replace(/^\/+/, '');
-  return FALLBACK_LOGO_URL;
-}
-
-function setLogoImage(image, candidateUrl, altText) {
-  if (!image) return;
-
-  const nextUrl = assetUrl(candidateUrl);
-  image.alt = altText || 'Huaquillas F.C.';
-  image.onerror = function () {
-    image.onerror = null;
-    image.src = FALLBACK_LOGO_URL;
-  };
-
-  if (nextUrl === FALLBACK_LOGO_URL) {
-    image.src = FALLBACK_LOGO_URL;
-    return;
-  }
-
-  const probe = new Image();
-  probe.onload = function () {
-    image.src = nextUrl;
-  };
-  probe.onerror = function () {
-    image.src = FALLBACK_LOGO_URL;
-  };
-  probe.src = nextUrl;
-}
-
-function renderMenu(items) {
-  const menuEl = document.getElementById('sidebar-menu');
-  if (!menuEl || !Array.isArray(items) || items.length === 0) return;
-
-  const currentPath = routeFromAlias(window.location.pathname.slice(1)) || window.location.pathname;
-  menuEl.replaceChildren();
-
-  items
-    .slice()
-    .sort(function (a, b) {
-      return Number(a.orden || 0) - Number(b.orden || 0);
-    })
-    .forEach(function (item) {
-      const href = menuHref(item);
-      const link = document.createElement('a');
-      link.className = 'nav-link' + (currentPath === href ? ' active' : '');
-      link.href = href;
-
-      const icon = document.createElement('i');
-      icon.className = 'bi bi-' + iconName(item.icon) + ' me-2';
-
-      link.appendChild(icon);
-      link.append(document.createTextNode(String(item.nombre || 'Sin nombre')));
-
-      const li = document.createElement('li');
-      li.className = 'nav-item';
-      li.appendChild(link);
-      menuEl.appendChild(li);
-    });
-}
+/* ─────────────────────────────────────────────────────────────
+   USER PROFILE — users ?api=profile
+   Respuesta esperada: { identificacion, primer_nombre, primer_apellido, tipo }
+───────────────────────────────────────────────────────────── */
 
 async function loadUserProfile() {
   try {
-    const data = await window.Cuspide.api.profile();
+    const data = await authGet(CONFIG.ENDPOINTS.users, 'profile');
+
     if (!data || !data.primer_nombre) return;
 
-    const fullName = [data.primer_nombre, data.primer_apellido].filter(Boolean).join(' ').trim();
-    const initial = safeInitial(data.primer_nombre);
+    const fullName = (data.primer_nombre + ' ' + (data.primer_apellido || '')).trim();
+    const initial  = (data.primer_nombre[0] || 'U').toUpperCase();
 
-    setText('sidebar-username', fullName);
-    setText('sidebar-avatar', initial);
-    setText('topbar-username', fullName);
-    setText('topbar-avatar', initial);
-  } catch (error) {
-    // api.js redirige si el token ya no es valido.
+    var sbUsername = document.getElementById('sidebar-username');
+    var sbAvatar   = document.getElementById('sidebar-avatar');
+    if (sbUsername) sbUsername.textContent = fullName;
+    if (sbAvatar)   sbAvatar.textContent   = initial;
+
+    var tbUsername = document.getElementById('topbar-username');
+    var tbAvatar   = document.getElementById('topbar-avatar');
+    if (tbUsername) tbUsername.textContent = fullName;
+    if (tbAvatar)   tbAvatar.textContent   = initial;
+
+  } catch (err) {
+    // Silencioso — si el token expiró, api.js maneja el redirect
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   INSTITUCIÓN — company ?api=institucion
+   Respuesta esperada: { nombre, logo }
+───────────────────────────────────────────────────────────── */
 
 async function loadInstitucion() {
   try {
-    const data = await window.Cuspide.api.institucion();
+    const data = await authGet(CONFIG.ENDPOINTS.company, 'institucion');
+
     if (!data || !data.nombre) return;
 
-    setText('sidebar-institucion-nombre', data.nombre);
+    var sidebarNombre = document.getElementById('sidebar-institucion-nombre');
+    if (sidebarNombre) sidebarNombre.innerHTML = data.nombre;
 
-    const sidebarLogo = document.getElementById('sidebar-logo-img');
-    const topbarLogo = document.getElementById('topbar-institucion-logo');
-
-    setLogoImage(sidebarLogo, data.logo, data.nombre);
-    setLogoImage(topbarLogo, data.logo, data.nombre);
-
-    const badge = document.getElementById('topbar-institucion-badge');
-    if (badge) {
-      badge.textContent = data.nombre;
-      badge.style.display = '';
+    var sidebarLogoBox = document.getElementById('sidebar-logo-box');
+    if (data.logo && sidebarLogoBox) {
+      sidebarLogoBox.innerHTML = '<img src="' + data.logo + '" alt="Logo" style="max-height:36px;max-width:36px;border-radius:6px;">';
     }
-  } catch (error) {
-    // La UI mantiene los valores de respaldo renderizados por Twig.
+
+    var badge = document.getElementById('topbar-institucion-badge');
+    if (badge) {
+      badge.textContent    = data.nombre;
+      badge.style.display  = '';
+    }
+
+  } catch (err) {
+    // Silencioso
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MENÚ DINÁMICO — buttom ?api=menu
+   Respuesta esperada: Array de { orden, nombre, icon, tipo }
+───────────────────────────────────────────────────────────── */
 
 async function loadMenu() {
   try {
-    renderMenu(await window.Cuspide.api.menu());
-  } catch (error) {
-    // Si falla, queda el menu estatico del partial Twig.
+    const items = await authGet(CONFIG.ENDPOINTS.buttom, 'menu');
+
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    var menuEl = document.getElementById('sidebar-menu');
+    if (!menuEl) return;
+
+    var currentPath = window.location.pathname;
+
+    menuEl.innerHTML = items
+      .sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); })
+      .map(function(item) {
+        var rawRoute = (item.tipo || '').toLowerCase();
+        var href     = CONFIG.ROUTE_ALIASES[rawRoute] || ('/' + rawRoute);
+        var icon     = item.icon || 'circle';
+        var isActive = currentPath === href ? 'active' : '';
+        return '<li class="nav-item">' +
+          '<a class="nav-link ' + isActive + '" href="' + href + '">' +
+          '<i class="bi bi-' + icon + ' me-2"></i>' + item.nombre +
+          '</a></li>';
+      })
+      .join('');
+
+  } catch (err) {
+    // Si falla, se mantiene el menú estático del Twig
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   INICIALIZACIÓN
+───────────────────────────────────────────────────────────── */
+
 document.addEventListener('DOMContentLoaded', function () {
-  if (!checkAuth()) return;
+  checkAuth();
 
   Promise.all([
     loadUserProfile(),
