@@ -2,14 +2,16 @@
 
 namespace Entitys;
 
+require_once __DIR__ . '/../repository/TypeUserRepository.php';
+
 class TypeUser
 {
-  private $nemonico;
-  private $nombre;
-  private $descripcion;
-  private $imagen;
+  private string $nemonico;
+  private string $nombre;
+  private string $descripcion;
+  private string $imagen;
 
-  public function __construct($nemonico, $nombre, $descripcion, $imagen)
+  public function __construct(string $nemonico, string $nombre, string $descripcion, string $imagen)
   {
     $this->nemonico = $nemonico;
     $this->nombre = $nombre;
@@ -17,42 +19,42 @@ class TypeUser
     $this->imagen = $imagen;
   }
 
-  public function getNemonico()
+  public function getNemonico(): string
   {
     return $this->nemonico;
   }
 
-  public function getNombre()
+  public function getNombre(): string
   {
     return $this->nombre;
   }
 
-  public function getDescripcion()
+  public function getDescripcion(): string
   {
     return $this->descripcion;
   }
 
-  public function getImagen()
+  public function getImagen(): string
   {
     return $this->imagen;
   }
 
-  public function setNemonico($nemonico)
+  public function setNemonico(string $nemonico): void
   {
     $this->nemonico = $nemonico;
   }
 
-  public function setNombre($nombre)
+  public function setNombre(string $nombre): void
   {
     $this->nombre = $nombre;
   }
 
-  public function setDescripcion($descripcion)
+  public function setDescripcion(string $descripcion): void
   {
     $this->descripcion = $descripcion;
   }
 
-  public function setImagen($imagen)
+  public function setImagen(string $imagen): void
   {
     $this->imagen = $imagen;
   }

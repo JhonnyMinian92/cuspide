@@ -2,6 +2,9 @@
 
 namespace Repositories;
 
+require_once __DIR__ . '/../conexion/Database.php';
+require_once __DIR__ . '/../entitys/TypeUser.php';
+
 use Core\Database;
 use Entitys\TypeUser;
 use PDO;
