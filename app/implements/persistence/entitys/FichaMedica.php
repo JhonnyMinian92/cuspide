@@ -3,21 +3,31 @@
 namespace Entitys;
 
 require_once __DIR__ . '/../repository/FichaMedicaRepository.php';
-require_once __DIR__ . '/PerfilMedico.php';
+require_once __DIR__ . '/Persona.php';
 require_once __DIR__ . '/Estado.php';
 
 class FichaMedica
 {
   private ?int $id;
-  private string $fecha;
-  private int $perfil_medico;
+  private int $persona;
+  private ?string $grupo_sanguineo;
+  private ?string $alergias;
+  private ?string $enfermedades_preexistentes;
+  private ?string $medicamentos_actuales;
+  private ?string $contacto_emergencia_nombre;
+  private ?string $contacto_emergencia_telefono;
   private int $estado;
 
-  public function __construct(?int $id, string $fecha, mixed $perfil_medico, mixed $estado)
+  public function __construct(?int $id, mixed $persona, ?string $grupo_sanguineo, ?string $alergias, ?string $enfermedades_preexistentes, ?string $medicamentos_actuales, ?string $contacto_emergencia_nombre, ?string $contacto_emergencia_telefono, mixed $estado)
   {
     $this->id = $id;
-    $this->fecha = $fecha;
-    $this->perfil_medico = $this->extractId($perfil_medico);
+    $this->persona = $this->extractId($persona);
+    $this->grupo_sanguineo = $grupo_sanguineo;
+    $this->alergias = $alergias;
+    $this->enfermedades_preexistentes = $enfermedades_preexistentes;
+    $this->medicamentos_actuales = $medicamentos_actuales;
+    $this->contacto_emergencia_nombre = $contacto_emergencia_nombre;
+    $this->contacto_emergencia_telefono = $contacto_emergencia_telefono;
     $this->estado = $this->extractId($estado);
   }
 
@@ -25,51 +35,82 @@ class FichaMedica
   {
     return $this->id;
   }
-
-  public function getFecha(): string
+  public function getPersona(): ?Persona
   {
-    return $this->fecha;
+    return Persona::from($this->persona);
   }
-
-  public function getPerfilMedico(): ?PerfilMedico
+  public function getGrupoSanguineo(): ?string
   {
-    return $this->perfil_medico === null ? null : PerfilMedico::from($this->perfil_medico);
+    return $this->grupo_sanguineo;
   }
-
+  public function getAlergias(): ?string
+  {
+    return $this->alergias;
+  }
+  public function getEnfermedadesPreexistentes(): ?string
+  {
+    return $this->enfermedades_preexistentes;
+  }
+  public function getMedicamentosActuales(): ?string
+  {
+    return $this->medicamentos_actuales;
+  }
+  public function getContactoEmergenciaNombre(): ?string
+  {
+    return $this->contacto_emergencia_nombre;
+  }
+  public function getContactoEmergenciaTelefono(): ?string
+  {
+    return $this->contacto_emergencia_telefono;
+  }
   public function getEstado(): ?Estado
   {
-    return $this->estado === null ? null : Estado::from($this->estado);
+    return Estado::from($this->estado);
   }
 
   public function setId(?int $id): void
   {
     $this->id = $id;
   }
-
-  public function setFecha(string $fecha): void
+  public function setPersona(mixed $persona): void
   {
-    $this->fecha = $fecha;
+    $this->persona = $this->extractId($persona);
   }
-
-  public function setPerfilMedico(mixed $perfil_medico): void
+  public function setGrupoSanguineo(?string $grupo_sanguineo): void
   {
-    $this->perfil_medico = $this->extractId($perfil_medico);
+    $this->grupo_sanguineo = $grupo_sanguineo;
   }
-
+  public function setAlergias(?string $alergias): void
+  {
+    $this->alergias = $alergias;
+  }
+  public function setEnfermedadesPreexistentes(?string $enfermedades_preexistentes): void
+  {
+    $this->enfermedades_preexistentes = $enfermedades_preexistentes;
+  }
+  public function setMedicamentosActuales(?string $medicamentos_actuales): void
+  {
+    $this->medicamentos_actuales = $medicamentos_actuales;
+  }
+  public function setContactoEmergenciaNombre(?string $contacto_emergencia_nombre): void
+  {
+    $this->contacto_emergencia_nombre = $contacto_emergencia_nombre;
+  }
+  public function setContactoEmergenciaTelefono(?string $contacto_emergencia_telefono): void
+  {
+    $this->contacto_emergencia_telefono = $contacto_emergencia_telefono;
+  }
   public function setEstado(mixed $estado): void
   {
     $this->estado = $this->extractId($estado);
   }
 
-  private function extractId(mixed $value): ?int
+  private function extractId(mixed $value): int
   {
-    if ($value === null) {
-      return null;
-    }
     if (is_object($value) && method_exists($value, 'getId')) {
-      return $value->getId();
+      return (int)$value->getId();
     }
-    return (int) $value;
+    return (int)$value;
   }
 
   public static function from(int $id): ?self
@@ -82,6 +123,6 @@ class FichaMedica
       }
     } catch (\Exception $e) {
     }
-    return new self($id, '', 0, 0);
+    return new self($id, 0, null, null, null, null, null, null, 0);
   }
 }

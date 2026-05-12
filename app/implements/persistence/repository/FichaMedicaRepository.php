@@ -18,43 +18,68 @@ class FichaMedicaRepository
     $this->db = Database::getInstance();
   }
 
-  public function save(FichaMedica $fichaMedica): FichaMedica
+  public function save(FichaMedica $ficha): FichaMedica
   {
-    if ($fichaMedica->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO ficha_medica (fecha, perfil_medico, estado) VALUES (:fecha, :perfil_medico, :estado)");
+    if ($ficha->getId() === null) {
+      $stmt = $this->db->prepare('INSERT INTO fichas_medicas (persona, grupo_sanguineo, alergias, enfermedades_preexistentes, medicamentos_actuales, contacto_emergencia_nombre, contacto_emergencia_telefono, estado) VALUES (:persona, :grupo_sanguineo, :alergias, :enfermedades_preexistentes, :medicamentos_actuales, :contacto_emergencia_nombre, :contacto_emergencia_telefono, :estado)');
       $stmt->execute([
-        ':fecha' => $fichaMedica->getFecha(),
-        ':perfil_medico' => $fichaMedica->getPerfilMedico()?->getId(),
-        ':estado' => $fichaMedica->getEstado()?->getId(),
+        ':persona' => $ficha->getPersona()?->getId(),
+        ':grupo_sanguineo' => $ficha->getGrupoSanguineo(),
+        ':alergias' => $ficha->getAlergias(),
+        ':enfermedades_preexistentes' => $ficha->getEnfermedadesPreexistentes(),
+        ':medicamentos_actuales' => $ficha->getMedicamentosActuales(),
+        ':contacto_emergencia_nombre' => $ficha->getContactoEmergenciaNombre(),
+        ':contacto_emergencia_telefono' => $ficha->getContactoEmergenciaTelefono(),
+        ':estado' => $ficha->getEstado()?->getId(),
       ]);
-      $fichaMedica->setId($this->db->lastInsertId());
+      $ficha->setId((int) $this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE ficha_medica SET fecha = :fecha, perfil_medico = :perfil_medico, estado = :estado WHERE id = :id");
+      $stmt = $this->db->prepare('UPDATE fichas_medicas SET persona = :persona, grupo_sanguineo = :grupo_sanguineo, alergias = :alergias, enfermedades_preexistentes = :enfermedades_preexistentes, medicamentos_actuales = :medicamentos_actuales, contacto_emergencia_nombre = :contacto_emergencia_nombre, contacto_emergencia_telefono = :contacto_emergencia_telefono, estado = :estado WHERE id = :id');
       $stmt->execute([
-        ':id' => $fichaMedica->getId(),
-        ':fecha' => $fichaMedica->getFecha(),
-        ':perfil_medico' => $fichaMedica->getPerfilMedico()?->getId(),
-        ':estado' => $fichaMedica->getEstado()?->getId(),
+        ':id' => $ficha->getId(),
+        ':persona' => $ficha->getPersona()?->getId(),
+        ':grupo_sanguineo' => $ficha->getGrupoSanguineo(),
+        ':alergias' => $ficha->getAlergias(),
+        ':enfermedades_preexistentes' => $ficha->getEnfermedadesPreexistentes(),
+        ':medicamentos_actuales' => $ficha->getMedicamentosActuales(),
+        ':contacto_emergencia_nombre' => $ficha->getContactoEmergenciaNombre(),
+        ':contacto_emergencia_telefono' => $ficha->getContactoEmergenciaTelefono(),
+        ':estado' => $ficha->getEstado()?->getId(),
       ]);
     }
-
-    return $fichaMedica;
+    return $ficha;
   }
 
   public function findById(int $id): ?FichaMedica
   {
-    $stmt = $this->db->prepare('SELECT * FROM ficha_medica WHERE id = :id');
+    $stmt = $this->db->prepare('SELECT * FROM fichas_medicas WHERE id = :id');
     $stmt->execute([':id' => $id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return $row ? new FichaMedica($row['id'], $row['fecha'], $row['perfil_medico'], $row['estado']) : null;
+    return $row ? new FichaMedica($row['id'], $row['persona'], $row['grupo_sanguineo'], $row['alergias'], $row['enfermedades_preexistentes'], $row['medicamentos_actuales'], $row['contacto_emergencia_nombre'], $row['contacto_emergencia_telefono'], $row['estado']) : null;
   }
 
-  public function findAll(): array
+  /**
+   * @param int $personaId
+   * @return FichaMedica[]
+   */
+  public function findByPersonaId(int $personaId): array
   {
-    $stmt = $this->db->query('SELECT * FROM ficha_medica ORDER BY fecha DESC');
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    return array_map(fn($row) => new FichaMedica($row['id'], $row['fecha'], $row['perfil_medico'], $row['estado']), $rows ?: []);
+    $stmt = $this->db->prepare('SELECT * FROM fichas_medicas WHERE persona = :personaId AND estado = 1');
+    $stmt->execute([':personaId' => $personaId]);
+    $fichas = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+      $fichas[] = new FichaMedica(
+        $row['id'],
+        $row['persona'],
+        $row['grupo_sanguineo'],
+        $row['alergias'],
+        $row['enfermedades_preexistentes'],
+        $row['medicamentos_actuales'],
+        $row['contacto_emergencia_nombre'],
+        $row['contacto_emergencia_telefono'],
+        $row['estado']
+      );
+    }
+    return $fichas;
   }
 }

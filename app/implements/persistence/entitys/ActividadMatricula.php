@@ -6,6 +6,8 @@ require_once __DIR__ . '/../repository/ActividadMatriculaRepository.php';
 require_once __DIR__ . '/Actividad.php';
 require_once __DIR__ . '/Matricula.php';
 require_once __DIR__ . '/Modalidad.php';
+require_once __DIR__ . '/CategoriaDeportiva.php';
+require_once __DIR__ . '/Horario.php';
 require_once __DIR__ . '/Estado.php';
 
 class ActividadMatricula
@@ -14,16 +16,20 @@ class ActividadMatricula
   private int $actividad;
   private int $matricula;
   private int $modalidad;
+  private ?int $categoria_deportiva;
+  private ?int $horario;
   private string $fecha_inicio;
   private string $fecha_fin;
   private int $estado;
 
-  public function __construct(?int $id, mixed $actividad, mixed $matricula, mixed $modalidad, string $fecha_inicio, string $fecha_fin, mixed $estado)
+  public function __construct(?int $id, mixed $actividad, mixed $matricula, mixed $modalidad, string $fecha_inicio, string $fecha_fin, mixed $estado, mixed $categoria_deportiva = null, mixed $horario = null)
   {
     $this->id = $id;
     $this->actividad = $this->extractId($actividad);
     $this->matricula = $this->extractId($matricula);
     $this->modalidad = $this->extractId($modalidad);
+    $this->categoria_deportiva = $this->extractId($categoria_deportiva);
+    $this->horario = $this->extractId($horario);
     $this->fecha_inicio = $fecha_inicio;
     $this->fecha_fin = $fecha_fin;
     $this->estado = $this->extractId($estado);
@@ -47,6 +53,16 @@ class ActividadMatricula
   public function getModalidad(): ?Modalidad
   {
     return $this->modalidad === null ? null : Modalidad::from($this->modalidad);
+  }
+
+  public function getCategoriaDeportiva(): ?CategoriaDeportiva
+  {
+    return $this->categoria_deportiva === null ? null : CategoriaDeportiva::from($this->categoria_deportiva);
+  }
+
+  public function getHorario(): ?Horario
+  {
+    return $this->horario === null ? null : Horario::from($this->horario);
   }
 
   public function getFechaInicio(): string
@@ -82,6 +98,16 @@ class ActividadMatricula
   public function setModalidad(mixed $modalidad): void
   {
     $this->modalidad = $this->extractId($modalidad);
+  }
+
+  public function setCategoriaDeportiva(mixed $categoria_deportiva): void
+  {
+    $this->categoria_deportiva = $this->extractId($categoria_deportiva);
+  }
+
+  public function setHorario(mixed $horario): void
+  {
+    $this->horario = $this->extractId($horario);
   }
 
   public function setFechaInicio(string $fecha_inicio): void

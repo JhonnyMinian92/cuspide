@@ -6,6 +6,7 @@ require_once __DIR__ . '/../repository/ClaseMatriculaRepository.php';
 require_once __DIR__ . '/Clase.php';
 require_once __DIR__ . '/Matricula.php';
 require_once __DIR__ . '/Modalidad.php';
+require_once __DIR__ . '/Horario.php';
 require_once __DIR__ . '/Estado.php';
 
 class ClaseMatricula
@@ -14,16 +15,18 @@ class ClaseMatricula
   private int $clase;
   private int $matricula;
   private int $modalidad;
+  private ?int $horario;
   private string $fecha_inicio;
   private string $fecha_fin;
   private int $estado;
 
-  public function __construct(?int $id, mixed $clase, mixed $matricula, mixed $modalidad, string $fecha_inicio, string $fecha_fin, mixed $estado)
+  public function __construct(?int $id, mixed $clase, mixed $matricula, mixed $modalidad, string $fecha_inicio, string $fecha_fin, mixed $estado, mixed $horario = null)
   {
     $this->id = $id;
     $this->clase = $this->extractId($clase);
     $this->matricula = $this->extractId($matricula);
     $this->modalidad = $this->extractId($modalidad);
+    $this->horario = $this->extractId($horario);
     $this->fecha_inicio = $fecha_inicio;
     $this->fecha_fin = $fecha_fin;
     $this->estado = $this->extractId($estado);
@@ -47,6 +50,11 @@ class ClaseMatricula
   public function getModalidad(): ?Modalidad
   {
     return $this->modalidad === null ? null : Modalidad::from($this->modalidad);
+  }
+
+  public function getHorario(): ?Horario
+  {
+    return $this->horario === null ? null : Horario::from($this->horario);
   }
 
   public function getFechaInicio(): string
@@ -82,6 +90,11 @@ class ClaseMatricula
   public function setModalidad(mixed $modalidad): void
   {
     $this->modalidad = $this->extractId($modalidad);
+  }
+
+  public function setHorario(mixed $horario): void
+  {
+    $this->horario = $this->extractId($horario);
   }
 
   public function setFechaInicio(string $fecha_inicio): void

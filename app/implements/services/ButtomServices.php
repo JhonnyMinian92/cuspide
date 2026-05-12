@@ -7,11 +7,15 @@ namespace Services;
 require_once __DIR__ . '/../interfaces/ButtomServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/BotonRepository.php';
 require_once __DIR__ . '/../persistence/repository/BotonUserRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/repository/UserRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\ButtomServiceInterface;
 use Repositories\BotonUserRepository;
+use Repositories\PersonaInstitucionRepository;
+use Repositories\PersonaRepository;
 use Repositories\UserRepository;
 use RuntimeException;
 use Utils\Token;
@@ -72,7 +76,14 @@ final class ButtomServices implements ButtomServiceInterface
       throw new RuntimeException('No se encontró usuario autenticado.', 404);
     }
 
-    $botonesUser = (new BotonUserRepository())->findByTypeUser((string) $user->getType()->getNemonico());
+    $botonUserRepository = new BotonUserRepository();
+    $persona = (new PersonaRepository())->findByUserId($userId);
+    $personaInstitucion = $persona === null ? null : (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+    $institucionId = $personaInstitucion?->getIdInstitucion()?->getId();
+
+    $botonesUser = $institucionId === null
+      ? $botonUserRepository->findByTypeUser((string) $user->getType()->getNemonico())
+      : $botonUserRepository->findByTypeUserAndInstitucion((string) $user->getType()->getNemonico(), (int) $institucionId);
     $menu = [];
     foreach ($botonesUser as $botonUser) {
       $boton = $botonUser->getBoton();

@@ -21,23 +21,25 @@ class ClaseMatriculaRepository
   public function save(ClaseMatricula $claseMatricula): ClaseMatricula
   {
     if ($claseMatricula->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO clases_matricula (clase, matricula, modalidad, fecha_inicio, fecha_fin, estado) VALUES (:clase, :matricula, :modalidad, :fecha_inicio, :fecha_fin, :estado)");
+      $stmt = $this->db->prepare("INSERT INTO clases_matricula (clase, matricula, modalidad, horario, fecha_inicio, fecha_fin, estado) VALUES (:clase, :matricula, :modalidad, :horario, :fecha_inicio, :fecha_fin, :estado)");
       $stmt->execute([
         ':clase' => $claseMatricula->getClase()?->getId(),
         ':matricula' => $claseMatricula->getMatricula()?->getId(),
         ':modalidad' => $claseMatricula->getModalidad()?->getId(),
+        ':horario' => $claseMatricula->getHorario()?->getId(),
         ':fecha_inicio' => $claseMatricula->getFechaInicio(),
         ':fecha_fin' => $claseMatricula->getFechaFin(),
         ':estado' => $claseMatricula->getEstado()?->getId(),
       ]);
       $claseMatricula->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE clases_matricula SET clase = :clase, matricula = :matricula, modalidad = :modalidad, fecha_inicio = :fecha_inicio, fecha_fin = :fecha_fin, estado = :estado WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE clases_matricula SET clase = :clase, matricula = :matricula, modalidad = :modalidad, horario = :horario, fecha_inicio = :fecha_inicio, fecha_fin = :fecha_fin, estado = :estado WHERE id = :id");
       $stmt->execute([
         ':id' => $claseMatricula->getId(),
         ':clase' => $claseMatricula->getClase()?->getId(),
         ':matricula' => $claseMatricula->getMatricula()?->getId(),
         ':modalidad' => $claseMatricula->getModalidad()?->getId(),
+        ':horario' => $claseMatricula->getHorario()?->getId(),
         ':fecha_inicio' => $claseMatricula->getFechaInicio(),
         ':fecha_fin' => $claseMatricula->getFechaFin(),
         ':estado' => $claseMatricula->getEstado()?->getId(),
@@ -53,7 +55,7 @@ class ClaseMatriculaRepository
     $stmt->execute([':id' => $id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    return $row ? new ClaseMatricula($row['id'], $row['clase'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado']) : null;
+    return $row ? new ClaseMatricula($row['id'], $row['clase'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado'], $row['horario'] ?? null) : null;
   }
 
   public function findAll(): array
@@ -61,6 +63,6 @@ class ClaseMatriculaRepository
     $stmt = $this->db->query('SELECT * FROM clases_matricula ORDER BY fecha_inicio DESC');
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    return array_map(fn($row) => new ClaseMatricula($row['id'], $row['clase'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado']), $rows ?: []);
+    return array_map(fn($row) => new ClaseMatricula($row['id'], $row['clase'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado'], $row['horario'] ?? null), $rows ?: []);
   }
 }

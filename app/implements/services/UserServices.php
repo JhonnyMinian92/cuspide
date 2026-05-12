@@ -9,6 +9,8 @@ require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/repository/TelefonoRepository.php';
 require_once __DIR__ . '/../persistence/repository/CorreoRepository.php';
+require_once __DIR__ . '/../persistence/repository/FichaMedicaRepository.php';
+require_once __DIR__ . '/../persistence/repository/TallaRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\UserServiceInterface;
@@ -16,6 +18,8 @@ use Repositories\PersonaInstitucionRepository;
 use Repositories\PersonaRepository;
 use Repositories\TelefonoRepository;
 use Repositories\CorreoRepository;
+use Repositories\FichaMedicaRepository;
+use Repositories\TallaRepository;
 use RuntimeException;
 use Utils\Token;
 
@@ -154,32 +158,73 @@ final class UserServices implements UserServiceInterface
         foreach ($correos as $correo) {
             $correosData[] = [
                 'email' => (string) $correo->getEmail(),
-                'tipo' => is_object($telefono->getTipo()) && method_exists($telefono->getTipo(), 'getNemonico')
-                    ? (string) $telefono->getTipo()->getNemonico()
-                    : (string) $telefono->getTipo()
+                'tipo' => is_object($correo->getTipo()) && method_exists($correo->getTipo(), 'getNemonico')
+                    ? (string) $correo->getTipo()->getNemonico()
+                    : (string) $correo->getTipo()
+            ];
+        }
+
+        // OBTENER FICHA MEDICA (puede haber más de una, pero usualmente es una activa)
+        $fichasMedicas = (new FichaMedicaRepository())->findByPersonaId((int) $persona->getId());
+        $fichaMedicaData = null;
+        if (!empty($fichasMedicas)) {
+            $fichaActiva = $fichasMedicas[0]; // Tomamos la primera (o la más reciente)
+            $fichaMedicaData = [
+                'grupo_sanguineo' => $fichaActiva->getGrupoSanguineo(),
+                'alergias' => $fichaActiva->getAlergias(),
+                'enfermedades_preexistentes' => $fichaActiva->getEnfermedadesPreexistentes(),
+                'medicamentos_actuales' => $fichaActiva->getMedicamentosActuales(),
+                'contacto_emergencia' => [
+                    'nombre' => $fichaActiva->getContactoEmergenciaNombre(),
+                    'telefono' => $fichaActiva->getContactoEmergenciaTelefono(),
+                ]
+            ];
+        }
+
+        // OBTENER TALLAS
+        $tallas = (new TallaRepository())->findByPersonaId((int) $persona->getId());
+        $tallasData = [];
+        foreach ($tallas as $talla) {
+            $tallasData[] = [
+                'tipo' => $talla->getTipoPrenda(),
+                'talla' => $talla->getTalla(),
+                'medida_cm' => $talla->getMedidaCm(),
+                'fecha_medicion' => $talla->getFechaMedicion(),
             ];
         }
 
         return [
-            'identificacion' => (string) $persona->getIdentificacion(),
-            'primer_nombre' => (string) $persona->getPrimerNombre(),
-            'segundo_nombre' => (string) $persona->getSegundoNombre(),
-            'primer_apellido' => (string) $persona->getPrimerApellido(),
-            'segundo_apellido' => (string) $persona->getSegundoApellido(),
-            'tipo' => $nemonicoTipo,
-            'empresa' => $ruc,
-            'nacionalidad' => $nemonicoNacionalidad,
-            'genero' => $nemonicoGenero,
-            'etnia' => $nemonicoEtnia,
-            'fecha_nacimiento' => (string) $persona->getFechaNacimiento(),
-            'ciudad' => $nemonicoCiudad,
-            'direccion' => (string) $persona->getDireccion(),
+            'datos_personales' => [
+                'identificacion' => (string) $persona->getIdentificacion(),
+                'primer_nombre' => (string) $persona->getPrimerNombre(),
+                'segundo_nombre' => (string) $persona->getSegundoNombre(),
+                'primer_apellido' => (string) $persona->getPrimerApellido(),
+                'segundo_apellido' => (string) $persona->getSegundoApellido(),
+                'fecha_nacimiento' => (string) $persona->getFechaNacimiento(),
+                'nacionalidad' => $nemonicoNacionalidad,
+                'genero' => $nemonicoGenero,
+                'etnia' => $nemonicoEtnia,
+            ],
+            'rol_institucion' => [
+                'tipo' => $nemonicoTipo,
+                'institucion_ruc' => $ruc,
+            ],
+            'ubicacion' => [
+                'ciudad' => $nemonicoCiudad,
+                'direccion' => (string) $persona->getDireccion(),
+            ],
             'contactos' => [
                 'telefonos' => $telefonosData,
                 'correos' => $correosData
             ],
-            //estructura para registros medicos, alergas, entre otros
-            //tallas (S,M,L) (Calzado) (Altura, Peso, etc ....)
+            'registros_medicos' => $fichaMedicaData,
+            'medidas_tallas' => $tallasData,
+            'informacion_academica' => [
+                // Aquí se podrían agregar las matrículas, clases, etc.
+            ],
+            'informacion_deportiva' => [
+                // Aquí se podrían agregar las actividades, torneos, etc.
+            ]
         ];
     }
 }

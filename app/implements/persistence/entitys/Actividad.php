@@ -6,24 +6,29 @@ require_once __DIR__ . '/../repository/ActividadRepository.php';
 require_once __DIR__ . '/Deporte.php';
 require_once __DIR__ . '/NivelAsignatura.php';
 require_once __DIR__ . '/Institucion.php';
+require_once __DIR__ . '/Estado.php';
 
 class Actividad
 {
   private ?int $id;
+  private string $nombre;
   private int $deporte;
   private float $precio;
   private int $nivel;
   private string $observacion;
   private int $institucion;
+  private int $estado;
 
-  public function __construct(?int $id, mixed $deporte, float $precio, mixed $nivel, string $observacion, mixed $institucion)
+  public function __construct(?int $id, mixed $deporte, float $precio, mixed $nivel, string $observacion, mixed $institucion, string $nombre = '', mixed $estado = 1)
   {
     $this->id = $id;
+    $this->nombre = $nombre;
     $this->deporte = $this->extractId($deporte);
     $this->precio = $precio;
     $this->nivel = $this->extractId($nivel);
     $this->observacion = $observacion;
     $this->institucion = $this->extractId($institucion);
+    $this->estado = $this->extractId($estado);
   }
 
   public function getId(): ?int
@@ -34,6 +39,11 @@ class Actividad
   public function getDeporte(): ?Deporte
   {
     return $this->deporte === null ? null : Deporte::from($this->deporte);
+  }
+
+  public function getNombre(): string
+  {
+    return $this->nombre;
   }
 
   public function getPrecio(): float
@@ -56,9 +66,19 @@ class Actividad
     return $this->institucion === null ? null : Institucion::from($this->institucion);
   }
 
+  public function getEstado(): ?Estado
+  {
+    return $this->estado === null ? null : Estado::from($this->estado);
+  }
+
   public function setId(?int $id): void
   {
     $this->id = $id;
+  }
+
+  public function setNombre(string $nombre): void
+  {
+    $this->nombre = $nombre;
   }
 
   public function setDeporte(mixed $deporte): void
@@ -86,6 +106,11 @@ class Actividad
     $this->institucion = $this->extractId($institucion);
   }
 
+  public function setEstado(mixed $estado): void
+  {
+    $this->estado = $this->extractId($estado);
+  }
+
   private function extractId(mixed $value): ?int
   {
     if ($value === null) {
@@ -107,6 +132,6 @@ class Actividad
       }
     } catch (\Exception $e) {
     }
-    return new self($id, 0, 0.0, 0, '', 0);
+    return new self($id, 0, 0.0, 0, '', 0, '', 0);
   }
 }

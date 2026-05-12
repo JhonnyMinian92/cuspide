@@ -21,24 +21,28 @@ class ActividadRepository
   public function save(Actividad $actividad): Actividad
   {
     if ($actividad->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO actividades (deporte, precio, nivel, observacion, institucion) VALUES (:deporte, :precio, :nivel, :observacion, :institucion)");
+      $stmt = $this->db->prepare("INSERT INTO actividades (nombre, deporte, precio, nivel, observacion, institucion, estado) VALUES (:nombre, :deporte, :precio, :nivel, :observacion, :institucion, :estado)");
       $stmt->execute([
+        ':nombre' => $actividad->getNombre(),
         ':deporte' => $actividad->getDeporte()?->getId(),
         ':precio' => $actividad->getPrecio(),
         ':nivel' => $actividad->getNivel()?->getId(),
         ':observacion' => $actividad->getObservacion(),
         ':institucion' => $actividad->getInstitucion()?->getId(),
+        ':estado' => $actividad->getEstado()?->getId(),
       ]);
       $actividad->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE actividades SET deporte = :deporte, precio = :precio, nivel = :nivel, observacion = :observacion, institucion = :institucion WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE actividades SET nombre = :nombre, deporte = :deporte, precio = :precio, nivel = :nivel, observacion = :observacion, institucion = :institucion, estado = :estado WHERE id = :id");
       $stmt->execute([
         ':id' => $actividad->getId(),
+        ':nombre' => $actividad->getNombre(),
         ':deporte' => $actividad->getDeporte()?->getId(),
         ':precio' => $actividad->getPrecio(),
         ':nivel' => $actividad->getNivel()?->getId(),
         ':observacion' => $actividad->getObservacion(),
         ':institucion' => $actividad->getInstitucion()?->getId(),
+        ':estado' => $actividad->getEstado()?->getId(),
       ]);
     }
 
@@ -51,7 +55,7 @@ class ActividadRepository
     $stmt->execute([':id' => $id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    return $row ? new Actividad($row['id'], $row['deporte'], $row['precio'], $row['nivel'], $row['observacion'], $row['institucion']) : null;
+    return $row ? new Actividad($row['id'], $row['deporte'], $row['precio'], $row['nivel'], $row['observacion'], $row['institucion'], $row['nombre'] ?? '', $row['estado'] ?? 1) : null;
   }
 
   public function findAll(): array
@@ -59,6 +63,6 @@ class ActividadRepository
     $stmt = $this->db->query('SELECT * FROM actividades ORDER BY id ASC');
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    return array_map(fn($row) => new Actividad($row['id'], $row['deporte'], $row['precio'], $row['nivel'], $row['observacion'], $row['institucion']), $rows ?: []);
+    return array_map(fn($row) => new Actividad($row['id'], $row['deporte'], $row['precio'], $row['nivel'], $row['observacion'], $row['institucion'], $row['nombre'] ?? '', $row['estado'] ?? 1), $rows ?: []);
   }
 }

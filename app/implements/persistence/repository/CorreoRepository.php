@@ -24,9 +24,9 @@ class CorreoRepository
       $stmt = $this->db->prepare("INSERT INTO correos (email, tipo, persona, estado) VALUES (:email, :tipo, :persona, :estado)");
       $stmt->execute([
         ':email' => $correo->getEmail(),
-        ':tipo' => $correo->getTipo(),
-        ':persona' => $correo->getPersona(),
-        ':estado' => $correo->getEstado()
+        ':tipo' => $correo->getTipo()?->getId(),
+        ':persona' => $correo->getPersona()?->getId(),
+        ':estado' => $correo->getEstado()?->getId()
       ]);
       $correo->setId($this->db->lastInsertId());
     } else {
@@ -34,9 +34,9 @@ class CorreoRepository
       $stmt->execute([
         ':id' => $correo->getId(),
         ':email' => $correo->getEmail(),
-        ':tipo' => $correo->getTipo(),
-        ':persona' => $correo->getPersona(),
-        ':estado' => $correo->getEstado()
+        ':tipo' => $correo->getTipo()?->getId(),
+        ':persona' => $correo->getPersona()?->getId(),
+        ':estado' => $correo->getEstado()?->getId()
       ]);
     }
 

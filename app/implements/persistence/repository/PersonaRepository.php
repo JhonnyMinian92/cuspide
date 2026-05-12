@@ -28,17 +28,17 @@ class PersonaRepository
         ':segundo_nombre' => $persona->getSegundoNombre(),
         ':primer_apellido' => $persona->getPrimerApellido(),
         ':segundo_apellido' => $persona->getSegundoApellido(),
-        ':nacionalidad' => $persona->getNacionalidad(),
-        ':genero' => $persona->getGenero(),
-        ':etnia' => $persona->getEtnia(),
+        ':nacionalidad' => $persona->getNacionalidad()?->getId(),
+        ':genero' => $persona->getGenero()?->getId(),
+        ':etnia' => $persona->getEtnia()?->getId(),
         ':fecha_nacimiento' => $persona->getFechaNacimiento(),
-        ':ciudad' => $persona->getCiudad(),
+        ':ciudad' => $persona->getCiudad()?->getId(),
         ':direccion' => $persona->getDireccion(),
-        ':user' => $persona->getUser()
+        ':user' => $persona->getUser()?->getId()
       ]);
       $persona->setId($this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE personas SET identificacion = :identificacion, primer_nombre = :primer_nombre, segundo_nombre = :segundo_nombre, primer_apellido = :primer_apellido, segundo_apellido = :segundo_apellido, nacionalidad = :nacionalidad, genero = :genero, etnia = :etnia, fecha_nacimiento = :fecha_nacimiento, ciudad = :ciudad, direccion = :direccion WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE personas SET identificacion = :identificacion, primer_nombre = :primer_nombre, segundo_nombre = :segundo_nombre, primer_apellido = :primer_apellido, segundo_apellido = :segundo_apellido, nacionalidad = :nacionalidad, genero = :genero, etnia = :etnia, fecha_nacimiento = :fecha_nacimiento, ciudad = :ciudad, direccion = :direccion, user = :user WHERE id = :id");
       $stmt->execute([
         ':id' => $persona->getId(),
         ':identificacion' => $persona->getIdentificacion(),
@@ -46,12 +46,13 @@ class PersonaRepository
         ':segundo_nombre' => $persona->getSegundoNombre(),
         ':primer_apellido' => $persona->getPrimerApellido(),
         ':segundo_apellido' => $persona->getSegundoApellido(),
-        ':nacionalidad' => $persona->getNacionalidad(),
-        ':genero' => $persona->getGenero(),
-        ':etnia' => $persona->getEtnia(),
+        ':nacionalidad' => $persona->getNacionalidad()?->getId(),
+        ':genero' => $persona->getGenero()?->getId(),
+        ':etnia' => $persona->getEtnia()?->getId(),
         ':fecha_nacimiento' => $persona->getFechaNacimiento(),
-        ':ciudad' => $persona->getCiudad(),
-        ':direccion' => $persona->getDireccion()
+        ':ciudad' => $persona->getCiudad()?->getId(),
+        ':direccion' => $persona->getDireccion(),
+        ':user' => $persona->getUser()?->getId()
       ]);
     }
     return $persona;

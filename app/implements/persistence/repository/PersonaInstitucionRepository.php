@@ -23,20 +23,20 @@ class PersonaInstitucionRepository
     if ($personaInstitucion->getId() === null) {
       $stmt = $this->db->prepare("INSERT INTO persona_institucion (id_persona, id_institucion, tipo, estado) VALUES (:id_persona, :id_institucion, :tipo, :estado)");
       $stmt->execute([
-        ':id_persona' => $personaInstitucion->getIdPersona(),
-        ':id_institucion' => $personaInstitucion->getIdInstitucion(),
-        ':tipo' => $personaInstitucion->getTipo(),
-        ':estado' => $personaInstitucion->getEstado()
+        ':id_persona' => $personaInstitucion->getIdPersona()?->getId(),
+        ':id_institucion' => $personaInstitucion->getIdInstitucion()?->getId(),
+        ':tipo' => $personaInstitucion->getTipo()?->getId(),
+        ':estado' => $personaInstitucion->getEstado()?->getId()
       ]);
       $personaInstitucion->setId($this->db->lastInsertId());
     } else {
       $stmt = $this->db->prepare("UPDATE persona_institucion SET id_persona = :id_persona, id_institucion = :id_institucion, tipo = :tipo, estado = :estado WHERE id = :id");
       $stmt->execute([
         ':id' => $personaInstitucion->getId(),
-        ':id_persona' => $personaInstitucion->getIdPersona(),
-        ':id_institucion' => $personaInstitucion->getIdInstitucion(),
-        ':tipo' => $personaInstitucion->getTipo(),
-        ':estado' => $personaInstitucion->getEstado()
+        ':id_persona' => $personaInstitucion->getIdPersona()?->getId(),
+        ':id_institucion' => $personaInstitucion->getIdInstitucion()?->getId(),
+        ':tipo' => $personaInstitucion->getTipo()?->getId(),
+        ':estado' => $personaInstitucion->getEstado()?->getId()
       ]);
     }
     return $personaInstitucion;

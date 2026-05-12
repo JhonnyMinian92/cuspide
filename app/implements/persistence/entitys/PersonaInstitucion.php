@@ -2,6 +2,7 @@
 
 namespace Entitys;
 
+require_once __DIR__ . '/../repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/Persona.php';
 require_once __DIR__ . '/Institucion.php';
 require_once __DIR__ . '/TipoPersona.php';
@@ -80,5 +81,18 @@ class PersonaInstitucion
       return $value->getId();
     }
     return $value;
+  }
+
+  public static function from(int $id): ?self
+  {
+    try {
+      $repositorio = new \Repositories\PersonaInstitucionRepository();
+      $entity = $repositorio->findById($id);
+      if ($entity) {
+        return $entity;
+      }
+    } catch (\Exception $e) {
+    }
+    return new self($id, 0, 0, 0, 0);
   }
 }

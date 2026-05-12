@@ -3,97 +3,94 @@
 namespace Entitys;
 
 require_once __DIR__ . '/../repository/ClaseRepository.php';
-require_once __DIR__ . '/Asignatura.php';
-require_once __DIR__ . '/NivelAsignatura.php';
+require_once __DIR__ . '/PeriodoAcademico.php';
+require_once __DIR__ . '/Persona.php';
 require_once __DIR__ . '/Institucion.php';
+require_once __DIR__ . '/Estado.php';
 
 class Clase
 {
   private ?int $id;
-  private int $asignatura;
-  private float $precio;
-  private int $nivel;
-  private string $observacion;
+  private string $nombre;
+  private int $periodo_academico;
   private int $institucion;
+  private ?int $docente; // Persona ID (Profesor/Entrenador)
+  private int $cupo_maximo;
+  private int $estado;
 
-  public function __construct(?int $id, mixed $asignatura, float $precio, mixed $nivel, string $observacion, mixed $institucion)
+  public function __construct(?int $id, string $nombre, mixed $periodo_academico, mixed $institucion, mixed $docente, int $cupo_maximo, mixed $estado)
   {
     $this->id = $id;
-    $this->asignatura = $this->extractId($asignatura);
-    $this->precio = $precio;
-    $this->nivel = $this->extractId($nivel);
-    $this->observacion = $observacion;
+    $this->nombre = $nombre;
+    $this->periodo_academico = $this->extractId($periodo_academico);
     $this->institucion = $this->extractId($institucion);
+    $this->docente = $this->extractId($docente);
+    $this->cupo_maximo = $cupo_maximo;
+    $this->estado = $this->extractId($estado);
   }
 
   public function getId(): ?int
   {
     return $this->id;
   }
-
-  public function getAsignatura(): ?Asignatura
+  public function getNombre(): string
   {
-    return $this->asignatura === null ? null : Asignatura::from($this->asignatura);
+    return $this->nombre;
   }
-
-  public function getPrecio(): float
+  public function getPeriodoAcademico(): ?PeriodoAcademico
   {
-    return $this->precio;
+    return $this->periodo_academico === null ? null : PeriodoAcademico::from($this->periodo_academico);
   }
-
-  public function getNivel(): ?NivelAsignatura
-  {
-    return $this->nivel === null ? null : NivelAsignatura::from($this->nivel);
-  }
-
-  public function getObservacion(): string
-  {
-    return $this->observacion;
-  }
-
   public function getInstitucion(): ?Institucion
   {
     return $this->institucion === null ? null : Institucion::from($this->institucion);
+  }
+  public function getDocente(): ?Persona
+  {
+    return $this->docente === null ? null : Persona::from($this->docente);
+  }
+  public function getCupoMaximo(): int
+  {
+    return $this->cupo_maximo;
+  }
+  public function getEstado(): ?Estado
+  {
+    return $this->estado === null ? null : Estado::from($this->estado);
   }
 
   public function setId(?int $id): void
   {
     $this->id = $id;
   }
-
-  public function setAsignatura(mixed $asignatura): void
+  public function setNombre(string $nombre): void
   {
-    $this->asignatura = $this->extractId($asignatura);
+    $this->nombre = $nombre;
   }
-
-  public function setPrecio(float $precio): void
+  public function setPeriodoAcademico(mixed $periodo_academico): void
   {
-    $this->precio = $precio;
+    $this->periodo_academico = $this->extractId($periodo_academico);
   }
-
-  public function setNivel(mixed $nivel): void
-  {
-    $this->nivel = $this->extractId($nivel);
-  }
-
-  public function setObservacion(string $observacion): void
-  {
-    $this->observacion = $observacion;
-  }
-
   public function setInstitucion(mixed $institucion): void
   {
     $this->institucion = $this->extractId($institucion);
   }
+  public function setDocente(mixed $docente): void
+  {
+    $this->docente = $this->extractId($docente);
+  }
+  public function setCupoMaximo(int $cupo_maximo): void
+  {
+    $this->cupo_maximo = $cupo_maximo;
+  }
+  public function setEstado(mixed $estado): void
+  {
+    $this->estado = $this->extractId($estado);
+  }
 
   private function extractId(mixed $value): ?int
   {
-    if ($value === null) {
-      return null;
-    }
-    if (is_object($value) && method_exists($value, 'getId')) {
-      return $value->getId();
-    }
+    if ($value === null) return null;
+    if (is_object($value) && method_exists($value, 'getId')) return $value->getId();
     return (int) $value;
   }
 
@@ -102,11 +99,9 @@ class Clase
     try {
       $repositorio = new \Repositories\ClaseRepository();
       $entity = $repositorio->findById($id);
-      if ($entity) {
-        return $entity;
-      }
+      if ($entity) return $entity;
     } catch (\Exception $e) {
     }
-    return new self($id, 0, 0.0, 0, '', 0);
+    return new self($id, '', 0, 0, null, 0, 0);
   }
 }

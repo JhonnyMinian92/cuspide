@@ -21,27 +21,28 @@ class ClaseRepository
   public function save(Clase $clase): Clase
   {
     if ($clase->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO clases (asignatura, precio, nivel, observacion, institucion) VALUES (:asignatura, :precio, :nivel, :observacion, :institucion)");
+      $stmt = $this->db->prepare("INSERT INTO clases (nombre, periodo_academico, institucion, docente, cupo_maximo, estado) VALUES (:nombre, :periodo_academico, :institucion, :docente, :cupo_maximo, :estado)");
       $stmt->execute([
-        ':asignatura' => $clase->getAsignatura()?->getId(),
-        ':precio' => $clase->getPrecio(),
-        ':nivel' => $clase->getNivel()?->getId(),
-        ':observacion' => $clase->getObservacion(),
+        ':nombre' => $clase->getNombre(),
+        ':periodo_academico' => $clase->getPeriodoAcademico()?->getId(),
         ':institucion' => $clase->getInstitucion()?->getId(),
+        ':docente' => $clase->getDocente()?->getId(),
+        ':cupo_maximo' => $clase->getCupoMaximo(),
+        ':estado' => $clase->getEstado()?->getId(),
       ]);
-      $clase->setId($this->db->lastInsertId());
+      $clase->setId((int) $this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE clases SET asignatura = :asignatura, precio = :precio, nivel = :nivel, observacion = :observacion, institucion = :institucion WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE clases SET nombre = :nombre, periodo_academico = :periodo_academico, institucion = :institucion, docente = :docente, cupo_maximo = :cupo_maximo, estado = :estado WHERE id = :id");
       $stmt->execute([
         ':id' => $clase->getId(),
-        ':asignatura' => $clase->getAsignatura()?->getId(),
-        ':precio' => $clase->getPrecio(),
-        ':nivel' => $clase->getNivel()?->getId(),
-        ':observacion' => $clase->getObservacion(),
+        ':nombre' => $clase->getNombre(),
+        ':periodo_academico' => $clase->getPeriodoAcademico()?->getId(),
         ':institucion' => $clase->getInstitucion()?->getId(),
+        ':docente' => $clase->getDocente()?->getId(),
+        ':cupo_maximo' => $clase->getCupoMaximo(),
+        ':estado' => $clase->getEstado()?->getId(),
       ]);
     }
-
     return $clase;
   }
 
@@ -50,15 +51,6 @@ class ClaseRepository
     $stmt = $this->db->prepare('SELECT * FROM clases WHERE id = :id');
     $stmt->execute([':id' => $id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return $row ? new Clase($row['id'], $row['asignatura'], $row['precio'], $row['nivel'], $row['observacion'], $row['institucion']) : null;
-  }
-
-  public function findAll(): array
-  {
-    $stmt = $this->db->query('SELECT * FROM clases ORDER BY id ASC');
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    return array_map(fn($row) => new Clase($row['id'], $row['asignatura'], $row['precio'], $row['nivel'], $row['observacion'], $row['institucion']), $rows ?: []);
+    return $row ? new Clase($row['id'], $row['nombre'], $row['periodo_academico'], $row['institucion'], $row['docente'], $row['cupo_maximo'], $row['estado']) : null;
   }
 }
