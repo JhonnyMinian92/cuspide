@@ -1,0 +1,62 @@
+<!-- ===== SIDEBAR =====
+     El sidebar muestra la marca/logo de institución (cargado via JS fetch a ?api=institucion),
+     el menú dinámico (via JS fetch a ?api=menu) y el perfil del usuario (via JS fetch a ?api=profile).
+-->
+<nav class="sidebar" id="sidebar">
+
+  <!-- Marca / Logo de institución -->
+  <div class="sidebar-brand d-flex align-items-center gap-3">
+    <div class="sidebar-logo-box flex-shrink-0">
+      <img src="/assets/logo/huaquillasfc.jpg" class="img-fluid w-100 h-100 object-fit-cover" id="sidebar-logo-img" alt="Huaquillas F.C." onerror="this.onerror=null;this.src='/assets/logo/huaquillasfc.jpg';">
+    </div>
+    <!-- Nombre de la institución; se actualiza via loadInstitucion() en app.js -->
+    <div class="brand-name" id="sidebar-institucion-nombre">Huaquillas<br>Fútbol Club</div>
+  </div>
+
+  <!-- Navegación dinámica: se renderiza via loadMenu() en app.js -->
+  <ul class="nav flex-column py-3 flex-grow-1" id="sidebar-menu">
+    <!-- Menú estático de respaldo mientras carga; será reemplazado por app.js -->
+    <li class="nav-item">
+      <a class="nav-link {% if currentPage == 'dashboard' %}active{% endif %}" href="/dashboard">
+        <i class="bi bi-house-fill me-2"></i>Dashboard
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if currentPage == 'alumnos' %}active{% endif %}" href="/alumnos">
+        <i class="bi bi-people-fill me-2"></i>Alumnos
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if currentPage == 'membresias' %}active{% endif %}" href="/membresias">
+        <i class="bi bi-credit-card-fill me-2"></i>Membresías
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if currentPage == 'inventario' %}active{% endif %}" href="/inventario">
+        <i class="bi bi-box-seam-fill me-2"></i>Inventario
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if currentPage == 'categorias' %}active{% endif %}" href="/categorias">
+        <i class="bi bi-tags-fill me-2"></i>Categorías
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if currentPage == 'configuracion' %}active{% endif %}" href="/configuracion">
+        <i class="bi bi-gear-fill me-2"></i>Configuración
+      </a>
+    </li>
+  </ul>
+
+  <!-- Footer del sidebar: muestra nombre del usuario (cargado via loadUserProfile() en app.js) -->
+  <div class="sidebar-footer">
+    <div class="d-flex align-items-center gap-2 px-2 mb-2">
+      <div class="avatar-circle" id="sidebar-avatar">U</div>
+      <span style="color:var(--sidebar-text);font-size:0.85rem;" id="sidebar-username">Cargando...</span>
+    </div>
+    <a href="#" onclick="logout()" class="nav-link text-danger d-flex align-items-center gap-2 px-2">
+      <i class="bi bi-box-arrow-left"></i>Salir
+    </a>
+  </div>
+
+</nav>
