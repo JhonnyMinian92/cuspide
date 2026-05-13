@@ -3,12 +3,10 @@ declare(strict_types=1);
 
 namespace Services;
 
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/HorarioRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Horario.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\HorarioRepository;
 use Entitys\Horario;
 use Utils\Token;
@@ -192,15 +190,13 @@ class HorarioServices
             throw new \RuntimeException('El parámetro id es requerido.', 400);
         }
 
-        $existing = $this->horarioRepo->findById($id);
-        if (!$existing) {
+        $horario = $this->horarioRepo->findById($id);
+        if (!$horario) {
             throw new \RuntimeException('Horario no encontrado.', 404);
         }
 
-        $db   = Database::getInstance();
-        $stmt = $db->prepare('UPDATE horarios SET estado = 2 WHERE id = :id');
-        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-        $stmt->execute();
+        $horario->setEstado(2);
+        $this->horarioRepo->save($horario);
 
         return ['id' => $id, 'estado' => 2];
     }

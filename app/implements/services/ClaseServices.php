@@ -3,14 +3,12 @@ declare(strict_types=1);
 
 namespace Services;
 
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/ClaseRepository.php';
 require_once __DIR__ . '/../persistence/repository/AsistenciaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Clase.php';
 require_once __DIR__ . '/../persistence/entitys/Asistencia.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\ClaseRepository;
 use Repositories\AsistenciaRepository;
 use Entitys\Clase;
@@ -75,31 +73,7 @@ class ClaseServices
             throw new \RuntimeException('El parámetro institucion es requerido.', 400);
         }
 
-        $db  = Database::getInstance();
-        $sql = "SELECT c.id,
-                       c.nombre,
-                       c.cupo_maximo,
-                       c.estado,
-                       pa.nombre                                           AS periodo,
-                       p.primer_nombre,
-                       p.primer_apellido,
-                       COUNT(DISTINCT cm.id)                              AS matriculados,
-                       SUM(CASE WHEN a.estado = 1 THEN 1 ELSE 0 END)     AS asistencias,
-                       SUM(CASE WHEN a.estado = 2 THEN 1 ELSE 0 END)     AS faltas
-                FROM clases c
-                LEFT JOIN periodo_academico pa ON pa.id = c.periodo_academico
-                LEFT JOIN personas p           ON p.id  = c.docente
-                LEFT JOIN clase_matricula cm   ON cm.clase = c.id AND cm.estado = 1
-                LEFT JOIN asistencias a        ON a.clase  = c.id
-                WHERE c.institucion = :inst
-                GROUP BY c.id
-                ORDER BY c.nombre ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':inst', $institucionId, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows   = $this->claseRepo->findByInstitucionWithStats($institucionId);
         $result = [];
         foreach ($rows as $row) {
             $result[] = [
@@ -127,21 +101,8 @@ class ClaseServices
             throw new \RuntimeException('El parámetro id es requerido.', 400);
         }
 
-        $db  = Database::getInstance();
-        $sql = "SELECT c.cupo_maximo,
-                       COUNT(cm.id)                          AS ocupados,
-                       (c.cupo_maximo - COUNT(cm.id))        AS disponible
-                FROM clases c
-                LEFT JOIN clase_matricula cm ON cm.clase = c.id AND cm.estado = 1
-                WHERE c.id = :id
-                GROUP BY c.id";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':id', $claseId, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        if (!$row) {
+        $row = $this->claseRepo->findCapacity($claseId);
+        if ($row === null) {
             throw new \RuntimeException('Clase no encontrada.', 404);
         }
 
@@ -211,10 +172,7 @@ class ClaseServices
             throw new \RuntimeException('Clase no encontrada.', 404);
         }
 
-        $db   = Database::getInstance();
-        $stmt = $db->prepare('UPDATE clases SET estado = 2 WHERE id = :id');
-        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-        $stmt->execute();
+        $this->claseRepo->disable($id);
 
         return ['id' => $id, 'estado' => 2];
     }

@@ -3,19 +3,23 @@ declare(strict_types=1);
 
 namespace Services;
 
-require_once __DIR__ . '/../persistence/conexion/Database.php';
+require_once __DIR__ . '/../persistence/repository/DeporteRepository.php';
+require_once __DIR__ . '/../persistence/entitys/Deporte.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
+use Repositories\DeporteRepository;
+use Entitys\Deporte;
 use Utils\Token;
 
 class DeporteServices
 {
+    private DeporteRepository $deporteRepo;
     private array $security;
 
     public function __construct()
     {
-        $this->security = require __DIR__ . '/../../properties/security.php';
+        $this->deporteRepo = new DeporteRepository();
+        $this->security    = require __DIR__ . '/../../properties/security.php';
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -52,23 +56,14 @@ class DeporteServices
     // -------------------------------------------------------------------------
     private function fetchDeportes(): array
     {
-        $db  = Database::getInstance();
-        $sql = "SELECT id, nombre, descripcion, estado
-                FROM deportes
-                WHERE estado = 1
-                ORDER BY nombre ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->execute();
-
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        $result = [];
-        foreach ($rows as $row) {
+        $deportes = $this->deporteRepo->findAllActive();
+        $result   = [];
+        foreach ($deportes as $deporte) {
             $result[] = [
-                'id'          => (int)$row['id'],
-                'nombre'      => $row['nombre'],
-                'descripcion' => $row['descripcion'],
-                'estado'      => (int)$row['estado'],
+                'id'          => (int)$deporte->getId(),
+                'nombre'      => $deporte->getNombre(),
+                'descripcion' => $deporte->getDescripcion(),
+                'estado'      => (int)$deporte->getEstado()?->getId(),
             ];
         }
         return $result;
@@ -95,43 +90,21 @@ class DeporteServices
         $nombre      = trim($data['nombre']);
         $descripcion = trim($data['descripcion'] ?? '');
         $estado      = isset($data['estado']) ? (int)$data['estado'] : 1;
-
-        $db = Database::getInstance();
+        $institucion = isset($data['institucion']) ? (int)$data['institucion'] : 0;
 
         if ($entityId !== null) {
-            // Verify existence
-            $stmtCheck = $db->prepare('SELECT id FROM deportes WHERE id = :id');
-            $stmtCheck->bindValue(':id', $entityId, \PDO::PARAM_INT);
-            $stmtCheck->execute();
-            if (!$stmtCheck->fetch()) {
+            $existing = $this->deporteRepo->findById($entityId);
+            if (!$existing) {
                 throw new \RuntimeException('Deporte no encontrado para actualizar.', 404);
             }
-
-            $stmt = $db->prepare(
-                'UPDATE deportes SET nombre = :nombre, descripcion = :descripcion, estado = :estado WHERE id = :id'
-            );
-            $stmt->bindValue(':nombre',      $nombre);
-            $stmt->bindValue(':descripcion', $descripcion);
-            $stmt->bindValue(':estado',      $estado, \PDO::PARAM_INT);
-            $stmt->bindValue(':id',          $entityId, \PDO::PARAM_INT);
-            $stmt->execute();
-
-            $savedId = $entityId;
-        } else {
-            $stmt = $db->prepare(
-                'INSERT INTO deportes (nombre, descripcion, estado) VALUES (:nombre, :descripcion, :estado)'
-            );
-            $stmt->bindValue(':nombre',      $nombre);
-            $stmt->bindValue(':descripcion', $descripcion);
-            $stmt->bindValue(':estado',      $estado, \PDO::PARAM_INT);
-            $stmt->execute();
-
-            $savedId = (int)$db->lastInsertId();
         }
 
+        $deporte = new Deporte($entityId, $nombre, $descripcion, $institucion, $estado);
+        $saved   = $this->deporteRepo->save($deporte);
+
         return [
-            'id'     => $savedId,
-            'nombre' => $nombre,
+            'id'     => (int)$saved->getId(),
+            'nombre' => $saved->getNombre(),
         ];
     }
 }

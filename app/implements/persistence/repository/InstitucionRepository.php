@@ -76,4 +76,12 @@ class InstitucionRepository
 
     return null;
   }
+
+  public function findAll(): array
+  {
+    $stmt = $this->db->prepare('SELECT * FROM instituciones WHERE estado = 1 ORDER BY nombre ASC');
+    $stmt->execute();
+    $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    return array_map(fn($row) => new Institucion($row['id'], $row['ruc'], $row['razon_social'], $row['nombre'], $row['logotipo'], $row['estado']), $rows ?: []);
+  }
 }

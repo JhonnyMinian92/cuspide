@@ -3,12 +3,10 @@ declare(strict_types=1);
 
 namespace Services;
 
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/AsignaturaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Asignatura.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\AsignaturaRepository;
 use Entitys\Asignatura;
 use Utils\Token;
@@ -68,24 +66,7 @@ class AsignaturaServices
             throw new \RuntimeException('El parámetro institucion es requerido.', 400);
         }
 
-        $db  = Database::getInstance();
-        $sql = "SELECT a.id,
-                       a.nombre,
-                       a.descripcion,
-                       a.estado,
-                       COUNT(DISTINCT cm.id) AS total_matriculados
-                FROM asignaturas a
-                LEFT JOIN asignatura_clase ac ON ac.asignatura = a.id
-                LEFT JOIN clase_matricula  cm ON cm.clase = ac.clase AND cm.estado = 1
-                WHERE a.institucion = :inst
-                GROUP BY a.id
-                ORDER BY a.nombre ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':inst', $institucionId, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows   = $this->asignaturaRepo->findByInstitucionWithStats($institucionId);
         $result = [];
         foreach ($rows as $row) {
             $result[] = [
@@ -156,10 +137,7 @@ class AsignaturaServices
             throw new \RuntimeException('Asignatura no encontrada.', 404);
         }
 
-        $db   = Database::getInstance();
-        $stmt = $db->prepare('UPDATE asignaturas SET estado = 2 WHERE id = :id');
-        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-        $stmt->execute();
+        $this->asignaturaRepo->disable($id);
 
         return ['id' => $id, 'estado' => 2];
     }

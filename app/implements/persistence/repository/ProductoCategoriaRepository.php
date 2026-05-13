@@ -58,6 +58,12 @@ class ProductoCategoriaRepository
     ];
   }
 
+  public function findAllActive(): array
+  {
+    $stmt = $this->db->query('SELECT * FROM producto_categorias WHERE estado = 1 ORDER BY nombre ASC');
+    return array_map(fn($row) => $this->map($row), $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: []);
+  }
+
   private function map(array $row): ProductoCategoria
   {
     return new ProductoCategoria($row['id'], $row['nombre'], $row['nemonico'], $row['descripcion'], $row['institucion'], $row['estado']);

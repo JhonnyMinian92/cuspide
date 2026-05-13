@@ -6,17 +6,20 @@ namespace Services;
 
 require_once __DIR__ . '/../interfaces/FacturaServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
-require_once __DIR__ . '/../persistence/conexion/Database.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\FacturaServiceInterface;
 use Repositories\VentaRepository;
+use Repositories\PersonaRepository;
 use RuntimeException;
 use Utils\Token;
 
 final class FacturaServices implements FacturaServiceInterface
 {
     private string $jwtSecret;
+    private VentaRepository   $ventaRepo;
+    private PersonaRepository $personaRepo;
 
     public function __construct()
     {
@@ -25,6 +28,8 @@ final class FacturaServices implements FacturaServiceInterface
         if ($this->jwtSecret === '') {
             throw new RuntimeException('No existe configuración de seguridad para JWT.', 500);
         }
+        $this->ventaRepo   = new VentaRepository();
+        $this->personaRepo = new PersonaRepository();
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -76,20 +81,16 @@ final class FacturaServices implements FacturaServiceInterface
 
     private function resolvePersonaId(array $queryParams): int
     {
-        $db = \Core\Database::getInstance();
-
         if (!empty($queryParams['persona_id'])) {
             return (int) $queryParams['persona_id'];
         }
 
         if (!empty($queryParams['identificacion'])) {
-            $stmt = $db->prepare('SELECT id FROM personas WHERE identificacion = :identificacion LIMIT 1');
-            $stmt->execute([':identificacion' => (string) $queryParams['identificacion']]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-            if ($row === false) {
+            $persona = $this->personaRepo->findByIdentificacion((string) $queryParams['identificacion']);
+            if ($persona === null) {
                 throw new RuntimeException('No se encontró persona con esa identificación.', 404);
             }
-            return (int) $row['id'];
+            return (int) $persona->getId();
         }
 
         throw new RuntimeException('Debe proporcionar persona_id o identificacion.', 400);
@@ -109,22 +110,7 @@ final class FacturaServices implements FacturaServiceInterface
         $limit  = max(1, (int) ($queryParams['limit']  ?? 100));
         $offset = max(0, (int) ($queryParams['offset'] ?? 0));
 
-        $db  = \Core\Database::getInstance();
-        $sql = "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo, v.estado,
-                       p.identificacion,
-                       CONCAT(p.primer_nombre, ' ', p.primer_apellido) AS nombre
-                FROM ventas v
-                JOIN personas p ON p.id = v.persona
-                WHERE v.institucion = :institucion
-                ORDER BY v.fecha DESC
-                LIMIT :lim OFFSET :off";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':institucion', $institucion, \PDO::PARAM_INT);
-        $stmt->bindValue(':lim',         $limit,       \PDO::PARAM_INT);
-        $stmt->bindValue(':off',         $offset,      \PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $this->ventaRepo->findByInstitucion($institucion, null, null, $limit, $offset);
 
         return array_map(fn($r) => [
             'id'             => (int)   $r['id'],
@@ -146,8 +132,7 @@ final class FacturaServices implements FacturaServiceInterface
     private function fetchByClient(array $queryParams): array
     {
         $personaId  = $this->resolvePersonaId($queryParams);
-        $ventaRepo  = new VentaRepository();
-        $ventas     = $ventaRepo->findByPersona($personaId);
+        $ventas     = $this->ventaRepo->findByPersona($personaId);
 
         return array_map(fn($v) => [
             'id'     => $v->getId(),
@@ -171,13 +156,11 @@ final class FacturaServices implements FacturaServiceInterface
             throw new RuntimeException('ID de factura inválido.', 400);
         }
 
-        $db   = \Core\Database::getInstance();
-        $stmt = $db->prepare('UPDATE ventas SET estado = 2 WHERE id = :id');
-        $stmt->execute([':id' => $id]);
+        $this->ventaRepo->cancel($id);
 
         return [
-            'id'    => $id,
-            'estado'=> 'ANULADO',
+            'id'     => $id,
+            'estado' => 'ANULADO',
         ];
     }
 
@@ -192,20 +175,7 @@ final class FacturaServices implements FacturaServiceInterface
             throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
         }
 
-        $db  = \Core\Database::getInstance();
-        $sql = "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo, v.estado,
-                       p.identificacion,
-                       CONCAT(p.primer_nombre, ' ', p.primer_apellido) AS nombre
-                FROM ventas v
-                JOIN personas p ON p.id = v.persona
-                WHERE v.saldo > 0
-                  AND v.estado = 1
-                  AND v.institucion = :institucion
-                ORDER BY v.fecha ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->execute([':institucion' => $institucion]);
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $this->ventaRepo->findPendientesByInstitucion($institucion);
 
         return array_map(fn($r) => [
             'id'             => (int)   $r['id'],
@@ -214,7 +184,7 @@ final class FacturaServices implements FacturaServiceInterface
             'total'          => (float) $r['total'],
             'saldo'          => (float) $r['saldo'],
             'tipo'           => $r['tipo'],
-            'estado'         => (int)   $r['estado'],
+            'estado'         => (int)   ($r['estado'] ?? 1),
             'identificacion' => $r['identificacion'],
             'nombre'         => $r['nombre'],
         ], $rows);

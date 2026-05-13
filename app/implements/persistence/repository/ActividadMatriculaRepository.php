@@ -67,4 +67,29 @@ class ActividadMatriculaRepository
 
     return array_map(fn($row) => new ActividadMatricula($row['id'], $row['actividad'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado'], $row['categoria_deportiva'] ?? null, $row['horario'] ?? null), $rows ?: []);
   }
+
+  public function findByMatriculaId(int $matriculaId): array
+  {
+    $stmt = $this->db->prepare(
+      'SELECT * FROM actividades_matricula WHERE matricula = :mid ORDER BY id ASC'
+    );
+    $stmt->execute([':mid' => $matriculaId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return array_map(
+      fn($row) => new ActividadMatricula($row['id'], $row['actividad'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado'], $row['categoria_deportiva'] ?? null, $row['horario'] ?? null),
+      $rows ?: []
+    );
+  }
+
+  public function cancelByMatriculaId(int $matriculaId): void
+  {
+    $stmt = $this->db->prepare('UPDATE actividades_matricula SET estado = 2 WHERE matricula = :mid');
+    $stmt->execute([':mid' => $matriculaId]);
+  }
+
+  public function disableById(int $id): void
+  {
+    $stmt = $this->db->prepare('UPDATE actividades_matricula SET estado = 2 WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+  }
 }

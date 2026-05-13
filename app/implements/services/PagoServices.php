@@ -6,21 +6,32 @@ namespace Services;
 
 require_once __DIR__ . '/../interfaces/PagoServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/PagoRepository.php';
+require_once __DIR__ . '/../persistence/repository/PagoDetalleRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Pago.php';
+require_once __DIR__ . '/../persistence/entitys/PagoDetalle.php';
 require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../utils/Token.php';
 
+use Core\Database;
 use Interfaces\PagoServiceInterface;
 use Repositories\PagoRepository;
+use Repositories\PagoDetalleRepository;
 use Repositories\VentaRepository;
+use Repositories\PersonaRepository;
 use Entitys\Pago;
+use Entitys\PagoDetalle;
 use RuntimeException;
 use Utils\Token;
 
 final class PagoServices implements PagoServiceInterface
 {
     private string $jwtSecret;
+    private PagoRepository        $pagoRepo;
+    private PagoDetalleRepository $pagoDetalleRepo;
+    private VentaRepository       $ventaRepo;
+    private PersonaRepository     $personaRepo;
 
     public function __construct()
     {
@@ -29,6 +40,10 @@ final class PagoServices implements PagoServiceInterface
         if ($this->jwtSecret === '') {
             throw new RuntimeException('No existe configuración de seguridad para JWT.', 500);
         }
+        $this->pagoRepo        = new PagoRepository();
+        $this->pagoDetalleRepo = new PagoDetalleRepository();
+        $this->ventaRepo       = new VentaRepository();
+        $this->personaRepo     = new PersonaRepository();
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -79,20 +94,16 @@ final class PagoServices implements PagoServiceInterface
 
     private function resolvePersonaId(array $queryParams): int
     {
-        $db = \Core\Database::getInstance();
-
         if (!empty($queryParams['persona_id'])) {
             return (int) $queryParams['persona_id'];
         }
 
         if (!empty($queryParams['identificacion'])) {
-            $stmt = $db->prepare('SELECT id FROM personas WHERE identificacion = :identificacion LIMIT 1');
-            $stmt->execute([':identificacion' => (string) $queryParams['identificacion']]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-            if ($row === false) {
+            $persona = $this->personaRepo->findByIdentificacion((string) $queryParams['identificacion']);
+            if ($persona === null) {
                 throw new RuntimeException('No se encontró persona con esa identificación.', 404);
             }
-            return (int) $row['id'];
+            return (int) $persona->getId();
         }
 
         throw new RuntimeException('Debe proporcionar persona_id o identificacion.', 400);
@@ -109,30 +120,17 @@ final class PagoServices implements PagoServiceInterface
             throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
         }
 
-        $db  = \Core\Database::getInstance();
-        $sql = "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo,
-                       p.identificacion,
-                       CONCAT(p.primer_nombre, ' ', p.primer_apellido) AS nombre
-                FROM ventas v
-                JOIN personas p ON p.id = v.persona
-                WHERE v.saldo > 0
-                  AND v.estado = 1
-                  AND v.institucion = :institucion
-                ORDER BY v.fecha ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->execute([':institucion' => $institucion]);
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $this->ventaRepo->findPendientesByInstitucion($institucion);
 
         return array_map(fn($r) => [
-            'id'              => (int)   $r['id'],
-            'numero'          => $r['numero'],
-            'fecha'           => $r['fecha'],
-            'total'           => (float) $r['total'],
-            'saldo'           => (float) $r['saldo'],
-            'tipo'            => $r['tipo'],
-            'identificacion'  => $r['identificacion'],
-            'nombre'          => $r['nombre'],
+            'id'             => (int)   $r['id'],
+            'numero'         => $r['numero'],
+            'fecha'          => $r['fecha'],
+            'total'          => (float) $r['total'],
+            'saldo'          => (float) $r['saldo'],
+            'tipo'           => $r['tipo'],
+            'identificacion' => $r['identificacion'],
+            'nombre'         => $r['nombre'],
         ], $rows);
     }
 
@@ -144,11 +142,8 @@ final class PagoServices implements PagoServiceInterface
     {
         $personaId = $this->resolvePersonaId($queryParams);
 
-        $pagoRepo = new PagoRepository();
-        $ventaRepo = new VentaRepository();
-
-        $pagos   = $pagoRepo->findByPersona($personaId);
-        $ventas  = $ventaRepo->findByPersona($personaId);
+        $pagos   = $this->pagoRepo->findByPersona($personaId);
+        $ventas  = $this->ventaRepo->findByPersona($personaId);
 
         $pagosData = array_map(fn($p) => [
             'id'         => $p->getId(),
@@ -202,16 +197,13 @@ final class PagoServices implements PagoServiceInterface
             throw new RuntimeException('Faltan campos obligatorios: persona, forma_pago, institucion, monto.', 400);
         }
 
-        $db = \Core\Database::getInstance();
+        $db = Database::getInstance();
 
         try {
             $db->beginTransaction();
 
             // Find oldest pending ventas for this persona (FIFO)
-            $sql = 'SELECT id, saldo FROM ventas WHERE persona = :persona AND saldo > 0 AND estado = 1 ORDER BY fecha ASC';
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':persona' => $persona]);
-            $pendientes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $pendientes = $this->ventaRepo->findPendientesByPersona($persona);
 
             $numeroPago     = 'PAG-' . date('Ymd') . '-' . uniqid('', false);
             $fechaPago      = date('Y-m-d H:i:s');
@@ -229,14 +221,11 @@ final class PagoServices implements PagoServiceInterface
                 $aplicado   = min($montoRestante, $saldoVenta);
                 $nuevoSaldo = $saldoVenta - $aplicado;
 
-                // Update venta saldo
+                // Update venta saldo via repository
+                $this->ventaRepo->updateSaldo($venId, $nuevoSaldo, $nuevoSaldo <= 0);
+
                 if ($nuevoSaldo <= 0) {
-                    $stmtUpd = $db->prepare('UPDATE ventas SET saldo = 0, estado = 2 WHERE id = :id');
-                    $stmtUpd->execute([':id' => $venId]);
                     $ventasSaldadas[] = $venId;
-                } else {
-                    $stmtUpd = $db->prepare('UPDATE ventas SET saldo = :saldo WHERE id = :id');
-                    $stmtUpd->execute([':saldo' => $nuevoSaldo, ':id' => $venId]);
                 }
 
                 $montoRestante -= $aplicado;
@@ -264,20 +253,13 @@ final class PagoServices implements PagoServiceInterface
                 1
             );
 
-            $pagoRepo   = new PagoRepository();
-            $pagoEntity = $pagoRepo->save($pagoEntity);
+            $pagoEntity = $this->pagoRepo->save($pagoEntity);
             $pagoId     = (int) $pagoEntity->getId();
 
-            // Insert PagoDetalle for each venta paid
+            // Insert PagoDetalle for each venta paid via repository
             foreach ($detalles as $det) {
-                $stmtDet = $db->prepare(
-                    'INSERT INTO pago_detalle (pago, venta, monto_aplicado) VALUES (:pago, :venta, :monto_aplicado)'
-                );
-                $stmtDet->execute([
-                    ':pago'           => $pagoId,
-                    ':venta'          => $det['venta_id'],
-                    ':monto_aplicado' => $det['aplicado'],
-                ]);
+                $pagoDetalle = new PagoDetalle(null, $pagoId, null, $det['venta_id'], (float) $det['aplicado']);
+                $this->pagoDetalleRepo->save($pagoDetalle);
             }
 
             $db->commit();

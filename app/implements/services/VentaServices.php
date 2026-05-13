@@ -8,9 +8,13 @@ require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaDetalleRepository.php';
 require_once __DIR__ . '/../persistence/repository/PagoRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/InventarioRepository.php';
+require_once __DIR__ . '/../persistence/repository/MovimientoInventarioRepository.php';
+require_once __DIR__ . '/../persistence/repository/ProductoRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Venta.php';
 require_once __DIR__ . '/../persistence/entitys/VentaDetalle.php';
 require_once __DIR__ . '/../persistence/entitys/Pago.php';
+require_once __DIR__ . '/../persistence/entitys/MovimientoInventario.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Core\Database;
@@ -18,26 +22,36 @@ use Repositories\VentaRepository;
 use Repositories\VentaDetalleRepository;
 use Repositories\PagoRepository;
 use Repositories\PersonaRepository;
+use Repositories\InventarioRepository;
+use Repositories\MovimientoInventarioRepository;
+use Repositories\ProductoRepository;
 use Entitys\Venta;
 use Entitys\VentaDetalle;
 use Entitys\Pago;
+use Entitys\MovimientoInventario;
 use Utils\Token;
 
 class VentaServices
 {
-    private VentaRepository       $ventaRepo;
-    private VentaDetalleRepository $detalleRepo;
-    private PagoRepository        $pagoRepo;
-    private PersonaRepository     $personaRepo;
-    private array                 $security;
+    private VentaRepository               $ventaRepo;
+    private VentaDetalleRepository        $detalleRepo;
+    private PagoRepository                $pagoRepo;
+    private PersonaRepository             $personaRepo;
+    private InventarioRepository          $inventarioRepo;
+    private MovimientoInventarioRepository $movimientoRepo;
+    private ProductoRepository            $productoRepo;
+    private array                         $security;
 
     public function __construct()
     {
-        $this->ventaRepo   = new VentaRepository();
-        $this->detalleRepo = new VentaDetalleRepository();
-        $this->pagoRepo    = new PagoRepository();
-        $this->personaRepo = new PersonaRepository();
-        $this->security    = require __DIR__ . '/../../properties/security.php';
+        $this->ventaRepo      = new VentaRepository();
+        $this->detalleRepo    = new VentaDetalleRepository();
+        $this->pagoRepo       = new PagoRepository();
+        $this->personaRepo    = new PersonaRepository();
+        $this->inventarioRepo = new InventarioRepository();
+        $this->movimientoRepo = new MovimientoInventarioRepository();
+        $this->productoRepo   = new ProductoRepository();
+        $this->security       = require __DIR__ . '/../../properties/security.php';
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -85,44 +99,10 @@ class VentaServices
 
         $institucion = (int)$queryParams['institucion'];
         $limit       = isset($queryParams['limit']) ? max(1, (int)$queryParams['limit']) : 100;
-        $db          = Database::getInstance();
+        $desde       = !empty($queryParams['desde']) ? $queryParams['desde'] : null;
+        $hasta       = !empty($queryParams['hasta']) ? $queryParams['hasta'] : null;
 
-        $sql = "SELECT v.id,
-                       v.numero,
-                       v.fecha,
-                       v.tipo,
-                       v.subtotal,
-                       v.descuento,
-                       v.total,
-                       v.saldo,
-                       v.estado,
-                       p.identificacion,
-                       CONCAT(p.primer_nombre,' ',p.primer_apellido) AS nombre
-                FROM ventas v
-                JOIN personas p ON p.id = v.persona
-                WHERE v.institucion = :inst";
-
-        $params = [':inst' => $institucion];
-
-        if (!empty($queryParams['desde'])) {
-            $sql              .= ' AND v.fecha >= :desde';
-            $params[':desde']  = $queryParams['desde'];
-        }
-
-        if (!empty($queryParams['hasta'])) {
-            $sql              .= ' AND v.fecha <= :hasta';
-            $params[':hasta']  = $queryParams['hasta'];
-        }
-
-        $sql .= ' ORDER BY v.fecha DESC LIMIT :lim';
-
-        $stmt = $db->prepare($sql);
-        foreach ($params as $k => $v) {
-            $stmt->bindValue($k, $v);
-        }
-        $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $this->ventaRepo->findByInstitucion($institucion, $desde, $hasta, $limit);
 
         $result = [];
         foreach ($rows as $row) {
@@ -190,38 +170,21 @@ class VentaServices
             throw new \RuntimeException('Venta no encontrada.', 404);
         }
 
-        $db = Database::getInstance();
+        // Fetch detail lines via repository
+        $detalles = $this->detalleRepo->findByVenta($id);
 
-        // Fetch detail lines
-        $sqlDet  = 'SELECT vd.* FROM venta_detalle vd WHERE vd.venta = :id ORDER BY vd.id ASC';
-        $stmtDet = $db->prepare($sqlDet);
-        $stmtDet->bindValue(':id', $id, \PDO::PARAM_INT);
-        $stmtDet->execute();
-        $detalles = $stmtDet->fetchAll(\PDO::FETCH_ASSOC);
-
-        // Fetch pagos applied to this venta
-        $sqlPag = "SELECT p.numero,
-                          p.fecha,
-                          p.monto,
-                          fp.nombre AS forma_pago
-                   FROM pagos p
-                   JOIN formas_pago fp ON fp.id = p.forma_pago
-                   WHERE p.venta = :vid
-                   ORDER BY p.fecha ASC";
-        $stmtPag = $db->prepare($sqlPag);
-        $stmtPag->bindValue(':vid', $id, \PDO::PARAM_INT);
-        $stmtPag->execute();
-        $pagosRows = $stmtPag->fetchAll(\PDO::FETCH_ASSOC);
+        // Fetch pagos applied to this venta via repository
+        $pagosRows = $this->pagoRepo->findByVenta($id);
 
         $detallesFormatted = [];
         foreach ($detalles as $d) {
             $detallesFormatted[] = [
-                'id'              => (int)$d['id'],
-                'descripcion'     => $d['descripcion'] ?? null,
-                'cantidad'        => (float)$d['cantidad'],
-                'precio_unitario' => (float)$d['precio_unitario'],
-                'descuento'       => (float)$d['descuento'],
-                'subtotal'        => isset($d['subtotal']) ? (float)$d['subtotal'] : (float)$d['total'],
+                'id'              => (int)$d->getId(),
+                'descripcion'     => null,
+                'cantidad'        => (float)$d->getCantidad(),
+                'precio_unitario' => (float)$d->getPrecioUnitario(),
+                'descuento'       => (float)$d->getDescuento(),
+                'subtotal'        => (float)$d->getTotal(),
             ];
         }
 
@@ -325,94 +288,81 @@ class VentaServices
 
             // 2. Insert venta_detalle + stock updates
             foreach ($items as $item) {
-                $productoId     = (int)($item['producto_id']     ?? 0);
-                $qty            = (float)($item['cantidad']       ?? 0);
-                $price          = (float)($item['precio_unitario'] ?? 0);
-                $itemDescuento  = (float)($item['descuento']      ?? 0);
-                $itemSubtotal   = round(($qty * $price) - $itemDescuento, 2);
-                $descripcion    = $item['descripcion'] ?? null;
+                $productoId    = (int)($item['producto_id']     ?? 0);
+                $qty           = (float)($item['cantidad']       ?? 0);
+                $price         = (float)($item['precio_unitario'] ?? 0);
+                $itemDescuento = (float)($item['descuento']      ?? 0);
+                $itemSubtotal  = round(($qty * $price) - $itemDescuento, 2);
 
-                $sqlDetIns = "INSERT INTO venta_detalle
-                                  (venta, descripcion, cantidad, precio_unitario, descuento, subtotal)
-                              VALUES
-                                  (:venta, :descripcion, :cantidad, :precio_unitario, :descuento, :subtotal)";
-                $stmtDetIns = $db->prepare($sqlDetIns);
-                $stmtDetIns->execute([
-                    ':venta'           => $ventaId,
-                    ':descripcion'     => $descripcion,
-                    ':cantidad'        => $qty,
-                    ':precio_unitario' => $price,
-                    ':descuento'       => $itemDescuento,
-                    ':subtotal'        => $itemSubtotal,
-                ]);
+                // Save venta_detalle via repository
+                $ventaDetalle = new VentaDetalle(
+                    null,
+                    $ventaId,
+                    $productoId > 0 ? $productoId : 0,
+                    null,
+                    $qty,
+                    $price,
+                    $itemDescuento,
+                    $itemSubtotal
+                );
+                $this->detalleRepo->save($ventaDetalle);
 
                 if ($productoId <= 0) {
                     continue;
                 }
 
                 // Check if producto controla_stock
-                $sqlProd = 'SELECT controla_stock FROM productos WHERE id = :pid LIMIT 1';
-                $stmtProd = $db->prepare($sqlProd);
-                $stmtProd->bindValue(':pid', $productoId, \PDO::PARAM_INT);
-                $stmtProd->execute();
-                $prodRow = $stmtProd->fetch(\PDO::FETCH_ASSOC);
+                $prod = $this->productoRepo->findById($productoId);
+                if ($prod && (bool)$prod->getControlaStock()) {
+                    // 3. Update inventario (reduce stock) via repository
+                    $inv = $this->inventarioRepo->findByProductoAndInstitucion($productoId, $institucion);
+                    if ($inv !== null) {
+                        $stockAnterior = $inv->getStockActual();
+                        $stockNuevo    = $stockAnterior - $qty;
+                        $inv->setStockActual($stockNuevo);
+                        $inv->setFechaActualizacion($fecha);
+                        $this->inventarioRepo->save($inv);
+                    } else {
+                        $stockAnterior = 0.0;
+                        $stockNuevo    = -$qty;
+                    }
 
-                if ($prodRow && (bool)$prodRow['controla_stock']) {
-                    // 3. Update inventario (reduce stock)
-                    $sqlInv = "UPDATE inventario
-                               SET cantidad_actual = cantidad_actual - :qty
-                               WHERE producto = :prod AND institucion = :inst";
-                    $stmtInv = $db->prepare($sqlInv);
-                    $stmtInv->execute([
-                        ':qty'  => $qty,
-                        ':prod' => $productoId,
-                        ':inst' => $institucion,
-                    ]);
-
-                    // Get new stock value for movement record
-                    $sqlStk = 'SELECT cantidad_actual FROM inventario WHERE producto = :prod AND institucion = :inst LIMIT 1';
-                    $stmtStk = $db->prepare($sqlStk);
-                    $stmtStk->execute([':prod' => $productoId, ':inst' => $institucion]);
-                    $stkRow  = $stmtStk->fetch(\PDO::FETCH_ASSOC);
-                    $stockNuevo = $stkRow ? (float)$stkRow['cantidad_actual'] : 0.0;
-
-                    // 4. Insert movimiento_inventario
-                    $sqlMov = "INSERT INTO movimiento_inventario
-                                   (producto, variante, tipo_movimiento, cantidad, fecha, referencia, observacion, institucion)
-                               VALUES
-                                   (:prod, NULL, 'SALIDA', :qty, :fecha, :ref, :obs, :inst)";
-                    $stmtMov = $db->prepare($sqlMov);
-                    $stmtMov->execute([
-                        ':prod'  => $productoId,
-                        ':qty'   => $qty,
-                        ':fecha' => $fecha,
-                        ':ref'   => $numero,
-                        ':obs'   => 'Venta ' . $numero,
-                        ':inst'  => $institucion,
-                    ]);
+                    // 4. Insert movimiento_inventario via repository
+                    $movimiento = new MovimientoInventario(
+                        null,
+                        $productoId,
+                        null,
+                        $institucion,
+                        'SALIDA',
+                        $qty,
+                        $stockAnterior,
+                        $stockNuevo,
+                        $numero,
+                        $fecha,
+                        'Venta ' . $numero
+                    );
+                    $this->movimientoRepo->save($movimiento);
                 }
             }
 
-            // 5. If forma_pago provided, insert pago immediately
+            // 5. If forma_pago provided, insert pago immediately via repository
             if ($formaPago !== null) {
                 $numeroPago = 'PAG-' . date('Ymd') . '-' . uniqid();
-                $sqlPago = "INSERT INTO pagos
-                                (numero, fecha, persona, matricula, venta, forma_pago, institucion, monto, referencia, observacion, estado)
-                            VALUES
-                                (:numero, :fecha, :persona, :matricula, :venta, :forma_pago, :inst, :monto, :referencia, :obs, 1)";
-                $stmtPago = $db->prepare($sqlPago);
-                $stmtPago->execute([
-                    ':numero'     => $numeroPago,
-                    ':fecha'      => $fecha,
-                    ':persona'    => $personaId,
-                    ':matricula'  => $matriculaId,
-                    ':venta'      => $ventaId,
-                    ':forma_pago' => $formaPago,
-                    ':inst'       => $institucion,
-                    ':monto'      => $total,
-                    ':referencia' => $referencia,
-                    ':obs'        => 'Pago de venta ' . $numero,
-                ]);
+                $pagoEntity = new Pago(
+                    null,
+                    $numeroPago,
+                    $fecha,
+                    $personaId,
+                    $matriculaId,
+                    $ventaId,
+                    $formaPago,
+                    $institucion,
+                    $total,
+                    $referencia,
+                    'Pago de venta ' . $numero,
+                    1
+                );
+                $this->pagoRepo->save($pagoEntity);
             }
 
             $db->commit();

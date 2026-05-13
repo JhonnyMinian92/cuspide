@@ -4,20 +4,30 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../interfaces/InventarioServiceInterface.php';
-require_once __DIR__ . '/../persistence/conexion/Database.php';
+require_once __DIR__ . '/../persistence/repository/InventarioRepository.php';
+require_once __DIR__ . '/../persistence/repository/MovimientoInventarioRepository.php';
+require_once __DIR__ . '/../persistence/entitys/Inventario.php';
+require_once __DIR__ . '/../persistence/entitys/MovimientoInventario.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
+use Repositories\InventarioRepository;
+use Repositories\MovimientoInventarioRepository;
+use Entitys\Inventario;
+use Entitys\MovimientoInventario;
 use Utils\Token;
 use Interfaces\InventarioServiceInterface;
 
 class InventarioServices implements InventarioServiceInterface
 {
+    private InventarioRepository          $inventarioRepo;
+    private MovimientoInventarioRepository $movimientoRepo;
     private array $security;
 
     public function __construct()
     {
-        $this->security = require __DIR__ . '/../../properties/security.php';
+        $this->inventarioRepo = new InventarioRepository();
+        $this->movimientoRepo = new MovimientoInventarioRepository();
+        $this->security       = require __DIR__ . '/../../properties/security.php';
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -58,31 +68,7 @@ class InventarioServices implements InventarioServiceInterface
             throw new \RuntimeException('El parámetro institucion es requerido.', 400);
         }
 
-        $db = Database::getInstance();
-
-        $sql = "SELECT pr.id,
-                       pr.codigo,
-                       pr.nombre,
-                       pr.precio,
-                       pc.nombre AS categoria,
-                       COALESCE(inv.cantidad_actual, 0) AS stock_actual,
-                       COALESCE(inv.cantidad_minima, 0) AS stock_minimo,
-                       CASE WHEN COALESCE(inv.cantidad_actual, 0) <= COALESCE(inv.cantidad_minima, 0)
-                            THEN 1 ELSE 0
-                       END AS alerta_stock
-                FROM productos pr
-                LEFT JOIN producto_categoria pc ON pc.id = pr.categoria
-                LEFT JOIN inventario inv ON inv.producto = pr.id AND inv.institucion = :inst
-                WHERE pr.estado = 1
-                  AND pr.controla_stock = 1
-                  AND pr.institucion = :inst2
-                ORDER BY pr.nombre ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':inst',  $institucion, \PDO::PARAM_INT);
-        $stmt->bindValue(':inst2', $institucion, \PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $this->inventarioRepo->findWithAlertByInstitucion($institucion);
 
         $result = [];
         foreach ($rows as $row) {
@@ -113,34 +99,18 @@ class InventarioServices implements InventarioServiceInterface
 
         $limit = isset($queryParams['limit']) ? max(1, (int)$queryParams['limit']) : 50;
 
-        $db = Database::getInstance();
-
-        $sql = "SELECT mi.id,
-                       mi.tipo_movimiento,
-                       mi.cantidad,
-                       mi.fecha,
-                       mi.referencia,
-                       mi.observacion
-                FROM movimiento_inventario mi
-                WHERE mi.producto = :producto
-                ORDER BY mi.fecha DESC
-                LIMIT :lim";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':producto', $productoId, \PDO::PARAM_INT);
-        $stmt->bindValue(':lim',      $limit,      \PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $movimientos = $this->movimientoRepo->findByProducto($productoId);
+        $movimientos = array_slice($movimientos, 0, $limit);
 
         $result = [];
-        foreach ($rows as $row) {
+        foreach ($movimientos as $m) {
             $result[] = [
-                'id'              => (int)$row['id'],
-                'tipo_movimiento' => $row['tipo_movimiento'],
-                'cantidad'        => (float)$row['cantidad'],
-                'fecha'           => $row['fecha'],
-                'referencia'      => $row['referencia'],
-                'observacion'     => $row['observacion'],
+                'id'              => (int)$m->getId(),
+                'tipo_movimiento' => $m->getTipo(),
+                'cantidad'        => (float)$m->getCantidad(),
+                'fecha'           => $m->getFecha(),
+                'referencia'      => $m->getReferencia(),
+                'observacion'     => $m->getObservacion(),
             ];
         }
 
@@ -182,76 +152,54 @@ class InventarioServices implements InventarioServiceInterface
             throw new \RuntimeException('La cantidad debe ser mayor a cero.', 400);
         }
 
-        $db = Database::getInstance();
+        // Step 1: Get current inventory via repository
+        $inv = $this->inventarioRepo->findByProductoAndInstitucion($productoId, $institucion, $varianteId);
 
-        // Insert movement record
-        $sqlMov = "INSERT INTO movimiento_inventario
-                       (producto, variante, tipo_movimiento, cantidad, fecha, referencia, observacion, institucion)
-                   VALUES
-                       (:producto, :variante, :tipo_movimiento, :cantidad, :fecha, :referencia, :observacion, :institucion)";
-        $stmtMov = $db->prepare($sqlMov);
-        $stmtMov->execute([
-            ':producto'        => $productoId,
-            ':variante'        => $varianteId,
-            ':tipo_movimiento' => $tipoMov,
-            ':cantidad'        => $cantidad,
-            ':fecha'           => $fecha,
-            ':referencia'      => $referencia,
-            ':observacion'     => $observacion,
-            ':institucion'     => $institucion,
-        ]);
-
-        // Check if inventario row exists
-        $sqlCheck = 'SELECT id, cantidad_actual FROM inventario WHERE producto = :producto AND institucion = :inst';
-        $sqlCheck .= $varianteId !== null ? ' AND variante = :variante' : ' AND (variante IS NULL OR variante = 0)';
-        $stmtChk  = $db->prepare($sqlCheck);
-        $params   = [':producto' => $productoId, ':inst' => $institucion];
-        if ($varianteId !== null) {
-            $params[':variante'] = $varianteId;
-        }
-        $stmtChk->execute($params);
-        $invRow = $stmtChk->fetch(\PDO::FETCH_ASSOC);
-
-        if ($invRow) {
-            // Update existing row
-            $invId       = (int)$invRow['id'];
-            $stockActual = (float)$invRow['cantidad_actual'];
-
-            $stockNuevo = match ($tipoMov) {
-                'ENTRADA' => $stockActual + $cantidad,
-                'SALIDA'  => $stockActual - $cantidad,
+        // Step 2: Compute new stock
+        if ($inv !== null) {
+            $stockAnterior = $inv->getStockActual();
+            $stockNuevo    = match ($tipoMov) {
+                'ENTRADA' => $stockAnterior + $cantidad,
+                'SALIDA'  => $stockAnterior - $cantidad,
                 'AJUSTE'  => $cantidad,
-                default   => $stockActual,
+                default   => $stockAnterior,
             };
-
-            $sqlUpd = 'UPDATE inventario SET cantidad_actual = :stock WHERE id = :id';
-            $stmtUpd = $db->prepare($sqlUpd);
-            $stmtUpd->execute([':stock' => $stockNuevo, ':id' => $invId]);
+            // Step 3: Update existing inventory record
+            $inv->setStockActual($stockNuevo);
+            $inv->setFechaActualizacion($fecha);
+            $this->inventarioRepo->save($inv);
         } else {
-            // Insert new inventario row
-            $stockNuevo = match ($tipoMov) {
+            $stockAnterior = 0.0;
+            $stockNuevo    = match ($tipoMov) {
                 'ENTRADA' => $cantidad,
                 'SALIDA'  => -$cantidad,
                 'AJUSTE'  => $cantidad,
-                default   => 0,
+                default   => 0.0,
             };
-
-            $sqlIns = "INSERT INTO inventario
-                           (producto, variante, cantidad_actual, cantidad_minima, institucion)
-                       VALUES
-                           (:producto, :variante, :stock, 0, :inst)";
-            $stmtIns = $db->prepare($sqlIns);
-            $stmtIns->execute([
-                ':producto' => $productoId,
-                ':variante' => $varianteId,
-                ':stock'    => $stockNuevo,
-                ':inst'     => $institucion,
-            ]);
+            // Step 3: Insert new inventory record
+            $newInv = new Inventario(null, $productoId, $varianteId, $institucion, $stockNuevo, 0.0, $fecha);
+            $this->inventarioRepo->save($newInv);
         }
 
+        // Step 4: Save movement record via repository
+        $mov = new MovimientoInventario(
+            null,
+            $productoId,
+            $varianteId,
+            $institucion,
+            $tipoMov,
+            $cantidad,
+            $stockAnterior,
+            $stockNuevo,
+            $referencia,
+            $fecha,
+            $observacion
+        );
+        $this->movimientoRepo->save($mov);
+
         return [
-            'producto'   => $productoId,
-            'stock_nuevo'=> round($stockNuevo, 4),
+            'producto'    => $productoId,
+            'stock_nuevo' => round($stockNuevo, 4),
         ];
     }
 }

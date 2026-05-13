@@ -4,12 +4,10 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../interfaces/InstitucionServiceInterface.php';
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/InstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Institucion.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\InstitucionRepository;
 use Entitys\Institucion;
 use Utils\Token;
@@ -87,24 +85,16 @@ class InstitucionServices implements InstitucionServiceInterface
     // -------------------------------------------------------------------------
     private function fetchAll(): array
     {
-        $db   = Database::getInstance();
-        $stmt = $db->prepare(
-            "SELECT id, ruc, razon_social, nombre, logotipo, estado
-             FROM instituciones
-             WHERE estado = 1
-             ORDER BY nombre ASC"
-        );
-        $stmt->execute();
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        $result = [];
-        foreach ($rows as $row) {
+        $instituciones = $this->institucionRepo->findAll();
+        $result        = [];
+        foreach ($instituciones as $inst) {
             $result[] = [
-                'id'           => (int)$row['id'],
-                'ruc'          => $row['ruc'],
-                'razon_social' => $row['razon_social'],
-                'nombre'       => $row['nombre'],
-                'logotipo'     => $row['logotipo'],
-                'estado'       => (int)$row['estado'],
+                'id'           => (int)$inst->getId(),
+                'ruc'          => $inst->getRuc(),
+                'razon_social' => $inst->getRazonSocial(),
+                'nombre'       => $inst->getNombre(),
+                'logotipo'     => $inst->getLogotipo(),
+                'estado'       => (int)$inst->getEstado(),
             ];
         }
         return $result;

@@ -3,14 +3,12 @@ declare(strict_types=1);
 
 namespace Services;
 
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/ActividadRepository.php';
 require_once __DIR__ . '/../persistence/repository/AsistenciaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Actividad.php';
 require_once __DIR__ . '/../persistence/entitys/Asistencia.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\ActividadRepository;
 use Repositories\AsistenciaRepository;
 use Entitys\Actividad;
@@ -75,37 +73,14 @@ class ActividadServices
             throw new \RuntimeException('El parámetro institucion es requerido.', 400);
         }
 
-        $db  = Database::getInstance();
-        $sql = "SELECT ac.id,
-                       ac.nombre,
-                       d.nombre                                                AS deporte,
-                       n.nombre                                                AS nivel,
-                       ac.precio,
-                       ac.estado,
-                       COUNT(DISTINCT am.id)                                   AS matriculados,
-                       SUM(CASE WHEN asis.estado = 1 THEN 1 ELSE 0 END)       AS asistencias,
-                       SUM(CASE WHEN asis.estado = 2 THEN 1 ELSE 0 END)       AS faltas
-                FROM actividades ac
-                JOIN deportes d              ON d.id    = ac.deporte
-                LEFT JOIN nivel_asignatura n ON n.id    = ac.nivel
-                LEFT JOIN actividad_matricula am  ON am.actividad = ac.id AND am.estado = 1
-                LEFT JOIN asistencias asis        ON asis.actividad = ac.id
-                WHERE ac.institucion = :inst
-                GROUP BY ac.id
-                ORDER BY ac.nombre ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':inst', $institucionId, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows   = $this->actividadRepo->findByInstitucionWithStats($institucionId);
         $result = [];
         foreach ($rows as $row) {
             $result[] = [
                 'id'           => (int)$row['id'],
                 'nombre'       => $row['nombre'],
-                'deporte'      => $row['deporte'],
-                'nivel'        => $row['nivel']   ?? null,
+                'deporte'      => $row['deporte']  ?? null,
+                'nivel'        => $row['nivel']    ?? null,
                 'precio'       => (float)$row['precio'],
                 'estado'       => (int)$row['estado'],
                 'matriculados' => (int)$row['matriculados'],
@@ -125,22 +100,8 @@ class ActividadServices
             throw new \RuntimeException('El parámetro id es requerido.', 400);
         }
 
-        $db  = Database::getInstance();
-        $sql = "SELECT h.cupo_maximo,
-                       COUNT(am.id)                        AS ocupados,
-                       (h.cupo_maximo - COUNT(am.id))      AS disponible
-                FROM horarios h
-                LEFT JOIN actividad_matricula am ON am.actividad = h.actividad AND am.estado = 1
-                WHERE h.actividad = :id AND h.estado = 1
-                GROUP BY h.id
-                LIMIT 1";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':id', $actividadId, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        if (!$row) {
+        $row = $this->actividadRepo->findCapacity($actividadId);
+        if ($row === null) {
             return [
                 'cupo_maximo' => null,
                 'ocupados'    => null,
@@ -215,10 +176,7 @@ class ActividadServices
             throw new \RuntimeException('Actividad no encontrada.', 404);
         }
 
-        $db   = Database::getInstance();
-        $stmt = $db->prepare('UPDATE actividades SET estado = 2 WHERE id = :id');
-        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-        $stmt->execute();
+        $this->actividadRepo->disable($id);
 
         return ['id' => $id, 'estado' => 2];
     }

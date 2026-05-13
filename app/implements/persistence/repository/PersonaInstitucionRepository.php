@@ -74,4 +74,40 @@ class PersonaInstitucionRepository
     }
     return null;
   }
+
+  public function findByPersonaIdWithDetails(int $personaId): ?array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT pi.id, pi.estado,
+              tp.nombre AS tipo,
+              i.nombre  AS institucion,
+              i.id      AS institucion_id
+       FROM persona_institucion pi
+       LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
+       LEFT JOIN instituciones i  ON i.id  = pi.id_institucion
+       WHERE pi.id_persona = :pid
+       LIMIT 1"
+    );
+    $stmt->bindValue(':pid', $personaId, PDO::PARAM_INT);
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+  }
+
+  public function findAllByPersonaIdWithDetails(int $personaId): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT pi.id, pi.estado,
+              tp.nombre AS tipo,
+              i.nombre  AS institucion,
+              i.id      AS institucion_id
+       FROM persona_institucion pi
+       LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
+       LEFT JOIN instituciones i  ON i.id  = pi.id_institucion
+       WHERE pi.id_persona = :pid"
+    );
+    $stmt->bindValue(':pid', $personaId, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  }
 }

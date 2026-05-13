@@ -4,26 +4,36 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../interfaces/UsuarioServiceInterface.php';
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/UserRepository.php';
 require_once __DIR__ . '/../persistence/entitys/User.php';
+require_once __DIR__ . '/../persistence/repository/BotonRepository.php';
+require_once __DIR__ . '/../persistence/entitys/Boton.php';
+require_once __DIR__ . '/../persistence/repository/BotonUserRepository.php';
+require_once __DIR__ . '/../persistence/entitys/BotonUser.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\UserRepository;
+use Repositories\BotonRepository;
+use Repositories\BotonUserRepository;
 use Entitys\User;
+use Entitys\Boton;
+use Entitys\BotonUser;
 use Utils\Token;
 use Interfaces\UsuarioServiceInterface;
 
 class UsuarioServices implements UsuarioServiceInterface
 {
     private UserRepository $userRepo;
+    private BotonRepository $botonRepo;
+    private BotonUserRepository $botonUserRepo;
     private array $security;
 
     public function __construct()
     {
-        $this->userRepo = new UserRepository();
-        $this->security = require __DIR__ . '/../../properties/security.php';
+        $this->userRepo      = new UserRepository();
+        $this->botonRepo     = new BotonRepository();
+        $this->botonUserRepo = new BotonUserRepository();
+        $this->security      = require __DIR__ . '/../../properties/security.php';
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -66,42 +76,30 @@ class UsuarioServices implements UsuarioServiceInterface
     // -------------------------------------------------------------------------
     private function fetchButtons(array $queryParams): array
     {
-        $tipoUser   = $queryParams['tipo_user']  ?? '';
+        $tipoUser    = $queryParams['tipo_user']  ?? '';
         $institucion = $queryParams['institucion'] ?? '';
 
         if ($tipoUser === '') {
             throw new \RuntimeException('El parámetro tipo_user es requerido.', 400);
         }
 
-        $db = Database::getInstance();
-
-        $sql = "SELECT b.id, b.nombre, b.ruta, b.icono
-                FROM boton_users bu
-                JOIN botones b ON b.id = bu.boton
-                WHERE bu.type_user = :tipo
-                  AND bu.estado = 1";
-
-        $params = [':tipo' => $tipoUser];
-
         if ($institucion !== '') {
-            $sql .= " AND (bu.institucion = :inst OR bu.institucion IS NULL)";
-            $params[':inst'] = $institucion;
+            $botonUsers = $this->botonUserRepo->findByTypeUserAndInstitucion($tipoUser, (int)$institucion);
+        } else {
+            $botonUsers = $this->botonUserRepo->findByTypeUser($tipoUser);
         }
 
-        $stmt = $db->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
-        $stmt->execute();
-
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $result = [];
-        foreach ($rows as $row) {
+        foreach ($botonUsers as $bu) {
+            $boton = $bu->getBoton();
+            if ($boton === null) {
+                continue;
+            }
             $result[] = [
-                'id'     => (int)$row['id'],
-                'nombre' => $row['nombre'],
-                'ruta'   => $row['ruta'],
-                'icono'  => $row['icono'],
+                'id'     => $boton->getId(),
+                'nombre' => $boton->getNombre(),
+                'icono'  => $boton->getIcono(),
+                'tipo'   => $boton->getTipo(),
             ];
         }
         return $result;
@@ -118,37 +116,37 @@ class UsuarioServices implements UsuarioServiceInterface
             throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
         }
 
-        foreach (['nombre', 'ruta', 'tipo_user'] as $field) {
+        foreach (['nombre', 'tipo_user'] as $field) {
             if (empty($data[$field])) {
                 throw new \RuntimeException("El campo {$field} es requerido.", 400);
             }
         }
 
-        $nombre      = trim($data['nombre']);
-        $ruta        = trim($data['ruta']);
-        $icono       = $data['icono']       ?? null;
-        $tipoUser    = $data['tipo_user'];
-        $institucion = $data['institucion'] ?? null;
-        $estado      = 1;
+        $nombre   = trim($data['nombre']);
+        $tipoUser = $data['tipo_user'];
 
-        $db = Database::getInstance();
+        $boton  = new Boton(
+            null,
+            $data['orden'] ?? null,
+            $nombre,
+            $data['icono'] ?? '',
+            $data['tipo']  ?? $tipoUser,
+            $data['color'] ?? null,
+            1
+        );
+        $saved = $this->botonRepo->save($boton);
 
-        $sql = "INSERT INTO botones (nombre, ruta, icono, tipo_user, institucion, estado)
-                VALUES (:nombre, :ruta, :icono, :tipo_user, :institucion, :estado)";
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':nombre',      $nombre);
-        $stmt->bindValue(':ruta',        $ruta);
-        $stmt->bindValue(':icono',       $icono);
-        $stmt->bindValue(':tipo_user',   $tipoUser);
-        $stmt->bindValue(':institucion', $institucion);
-        $stmt->bindValue(':estado',      $estado, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        $newId = (int)$db->lastInsertId();
+        $bu = new BotonUser(
+            null,
+            (int)$saved->getId(),
+            $tipoUser,
+            isset($data['institucion']) ? (int)$data['institucion'] : null
+        );
+        $this->botonUserRepo->save($bu);
 
         return [
-            'id'     => $newId,
-            'nombre' => $nombre,
+            'id'     => $saved->getId(),
+            'nombre' => $saved->getNombre(),
         ];
     }
 
@@ -172,15 +170,13 @@ class UsuarioServices implements UsuarioServiceInterface
             throw new \RuntimeException('El campo estado debe ser 0 o 1.', 400);
         }
 
-        $db   = Database::getInstance();
-        $stmt = $db->prepare("UPDATE botones SET estado = :estado WHERE id = :id");
-        $stmt->bindValue(':estado', $estado, \PDO::PARAM_INT);
-        $stmt->bindValue(':id',     $id,     \PDO::PARAM_INT);
-        $stmt->execute();
-
-        if ($stmt->rowCount() === 0) {
+        $boton = $this->botonRepo->findById($id);
+        if ($boton === null) {
             throw new \RuntimeException('Botón no encontrado.', 404);
         }
+
+        $boton->setEstado($estado);
+        $this->botonRepo->save($boton);
 
         return [
             'id'     => $id,
@@ -213,17 +209,14 @@ class UsuarioServices implements UsuarioServiceInterface
             $username = $data['username'] ?? $existing->getUsername();
             $tipoUser = $data['tipo_user'] ?? $data['type'] ?? $existing->getType();
             $imagen   = $data['imagen']   ?? $data['image'] ?? $existing->getImage();
-            $db       = Database::getInstance();
 
             if (!empty($data['password'])) {
                 // New password provided — let UserRepository hash it
                 $user  = new User($userId, $username, $data['password'], $tipoUser, $imagen);
                 $saved = $this->userRepo->save($user);
             } else {
-                // No password change — update directly to avoid double-hashing
-                $stmt = $db->prepare("UPDATE users SET username=:u, type=:t, image=:i WHERE id=:id");
-                $stmt->execute([':u' => $username, ':t' => $tipoUser, ':i' => $imagen, ':id' => $userId]);
-                $saved = $this->userRepo->findById($userId);
+                // No password change — update without re-hashing
+                $saved = $this->userRepo->updateWithoutPassword($userId, $username, $tipoUser, $imagen);
             }
 
         } else {
@@ -269,12 +262,8 @@ class UsuarioServices implements UsuarioServiceInterface
             throw new \RuntimeException('Usuario no encontrado.', 404);
         }
 
-        // The users table (id, username, password, type, image) has no estado column.
-        // Disable by setting type to 'INACTIVO' as a status marker.
-        $db   = Database::getInstance();
-        $stmt = $db->prepare("UPDATE users SET type = 'INACTIVO' WHERE id = :id");
-        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-        $stmt->execute();
+        // The users table has no estado column — disable by setting type = 'INACTIVO'
+        $this->userRepo->disableById($id);
 
         return [
             'id'      => $id,

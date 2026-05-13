@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../interfaces/PersonaServiceInterface.php';
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
+require_once __DIR__ . '/../persistence/repository/MatriculaRepository.php';
 require_once __DIR__ . '/../persistence/repository/TelefonoRepository.php';
 require_once __DIR__ . '/../persistence/repository/CorreoRepository.php';
 require_once __DIR__ . '/../persistence/repository/FichaMedicaRepository.php';
@@ -18,9 +18,9 @@ require_once __DIR__ . '/../persistence/entitys/FichaMedica.php';
 require_once __DIR__ . '/../persistence/entitys/User.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\PersonaRepository;
 use Repositories\PersonaInstitucionRepository;
+use Repositories\MatriculaRepository;
 use Repositories\TelefonoRepository;
 use Repositories\CorreoRepository;
 use Repositories\FichaMedicaRepository;
@@ -37,6 +37,7 @@ class PersonaServices implements PersonaServiceInterface
 {
     private PersonaRepository $personaRepo;
     private PersonaInstitucionRepository $piRepo;
+    private MatriculaRepository $matriculaRepo;
     private TelefonoRepository $telefonoRepo;
     private CorreoRepository $correoRepo;
     private FichaMedicaRepository $fichaRepo;
@@ -48,6 +49,7 @@ class PersonaServices implements PersonaServiceInterface
     {
         $this->personaRepo   = new PersonaRepository();
         $this->piRepo        = new PersonaInstitucionRepository();
+        $this->matriculaRepo = new MatriculaRepository();
         $this->telefonoRepo  = new TelefonoRepository();
         $this->correoRepo    = new CorreoRepository();
         $this->fichaRepo     = new FichaMedicaRepository();
@@ -98,39 +100,15 @@ class PersonaServices implements PersonaServiceInterface
             throw new \RuntimeException('El parámetro q es requerido.', 400);
         }
 
-        $like = '%' . $q . '%';
-        $db   = Database::getInstance();
-
-        $sql = "SELECT p.id,
-                       p.identificacion,
-                       CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.segundo_nombre,''),' ',
-                              COALESCE(p.primer_apellido,''),' ',COALESCE(p.segundo_apellido,'')) AS nombre_completo,
-                       tp.nombre AS tipo,
-                       i.nombre  AS institucion
-                FROM personas p
-                LEFT JOIN persona_institucion pi ON pi.persona = p.id AND pi.estado = 1
-                LEFT JOIN tipo_persona tp        ON tp.id = pi.tipo
-                LEFT JOIN instituciones i        ON i.id  = pi.institucion
-                WHERE p.identificacion  LIKE :q1
-                   OR p.primer_nombre   LIKE :q2
-                   OR p.primer_apellido LIKE :q3
-                LIMIT 50";
-
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(':q1', $like);
-        $stmt->bindValue(':q2', $like);
-        $stmt->bindValue(':q3', $like);
-        $stmt->execute();
-
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows   = $this->personaRepo->findByQuery($q);
         $result = [];
         foreach ($rows as $row) {
             $result[] = [
-                'id'             => (int)$row['id'],
-                'identificacion' => $row['identificacion'],
-                'nombre_completo'=> trim($row['nombre_completo']),
-                'tipo'           => $row['tipo']        ?? null,
-                'institucion'    => $row['institucion'] ?? null,
+                'id'              => (int)$row['id'],
+                'identificacion'  => $row['identificacion'],
+                'nombre_completo' => trim($row['nombre_completo']),
+                'tipo'            => $row['tipo']        ?? null,
+                'institucion'     => $row['institucion'] ?? null,
             ];
         }
         return $result;
@@ -158,22 +136,7 @@ class PersonaServices implements PersonaServiceInterface
 
         $pid = (int)$persona->getId();
 
-        $db  = Database::getInstance();
-
-        // Persona-Institución con nombres
-        $sqlPi = "SELECT pi.id, pi.estado,
-                         tp.nombre AS tipo,
-                         i.nombre  AS institucion,
-                         i.id      AS institucion_id
-                  FROM persona_institucion pi
-                  LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
-                  LEFT JOIN instituciones i  ON i.id  = pi.institucion
-                  WHERE pi.persona = :pid
-                  LIMIT 1";
-        $stmtPi = $db->prepare($sqlPi);
-        $stmtPi->bindValue(':pid', $pid, \PDO::PARAM_INT);
-        $stmtPi->execute();
-        $piRow = $stmtPi->fetch(\PDO::FETCH_ASSOC);
+        $piRow = $this->piRepo->findByPersonaIdWithDetails($pid);
 
         $telefonos = $this->telefonoRepo->findByPersonaId($pid);
         $correos   = $this->correoRepo->findByPersonaId($pid);
@@ -220,37 +183,12 @@ class PersonaServices implements PersonaServiceInterface
             throw new \RuntimeException('Persona no encontrada.', 404);
         }
 
-        $db = Database::getInstance();
-
         // Roles / instituciones
-        $sqlRoles = "SELECT pi.id, pi.estado,
-                            tp.nombre AS tipo,
-                            i.nombre  AS institucion,
-                            i.id      AS institucion_id
-                     FROM persona_institucion pi
-                     LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
-                     LEFT JOIN instituciones i  ON i.id  = pi.institucion
-                     WHERE pi.persona = :pid";
-        $stmtRoles = $db->prepare($sqlRoles);
-        $stmtRoles->bindValue(':pid', $personaId, \PDO::PARAM_INT);
-        $stmtRoles->execute();
-        $roles = $stmtRoles->fetchAll(\PDO::FETCH_ASSOC);
+        $roles = $this->piRepo->findAllByPersonaIdWithDetails($personaId);
 
         // Matrículas
-        $sqlMat = "SELECT m.id,
-                          m.fecha_inicio,
-                          m.fecha_fin,
-                          i.nombre AS institucion
-                   FROM matricula m
-                   JOIN instituciones i ON i.id = m.institucion
-                   WHERE m.persona = :pid
-                   ORDER BY m.fecha_inicio DESC";
-        $stmtMat = $db->prepare($sqlMat);
-        $stmtMat->bindValue(':pid', $personaId, \PDO::PARAM_INT);
-        $stmtMat->execute();
-        $matriculas = $stmtMat->fetchAll(\PDO::FETCH_ASSOC);
+        $matriculas = $this->matriculaRepo->findByPersonaId($personaId);
 
-        // Repositorios
         $telefonos = $this->telefonoRepo->findByPersonaId($personaId);
         $correos   = $this->correoRepo->findByPersonaId($personaId);
         $ficha     = $this->fichaRepo->findByPersonaId($personaId);

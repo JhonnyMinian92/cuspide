@@ -5,21 +5,23 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../interfaces/MatriculaServiceInterface.php';
+require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/MatriculaRepository.php';
 require_once __DIR__ . '/../persistence/repository/ClaseMatriculaRepository.php';
 require_once __DIR__ . '/../persistence/repository/ActividadMatriculaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Matricula.php';
 require_once __DIR__ . '/../persistence/entitys/ClaseMatricula.php';
 require_once __DIR__ . '/../persistence/entitys/ActividadMatricula.php';
 require_once __DIR__ . '/../persistence/entitys/Venta.php';
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\MatriculaServiceInterface;
 use Repositories\MatriculaRepository;
 use Repositories\ClaseMatriculaRepository;
 use Repositories\ActividadMatriculaRepository;
+use Repositories\PersonaRepository;
 use Repositories\VentaRepository;
 use Entitys\Matricula;
 use Entitys\ClaseMatricula;
@@ -31,6 +33,10 @@ use Utils\Token;
 final class MatriculaServices implements MatriculaServiceInterface
 {
     private string $jwtSecret;
+    private MatriculaRepository $matriculaRepo;
+    private ClaseMatriculaRepository $claseMatRepo;
+    private ActividadMatriculaRepository $actMatRepo;
+    private PersonaRepository $personaRepo;
 
     public function __construct()
     {
@@ -39,6 +45,10 @@ final class MatriculaServices implements MatriculaServiceInterface
         if ($this->jwtSecret === '') {
             throw new RuntimeException('No existe configuración de seguridad para JWT.', 500);
         }
+        $this->matriculaRepo = new MatriculaRepository();
+        $this->claseMatRepo  = new ClaseMatriculaRepository();
+        $this->actMatRepo    = new ActividadMatriculaRepository();
+        $this->personaRepo   = new PersonaRepository();
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -94,97 +104,62 @@ final class MatriculaServices implements MatriculaServiceInterface
 
     private function fetchMatriculas(array $queryParams): array
     {
-        $db = \Core\Database::getInstance();
-
         $personaId = null;
 
         if (!empty($queryParams['persona_id'])) {
             $personaId = (int) $queryParams['persona_id'];
         } elseif (!empty($queryParams['identificacion'])) {
-            $stmt = $db->prepare('SELECT id FROM personas WHERE identificacion = :identificacion LIMIT 1');
-            $stmt->execute([':identificacion' => (string) $queryParams['identificacion']]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-            if ($row === false) {
+            $persona = $this->personaRepo->findByIdentificacion((string) $queryParams['identificacion']);
+            if ($persona === null) {
                 throw new RuntimeException('No se encontró persona con esa identificación.', 404);
             }
-            $personaId = (int) $row['id'];
+            $personaId = (int) $persona->getId();
         }
 
         if ($personaId === null || $personaId <= 0) {
             throw new RuntimeException('Debe proporcionar persona_id o identificacion.', 400);
         }
 
-        $sql = "SELECT m.id, m.fecha_registro, m.fecha_inicio, m.fecha_fin,
-                       mem.titulo AS membresia,
-                       i.nombre   AS institucion,
-                       e.nombre   AS estado
-                FROM matricula m
-                LEFT JOIN membresias mem ON mem.id = m.membresia
-                JOIN instituciones   i   ON i.id   = m.institucion
-                JOIN estados         e   ON e.id   = m.estado
-                WHERE m.persona = :persona_id
-                ORDER BY m.fecha_registro DESC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->execute([':persona_id' => $personaId]);
-        $matriculas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        $claseRepo     = new ClaseMatriculaRepository();
-        $actividadRepo = new ActividadMatriculaRepository();
+        $matriculas = $this->matriculaRepo->findByPersonaId($personaId);
 
         $result = [];
         foreach ($matriculas as $mat) {
             $matriculaId = (int) $mat['id'];
 
-            // Fetch clases via direct query (findByMatricula uses direct DB)
-            $stmtC = $db->prepare(
-                'SELECT cm.id, cm.clase, cm.modalidad, cm.horario, cm.fecha_inicio, cm.fecha_fin, cm.estado
-                 FROM clases_matricula cm
-                 WHERE cm.matricula = :matricula_id'
-            );
-            $stmtC->execute([':matricula_id' => $matriculaId]);
-            $clasesRaw = $stmtC->fetchAll(\PDO::FETCH_ASSOC);
+            $claseEntities    = $this->claseMatRepo->findByMatriculaId($matriculaId);
+            $actividadEntities = $this->actMatRepo->findByMatriculaId($matriculaId);
 
-            // Fetch actividades via direct query
-            $stmtA = $db->prepare(
-                'SELECT am.id, am.actividad, am.modalidad, am.categoria_deportiva, am.horario, am.fecha_inicio, am.fecha_fin, am.estado
-                 FROM actividades_matricula am
-                 WHERE am.matricula = :matricula_id'
-            );
-            $stmtA->execute([':matricula_id' => $matriculaId]);
-            $actividadesRaw = $stmtA->fetchAll(\PDO::FETCH_ASSOC);
+            $clases = array_map(fn(ClaseMatricula $c) => [
+                'id'           => (int) $c->getId(),
+                'clase'        => (int) $c->getClase()->getId(),
+                'modalidad'    => (int) $c->getModalidad()?->getId(),
+                'horario'      => $c->getHorario() ? (int) $c->getHorario()->getId() : null,
+                'fecha_inicio' => $c->getFechaInicio(),
+                'fecha_fin'    => $c->getFechaFin(),
+                'estado'       => (int) $c->getEstado()?->getId(),
+            ], $claseEntities);
 
-            $clases = array_map(fn($c) => [
-                'id'           => (int) $c['id'],
-                'clase'        => (int) $c['clase'],
-                'modalidad'    => (int) $c['modalidad'],
-                'horario'      => $c['horario'] !== null ? (int) $c['horario'] : null,
-                'fecha_inicio' => $c['fecha_inicio'],
-                'fecha_fin'    => $c['fecha_fin'],
-                'estado'       => (int) $c['estado'],
-            ], $clasesRaw);
-
-            $actividades = array_map(fn($a) => [
-                'id'                 => (int) $a['id'],
-                'actividad'          => (int) $a['actividad'],
-                'modalidad'          => (int) $a['modalidad'],
-                'categoria_deportiva'=> $a['categoria_deportiva'] !== null ? (int) $a['categoria_deportiva'] : null,
-                'horario'            => $a['horario'] !== null ? (int) $a['horario'] : null,
-                'fecha_inicio'       => $a['fecha_inicio'],
-                'fecha_fin'          => $a['fecha_fin'],
-                'estado'             => (int) $a['estado'],
-            ], $actividadesRaw);
+            $actividades = array_map(fn(ActividadMatricula $a) => [
+                'id'                  => (int) $a->getId(),
+                'actividad'           => (int) $a->getActividad()->getId(),
+                'modalidad'           => (int) $a->getModalidad()?->getId(),
+                'categoria_deportiva' => $a->getCategoriaDeportiva() ? (int) $a->getCategoriaDeportiva()->getId() : null,
+                'horario'             => $a->getHorario() ? (int) $a->getHorario()->getId() : null,
+                'fecha_inicio'        => $a->getFechaInicio(),
+                'fecha_fin'           => $a->getFechaFin(),
+                'estado'              => (int) $a->getEstado()?->getId(),
+            ], $actividadEntities);
 
             $result[] = [
-                'id'            => $matriculaId,
-                'fecha_registro'=> $mat['fecha_registro'],
-                'fecha_inicio'  => $mat['fecha_inicio'],
-                'fecha_fin'     => $mat['fecha_fin'],
-                'membresia'     => $mat['membresia'],
-                'institucion'   => $mat['institucion'],
-                'estado'        => $mat['estado'],
-                'clases'        => $clases,
-                'actividades'   => $actividades,
+                'id'             => $matriculaId,
+                'fecha_registro' => $mat['fecha_registro'],
+                'fecha_inicio'   => $mat['fecha_inicio'],
+                'fecha_fin'      => $mat['fecha_fin'],
+                'membresia'      => $mat['membresia'],
+                'institucion'    => $mat['institucion'],
+                'estado'         => $mat['estado'],
+                'clases'         => $clases,
+                'actividades'    => $actividades,
             ];
         }
 
@@ -223,43 +198,33 @@ final class MatriculaServices implements MatriculaServiceInterface
             // 1. Insert Matricula
             $fechaRegistro = date('Y-m-d H:i:s');
             $matriculaEntity = new Matricula(null, $fechaRegistro, $persona, $fechaInicio, $fechaFin, $membresia, $institucion, 1);
-            $matriculaRepo   = new MatriculaRepository();
-            $matriculaEntity = $matriculaRepo->save($matriculaEntity);
+            $matriculaEntity = $this->matriculaRepo->save($matriculaEntity);
             $matriculaId     = (int) $matriculaEntity->getId();
 
-            $subtotal    = 0.0;
-            $ventaItems  = [];
+            $subtotal   = 0.0;
 
             // 2. Insert ClaseMatricula for each clase
             foreach ($clases as $claseItem) {
-                $claseId        = (int) ($claseItem['clase_id']    ?? 0);
-                $modalidad      = (int) ($claseItem['modalidad']   ?? 0);
-                $horario        = isset($claseItem['horario'])     ? (int) $claseItem['horario'] : null;
-                $cFechaInicio   = (string) ($claseItem['fecha_inicio'] ?? $fechaInicio);
-                $cFechaFin      = (string) ($claseItem['fecha_fin']    ?? $fechaFin);
+                $claseId      = (int) ($claseItem['clase_id']    ?? 0);
+                $modalidad    = (int) ($claseItem['modalidad']   ?? 0);
+                $horario      = isset($claseItem['horario'])     ? (int) $claseItem['horario'] : null;
+                $cFechaInicio = (string) ($claseItem['fecha_inicio'] ?? $fechaInicio);
+                $cFechaFin    = (string) ($claseItem['fecha_fin']    ?? $fechaFin);
 
                 if ($claseId <= 0) {
                     continue;
                 }
 
                 $claseMatEntity = new ClaseMatricula(null, $claseId, $matriculaId, $modalidad, $cFechaInicio, $cFechaFin, 1, $horario);
-                (new ClaseMatriculaRepository())->save($claseMatEntity);
+                $this->claseMatRepo->save($claseMatEntity);
 
                 // Fetch clase price
                 $stmtPrice = $db->prepare('SELECT nombre, precio FROM clases WHERE id = :id LIMIT 1');
                 $stmtPrice->execute([':id' => $claseId]);
-                $claseRow  = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
-                $precio    = $claseRow ? (float) ($claseRow['precio'] ?? 0) : 0.0;
-                $nombre    = $claseRow ? (string) ($claseRow['nombre'] ?? 'Clase') : 'Clase';
+                $claseRow = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
+                $precio   = $claseRow ? (float) ($claseRow['precio'] ?? 0) : 0.0;
 
                 $subtotal += $precio;
-                $ventaItems[] = [
-                    'descripcion'     => $nombre,
-                    'cantidad'        => 1,
-                    'precio_unitario' => $precio,
-                    'descuento'       => 0.0,
-                    'subtotal'        => $precio,
-                ];
             }
 
             // 3. Insert ActividadMatricula for each actividad
@@ -276,23 +241,15 @@ final class MatriculaServices implements MatriculaServiceInterface
                 }
 
                 $actMatEntity = new ActividadMatricula(null, $actividadId, $matriculaId, $modalidad, $aFechaInicio, $aFechaFin, 1, $catDeportiva, $horario);
-                (new ActividadMatriculaRepository())->save($actMatEntity);
+                $this->actMatRepo->save($actMatEntity);
 
                 // Fetch actividad price
                 $stmtPrice = $db->prepare('SELECT nombre, precio FROM actividades WHERE id = :id LIMIT 1');
                 $stmtPrice->execute([':id' => $actividadId]);
-                $actRow  = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
-                $precio  = $actRow ? (float) ($actRow['precio'] ?? 0) : 0.0;
-                $nombre  = $actRow ? (string) ($actRow['nombre'] ?? 'Actividad') : 'Actividad';
+                $actRow = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
+                $precio = $actRow ? (float) ($actRow['precio'] ?? 0) : 0.0;
 
                 $subtotal += $precio;
-                $ventaItems[] = [
-                    'descripcion'     => $nombre,
-                    'cantidad'        => 1,
-                    'precio_unitario' => $precio,
-                    'descuento'       => 0.0,
-                    'subtotal'        => $precio,
-                ];
             }
 
             // 4. Calculate totals
@@ -304,27 +261,10 @@ final class MatriculaServices implements MatriculaServiceInterface
             $numeroFactura = 'FAC-' . date('Ymd') . '-' . str_pad((string) $matriculaId, 6, '0', STR_PAD_LEFT);
 
             // 6. Insert Venta
-            $fechaVenta   = date('Y-m-d H:i:s');
-            $ventaEntity  = new Venta(null, $numeroFactura, $fechaVenta, $persona, $matriculaId, $institucion, 'MATRICULA', $subtotal, $descuento, $impuesto, $total, $saldo, 1);
-            $ventaRepo    = new VentaRepository();
-            $ventaEntity  = $ventaRepo->save($ventaEntity);
-            $ventaId      = (int) $ventaEntity->getId();
-
-            // 7. Insert VentaDetalle for each item
-            foreach ($ventaItems as $item) {
-                $stmtDet = $db->prepare(
-                    'INSERT INTO venta_detalle (venta, descripcion, cantidad, precio_unitario, descuento, subtotal)
-                     VALUES (:venta, :descripcion, :cantidad, :precio_unitario, :descuento, :subtotal)'
-                );
-                $stmtDet->execute([
-                    ':venta'           => $ventaId,
-                    ':descripcion'     => $item['descripcion'],
-                    ':cantidad'        => $item['cantidad'],
-                    ':precio_unitario' => $item['precio_unitario'],
-                    ':descuento'       => $item['descuento'],
-                    ':subtotal'        => $item['subtotal'],
-                ]);
-            }
+            $fechaVenta  = date('Y-m-d H:i:s');
+            $ventaEntity = new Venta(null, $numeroFactura, $fechaVenta, $persona, $matriculaId, $institucion, 'MATRICULA', $subtotal, $descuento, $impuesto, $total, $saldo, 1);
+            $ventaRepo   = new VentaRepository();
+            $ventaRepo->save($ventaEntity);
 
             $db->commit();
 
@@ -353,20 +293,13 @@ final class MatriculaServices implements MatriculaServiceInterface
             throw new RuntimeException('ID de matrícula inválido.', 400);
         }
 
-        $db = \Core\Database::getInstance();
-
-        $stmt = $db->prepare('UPDATE matricula SET estado = 2 WHERE id = :id');
-        $stmt->execute([':id' => $id]);
-
-        $stmt2 = $db->prepare('UPDATE clases_matricula SET estado = 2 WHERE matricula = :id');
-        $stmt2->execute([':id' => $id]);
-
-        $stmt3 = $db->prepare('UPDATE actividades_matricula SET estado = 2 WHERE matricula = :id');
-        $stmt3->execute([':id' => $id]);
+        $this->matriculaRepo->disable($id);
+        $this->claseMatRepo->cancelByMatriculaId($id);
+        $this->actMatRepo->cancelByMatriculaId($id);
 
         return [
-            'id'    => $id,
-            'estado'=> 'ANULADO',
+            'id'     => $id,
+            'estado' => 'ANULADO',
         ];
     }
 
@@ -380,24 +313,20 @@ final class MatriculaServices implements MatriculaServiceInterface
             throw new RuntimeException('ID de ítem inválido.', 400);
         }
 
-        $db = \Core\Database::getInstance();
-
         $tipo = strtolower(trim($tipo));
 
         if ($tipo === 'clase') {
-            $stmt = $db->prepare('UPDATE clases_matricula SET estado = 2 WHERE id = :id');
-            $stmt->execute([':id' => $id]);
+            $this->claseMatRepo->disableById($id);
         } elseif ($tipo === 'actividad') {
-            $stmt = $db->prepare('UPDATE actividades_matricula SET estado = 2 WHERE id = :id');
-            $stmt->execute([':id' => $id]);
+            $this->actMatRepo->disableById($id);
         } else {
             throw new RuntimeException('Tipo de ítem no soportado. Use "clase" o "actividad".', 400);
         }
 
         return [
-            'id'    => $id,
-            'tipo'  => $tipo,
-            'estado'=> 'ANULADO',
+            'id'     => $id,
+            'tipo'   => $tipo,
+            'estado' => 'ANULADO',
         ];
     }
 }

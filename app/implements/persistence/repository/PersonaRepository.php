@@ -96,4 +96,30 @@ class PersonaRepository
 
     return null;
   }
+
+  public function findByQuery(string $q, int $limit = 50): array
+  {
+    $like = '%' . $q . '%';
+    $stmt = $this->db->prepare(
+      "SELECT p.id, p.identificacion,
+              CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.segundo_nombre,''),' ',
+                     COALESCE(p.primer_apellido,''),' ',COALESCE(p.segundo_apellido,'')) AS nombre_completo,
+              tp.nombre AS tipo,
+              i.nombre  AS institucion
+       FROM personas p
+       LEFT JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.estado = 1
+       LEFT JOIN tipo_persona tp        ON tp.id = pi.tipo
+       LEFT JOIN instituciones i        ON i.id  = pi.id_institucion
+       WHERE p.identificacion  LIKE :q1
+          OR p.primer_nombre   LIKE :q2
+          OR p.primer_apellido LIKE :q3
+       LIMIT :lim"
+    );
+    $stmt->bindValue(':q1', $like);
+    $stmt->bindValue(':q2', $like);
+    $stmt->bindValue(':q3', $like);
+    $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
 }

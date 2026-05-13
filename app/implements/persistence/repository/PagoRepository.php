@@ -73,6 +73,19 @@ class PagoRepository
     ];
   }
 
+  public function findByVenta(int $ventaId): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT p.numero, p.fecha, p.monto, fp.nombre AS forma_pago
+       FROM pagos p
+       JOIN formas_pago fp ON fp.id = p.forma_pago
+       WHERE p.venta = :vid
+       ORDER BY p.fecha ASC"
+    );
+    $stmt->execute([':vid' => $ventaId]);
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
+
   private function map(array $row): Pago
   {
     return new Pago($row['id'], $row['numero'], $row['fecha'], $row['persona'], $row['matricula'] ?? null, $row['venta'] ?? null, $row['forma_pago'], $row['institucion'], (float) $row['monto'], $row['referencia'] ?? null, $row['observacion'], $row['estado']);

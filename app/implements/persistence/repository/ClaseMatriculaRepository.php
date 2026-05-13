@@ -65,4 +65,29 @@ class ClaseMatriculaRepository
 
     return array_map(fn($row) => new ClaseMatricula($row['id'], $row['clase'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado'], $row['horario'] ?? null), $rows ?: []);
   }
+
+  public function findByMatriculaId(int $matriculaId): array
+  {
+    $stmt = $this->db->prepare(
+      'SELECT * FROM clases_matricula WHERE matricula = :mid ORDER BY id ASC'
+    );
+    $stmt->execute([':mid' => $matriculaId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return array_map(
+      fn($row) => new ClaseMatricula($row['id'], $row['clase'], $row['matricula'], $row['modalidad'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado'], $row['horario'] ?? null),
+      $rows ?: []
+    );
+  }
+
+  public function cancelByMatriculaId(int $matriculaId): void
+  {
+    $stmt = $this->db->prepare('UPDATE clases_matricula SET estado = 2 WHERE matricula = :mid');
+    $stmt->execute([':mid' => $matriculaId]);
+  }
+
+  public function disableById(int $id): void
+  {
+    $stmt = $this->db->prepare('UPDATE clases_matricula SET estado = 2 WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+  }
 }

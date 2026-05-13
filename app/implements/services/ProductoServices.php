@@ -4,25 +4,29 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../interfaces/ProductoServiceInterface.php';
-require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/ProductoRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Producto.php';
+require_once __DIR__ . '/../persistence/repository/ProductoCategoriaRepository.php';
+require_once __DIR__ . '/../persistence/entitys/ProductoCategoria.php';
 require_once __DIR__ . '/../utils/Token.php';
 
-use Core\Database;
 use Repositories\ProductoRepository;
+use Repositories\ProductoCategoriaRepository;
 use Entitys\Producto;
+use Entitys\ProductoCategoria;
 use Utils\Token;
 use Interfaces\ProductoServiceInterface;
 
 class ProductoServices implements ProductoServiceInterface
 {
     private ProductoRepository $productoRepo;
+    private ProductoCategoriaRepository $categRepo;
     private array $security;
 
     public function __construct()
     {
         $this->productoRepo = new ProductoRepository();
+        $this->categRepo    = new ProductoCategoriaRepository();
         $this->security     = require __DIR__ . '/../../properties/security.php';
     }
 
@@ -66,54 +70,28 @@ class ProductoServices implements ProductoServiceInterface
     // -------------------------------------------------------------------------
     private function fetchProductos(array $queryParams): array
     {
-        $db = Database::getInstance();
-
-        $sql = "SELECT pr.id,
-                       pr.codigo,
-                       pr.nombre,
-                       pr.descripcion,
-                       pr.precio,
-                       pr.costo,
-                       pr.controla_stock,
-                       pr.estado,
-                       pc.nombre AS categoria_nombre,
-                       COALESCE(inv.cantidad_actual, 0) AS stock
-                FROM productos pr
-                LEFT JOIN producto_categoria pc ON pc.id = pr.categoria
-                LEFT JOIN inventario inv ON inv.producto = pr.id
-                WHERE pr.estado = 1";
-
-        $params = [];
-
-        if (!empty($queryParams['institucion'])) {
-            $sql              .= ' AND pr.institucion = :inst';
-            $params[':inst']   = (int)$queryParams['institucion'];
+        if (empty($queryParams['institucion'])) {
+            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
         }
 
-        if (!empty($queryParams['categoria'])) {
-            $sql              .= ' AND pr.categoria = :cat';
-            $params[':cat']    = (int)$queryParams['categoria'];
-        }
+        $institucion = (int)$queryParams['institucion'];
+        $categoriaId = !empty($queryParams['categoria']) ? (int)$queryParams['categoria'] : null;
 
-        $sql .= ' ORDER BY pr.nombre ASC';
-
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $this->productoRepo->findWithStockByInstitucion($institucion, $categoriaId);
 
         $result = [];
         foreach ($rows as $row) {
             $result[] = [
-                'id'              => (int)$row['id'],
-                'codigo'          => $row['codigo'],
-                'nombre'          => $row['nombre'],
-                'descripcion'     => $row['descripcion'],
-                'precio'          => (float)$row['precio'],
-                'costo'           => (float)$row['costo'],
-                'controla_stock'  => (bool)$row['controla_stock'],
-                'estado'          => (int)$row['estado'],
-                'categoria_nombre'=> $row['categoria_nombre'] ?? null,
-                'stock'           => (float)$row['stock'],
+                'id'               => (int)$row['id'],
+                'codigo'           => $row['codigo'],
+                'nombre'           => $row['nombre'],
+                'descripcion'      => $row['descripcion'],
+                'precio'           => (float)$row['precio'],
+                'costo'            => (float)$row['costo'],
+                'controla_stock'   => (bool)$row['controla_stock'],
+                'estado'           => (int)$row['estado'],
+                'categoria_nombre' => $row['categoria_nombre'] ?? null,
+                'stock'            => (float)$row['stock'],
             ];
         }
 
@@ -175,19 +153,13 @@ class ProductoServices implements ProductoServiceInterface
     // -------------------------------------------------------------------------
     private function disableProducto(int $id): array
     {
-        $db   = Database::getInstance();
-        $stmt = $db->prepare('UPDATE productos SET estado = 2 WHERE id = :id');
-        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        if ($stmt->rowCount() === 0) {
+        $produto = $this->productoRepo->findById($id);
+        if (!$produto) {
             throw new \RuntimeException('Producto no encontrado.', 404);
         }
-
-        return [
-            'id'     => $id,
-            'estado' => 'INACTIVO',
-        ];
+        $produto->setEstado(2);
+        $this->productoRepo->save($produto);
+        return ['id' => $id, 'estado' => 'INACTIVO'];
     }
 
     // -------------------------------------------------------------------------
@@ -195,18 +167,13 @@ class ProductoServices implements ProductoServiceInterface
     // -------------------------------------------------------------------------
     private function fetchCategorias(): array
     {
-        $db   = Database::getInstance();
-        $stmt = $db->prepare(
-            'SELECT id, nombre, descripcion FROM producto_categoria WHERE estado = 1 ORDER BY nombre ASC'
-        );
-        $stmt->execute();
-        $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        $result = [];
-        foreach ($rows as $row) {
+        $categorias = $this->categRepo->findAllActive();
+        $result     = [];
+        foreach ($categorias as $cat) {
             $result[] = [
-                'id'          => (int)$row['id'],
-                'nombre'      => $row['nombre'],
-                'descripcion' => $row['descripcion'],
+                'id'          => (int)$cat->getId(),
+                'nombre'      => $cat->getNombre(),
+                'descripcion' => $cat->getDescripcion(),
             ];
         }
         return $result;

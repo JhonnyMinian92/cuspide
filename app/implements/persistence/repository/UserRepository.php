@@ -93,4 +93,20 @@ class UserRepository
       $data['image'] ?? null
     );
   }
+
+  public function updateWithoutPassword(int $id, string $username, string $type, ?string $image): ?User
+  {
+    $stmt = $this->db->prepare(
+      "UPDATE users SET username = :u, type = :t, image = :i WHERE id = :id"
+    );
+    $stmt->execute([':u' => $username, ':t' => $type, ':i' => $image, ':id' => $id]);
+    return $this->findById($id);
+  }
+
+  public function disableById(int $id): void
+  {
+    $stmt = $this->db->prepare("UPDATE users SET type = 'INACTIVO' WHERE id = :id");
+    $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
+    $stmt->execute();
+  }
 }
