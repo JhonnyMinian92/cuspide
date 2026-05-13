@@ -333,17 +333,18 @@ class VentaServices
                 $descripcion    = $item['descripcion'] ?? null;
 
                 $sqlDetIns = "INSERT INTO venta_detalle
-                                  (venta, descripcion, cantidad, precio_unitario, descuento, subtotal)
+                                  (venta, producto, descripcion, cantidad, precio_unitario, descuento, total)
                               VALUES
-                                  (:venta, :descripcion, :cantidad, :precio_unitario, :descuento, :subtotal)";
+                                  (:venta, :producto, :descripcion, :cantidad, :precio_unitario, :descuento, :total)";
                 $stmtDetIns = $db->prepare($sqlDetIns);
                 $stmtDetIns->execute([
                     ':venta'           => $ventaId,
+                    ':producto'        => $productoId > 0 ? $productoId : null,
                     ':descripcion'     => $descripcion,
                     ':cantidad'        => $qty,
                     ':precio_unitario' => $price,
                     ':descuento'       => $itemDescuento,
-                    ':subtotal'        => $itemSubtotal,
+                    ':total'           => $itemSubtotal,
                 ]);
 
                 if ($productoId <= 0) {
@@ -360,7 +361,7 @@ class VentaServices
                 if ($prodRow && (bool)$prodRow['controla_stock']) {
                     // 3. Update inventario (reduce stock)
                     $sqlInv = "UPDATE inventario
-                               SET cantidad_actual = cantidad_actual - :qty
+                               SET stock_actual = stock_actual - :qty
                                WHERE producto = :prod AND institucion = :inst";
                     $stmtInv = $db->prepare($sqlInv);
                     $stmtInv->execute([
@@ -370,21 +371,23 @@ class VentaServices
                     ]);
 
                     // Get new stock value for movement record
-                    $sqlStk = 'SELECT cantidad_actual FROM inventario WHERE producto = :prod AND institucion = :inst LIMIT 1';
+                    $sqlStk = 'SELECT stock_actual FROM inventario WHERE producto = :prod AND institucion = :inst LIMIT 1';
                     $stmtStk = $db->prepare($sqlStk);
                     $stmtStk->execute([':prod' => $productoId, ':inst' => $institucion]);
                     $stkRow  = $stmtStk->fetch(\PDO::FETCH_ASSOC);
-                    $stockNuevo = $stkRow ? (float)$stkRow['cantidad_actual'] : 0.0;
+                    $stockNuevo = $stkRow ? (float)$stkRow['stock_actual'] : 0.0;
 
-                    // 4. Insert movimiento_inventario
-                    $sqlMov = "INSERT INTO movimiento_inventario
-                                   (producto, variante, tipo_movimiento, cantidad, fecha, referencia, observacion, institucion)
+                    // 4. Insert inventory movement
+                    $sqlMov = "INSERT INTO movimientos_inventario
+                                   (producto, variante, institucion, tipo, cantidad, stock_anterior, stock_nuevo, referencia, fecha, observacion)
                                VALUES
-                                   (:prod, NULL, 'SALIDA', :qty, :fecha, :ref, :obs, :inst)";
+                                   (:prod, NULL, :inst, 'SALIDA', :qty, :prev, :stock, :ref, :fecha, :obs)";
                     $stmtMov = $db->prepare($sqlMov);
                     $stmtMov->execute([
                         ':prod'  => $productoId,
                         ':qty'   => $qty,
+                        ':prev'  => $stockNuevo + $qty,
+                        ':stock' => $stockNuevo,
                         ':fecha' => $fecha,
                         ':ref'   => $numero,
                         ':obs'   => 'Venta ' . $numero,

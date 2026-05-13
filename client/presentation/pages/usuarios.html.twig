@@ -1,0 +1,971 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'usuarios' %}
+{% block title %}Usuarios — Huaquillas F.C.{% endblock %}
+{% block page_title %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+
+<!-- ── Tabs de navegación ── -->
+<ul class="nav nav-pills flex-wrap gap-1 mb-4" id="usuarios-tabs-nav" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="tab-usuarios-btn" data-bs-toggle="pill"
+      data-bs-target="#tab-usuarios" type="button" role="tab" aria-selected="true">
+      <i class="bi bi-people-fill me-1"></i>Usuarios
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab-tipos-btn" data-bs-toggle="pill"
+      data-bs-target="#tab-tipos" type="button" role="tab" aria-selected="false">
+      <i class="bi bi-shield-fill me-1"></i>Tipos de Usuario
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab-permisos-btn" data-bs-toggle="pill"
+      data-bs-target="#tab-permisos" type="button" role="tab" aria-selected="false">
+      <i class="bi bi-layout-sidebar-fill me-1"></i>Permisos de Menú
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 1: USUARIOS
+  ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane fade show active" id="tab-usuarios" role="tabpanel">
+
+    <!-- Buscador -->
+    <div class="card chart-card mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
+          <div>
+            <h6 class="fw-bold mb-1"><i class="bi bi-people-fill me-2" style="color:var(--brand-color);"></i>Usuarios del Sistema</h6>
+            <p class="text-muted small mb-0">Busca por nombre de usuario. Si no hay resultados, puedes crear un nuevo usuario directamente.</p>
+          </div>
+          <button type="button" class="btn btn-brand btn-sm flex-shrink-0 d-none" id="btn-nuevo-usuario" aria-hidden="true" tabindex="-1">
+            <i class="bi bi-person-plus-fill me-1"></i>Nuevo Usuario
+          </button>
+        </div>
+        <div class="row g-3 align-items-center">
+          <div class="col-12 col-lg-9">
+            <label for="usuario-search" class="form-label fw-semibold">Buscar usuario</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="search" class="form-control" id="usuario-search"
+                placeholder="Buscar por usuario..." autocomplete="off">
+              <span class="input-group-text d-none" id="user-search-spinner">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </span>
+            </div>
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label d-none d-lg-block invisible">.</label>
+            <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-usuarios">
+              <i class="bi bi-x-circle me-1"></i>Limpiar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de usuarios -->
+    <div class="card chart-card mb-4" id="usuarios-table-card">
+      <div class="card-body p-0">
+        <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="fw-bold mb-0">Resultados</h6>
+            <p class="text-muted small mb-0" id="usuarios-info">Cargando usuarios...</p>
+          </div>
+        </div>
+        <div class="table-responsive table-container" style="border-radius:0 0 12px 12px; border-top:1px solid var(--table-border); border-left:none; border-right:none; border-bottom:none;">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4" style="width:60px;">ID</th>
+                <th>Username</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th class="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="usuarios-tbody">
+              <tr>
+                <td colspan="5" class="text-center text-muted py-5">
+                  <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario crear usuario (aparece cuando no hay resultados o botón "Nuevo") -->
+    <div class="card chart-card mb-4 d-none" id="form-crear-usuario-card">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+          <div>
+            <h6 class="fw-bold mb-1"><i class="bi bi-person-plus-fill me-2"></i>Nuevo Usuario</h6>
+            <p class="text-muted small mb-0">Completa los campos requeridos (*) para crear el usuario.</p>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cancelar-crear">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <form id="form-crear-usuario" novalidate>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Username *</label>
+              <input type="text" class="form-control" id="c-username" name="username"
+                placeholder="Ej: jperez" autocomplete="off" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Contraseña *</label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="c-password" name="password"
+                  placeholder="Contraseña segura" autocomplete="new-password" required>
+                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-pwd-c"
+                  onclick="togglePwd('c-password','btn-toggle-pwd-c')">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de Usuario *</label>
+              <select class="form-select" id="c-tipo-user" name="tipo_user" required>
+                <option value="">— Seleccionar —</option>
+                <option value="DEV_USER">Desarrollador</option>
+                <option value="ADMIN">Administrador</option>
+                <option value="ESTUDIANTE">Estudiante</option>
+                <option value="PROFESOR">Entrenador / Profesor</option>
+                <option value="MEDICO">Personal Médico</option>
+                <option value="ADMINISTRATIVO">Administrativo</option>
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Imagen <span class="text-muted small">(URL opcional)</span></label>
+              <input type="url" class="form-control" id="c-imagen" name="imagen"
+                placeholder="https://example.com/avatar.jpg">
+            </div>
+          </div>
+          <div class="d-flex gap-2 justify-content-end mt-4">
+            <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-crear-2">
+              <i class="bi bi-arrow-left me-1"></i>Cancelar
+            </button>
+            <button type="submit" class="btn btn-brand" id="btn-submit-crear">
+              <i class="bi bi-check-lg me-1"></i>Crear Usuario
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Formulario editar usuario (inline, uno a la vez) -->
+    <div class="card chart-card mb-4 d-none" id="form-editar-usuario-card">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+          <div>
+            <h6 class="fw-bold mb-1"><i class="bi bi-pencil-square me-2"></i>Editar Usuario — <span id="edit-usuario-title">—</span></h6>
+            <p class="text-muted small mb-0">Deja la contraseña vacía para no cambiarla.</p>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cancelar-editar">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <form id="form-editar-usuario" novalidate>
+          <input type="hidden" id="e-user-id">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Username *</label>
+              <input type="text" class="form-control" id="e-username" name="username"
+                autocomplete="off" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Nueva Contraseña <span class="text-muted small">(vacío = sin cambio)</span></label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="e-password" name="password"
+                  placeholder="Dejar vacío para no cambiar" autocomplete="new-password">
+                <button class="btn btn-outline-secondary" type="button" id="btn-toggle-pwd-e"
+                  onclick="togglePwd('e-password','btn-toggle-pwd-e')">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de Usuario *</label>
+              <select class="form-select" id="e-tipo-user" name="tipo_user" required>
+                <option value="">— Seleccionar —</option>
+                <option value="DEV_USER">Desarrollador</option>
+                <option value="ADMIN">Administrador</option>
+                <option value="ESTUDIANTE">Estudiante</option>
+                <option value="PROFESOR">Entrenador / Profesor</option>
+                <option value="MEDICO">Personal Médico</option>
+                <option value="ADMINISTRATIVO">Administrativo</option>
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label fw-semibold">Imagen <span class="text-muted small">(URL opcional)</span></label>
+              <input type="url" class="form-control" id="e-imagen" name="imagen"
+                placeholder="https://example.com/avatar.jpg">
+            </div>
+          </div>
+          <div class="d-flex gap-2 justify-content-end mt-4">
+            <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-editar-2">
+              <i class="bi bi-arrow-left me-1"></i>Cancelar
+            </button>
+            <button type="submit" class="btn btn-brand" id="btn-submit-editar">
+              <i class="bi bi-check-lg me-1"></i>Guardar Cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div><!-- /tab-usuarios -->
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 2: TIPOS DE USUARIO
+  ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane fade" id="tab-tipos" role="tabpanel">
+
+    <div class="card chart-card mb-3">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-start gap-3 mb-4">
+          <div>
+            <h6 class="fw-bold mb-1"><i class="bi bi-shield-fill me-2" style="color:var(--brand-color);"></i>Tipos de Usuario</h6>
+            <p class="text-muted small mb-0">Los tipos de usuario definen el rol de cada cuenta en el sistema. Se gestionan directamente en la base de datos.</p>
+          </div>
+        </div>
+
+        <div class="table-responsive table-container" style="border-radius:12px;">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Nemónico</th>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Icono</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ps-4"><code>DEV_USER</code></td>
+                <td class="fw-semibold">Desarrollador</td>
+                <td class="text-muted small">Acceso total al sistema, configuración y depuración.</td>
+                <td><i class="bi bi-code-slash fs-5" style="color:var(--brand-color);"></i></td>
+              </tr>
+              <tr>
+                <td class="ps-4"><code>ADMIN</code></td>
+                <td class="fw-semibold">Administrador</td>
+                <td class="text-muted small">Gestión completa del club: personal, finanzas y reportes.</td>
+                <td><i class="bi bi-person-gear fs-5 text-primary"></i></td>
+              </tr>
+              <tr>
+                <td class="ps-4"><code>ESTUDIANTE</code></td>
+                <td class="fw-semibold">Estudiante</td>
+                <td class="text-muted small">Jugador o alumno inscrito. Acceso a su perfil y matrículas.</td>
+                <td><i class="bi bi-mortarboard-fill fs-5 text-info"></i></td>
+              </tr>
+              <tr>
+                <td class="ps-4"><code>PROFESOR</code></td>
+                <td class="fw-semibold">Entrenador / Profesor</td>
+                <td class="text-muted small">Responsable de asignaturas, horarios y asistencias.</td>
+                <td><i class="bi bi-person-badge-fill fs-5 text-success"></i></td>
+              </tr>
+              <tr>
+                <td class="ps-4"><code>MEDICO</code></td>
+                <td class="fw-semibold">Personal Médico</td>
+                <td class="text-muted small">Acceso a fichas médicas, historial clínico y actividades.</td>
+                <td><i class="bi bi-heart-pulse-fill fs-5 text-danger"></i></td>
+              </tr>
+              <tr>
+                <td class="ps-4"><code>ADMINISTRATIVO</code></td>
+                <td class="fw-semibold">Administrativo</td>
+                <td class="text-muted small">Gestión de pagos, facturas, matrículas y cuentas por cobrar.</td>
+                <td><i class="bi bi-briefcase-fill fs-5 text-warning"></i></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert mt-4 mb-0 d-flex align-items-start gap-2"
+          style="background:var(--app-surface-soft);border:1px solid var(--app-border);border-radius:.75rem;">
+          <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" style="color:var(--brand-color);"></i>
+          <div>
+            <div class="fw-semibold small mb-1">Nota</div>
+            <div class="text-muted small">Los tipos de usuario se gestionan directamente en la base de datos (tabla <code>type_users</code>). Para agregar o modificar tipos, contacta al desarrollador del sistema.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-tipos -->
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 3: PERMISOS DE MENÚ
+  ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane fade" id="tab-permisos" role="tabpanel">
+
+    <!-- Filtro por tipo de usuario -->
+    <div class="card chart-card mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3">
+          <div>
+            <h6 class="fw-bold mb-1"><i class="bi bi-layout-sidebar-fill me-2" style="color:var(--brand-color);"></i>Permisos de Menú por Tipo</h6>
+            <p class="text-muted small mb-0">Selecciona un tipo de usuario para ver y gestionar los botones de menú que tiene habilitados.</p>
+          </div>
+          <div style="min-width:220px;">
+            <label class="form-label fw-semibold small mb-1">Tipo de usuario</label>
+            <select class="form-select" id="permisos-tipo-select">
+              <option value="">— Seleccionar tipo —</option>
+              <option value="DEV_USER">Desarrollador</option>
+              <option value="ADMIN">Administrador</option>
+              <option value="ESTUDIANTE">Estudiante</option>
+              <option value="PROFESOR">Entrenador / Profesor</option>
+              <option value="MEDICO">Personal Médico</option>
+              <option value="ADMINISTRATIVO">Administrativo</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de botones asignados al tipo -->
+    <div class="card chart-card mb-4" id="permisos-table-card">
+      <div class="card-body p-0">
+        <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="fw-bold mb-0">Botones de menú</h6>
+            <p class="text-muted small mb-0" id="permisos-info">Selecciona un tipo de usuario para cargar sus botones.</p>
+          </div>
+        </div>
+        <div class="table-responsive table-container" style="border-radius:0 0 12px 12px; border-top:1px solid var(--table-border); border-left:none; border-right:none; border-bottom:none;">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4" style="width:70px;">Orden</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Icono</th>
+                <th style="width:120px;">Estado</th>
+                <th class="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="permisos-tbody">
+              <tr>
+                <td colspan="6" class="text-center text-muted py-5">
+                  <i class="bi bi-layout-sidebar fs-2 d-block mb-2 opacity-25"></i>
+                  Selecciona un tipo de usuario.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario agregar nuevo botón (siempre visible cuando hay tipo seleccionado) -->
+    <div class="card chart-card d-none" id="form-nuevo-boton-card">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-1"><i class="bi bi-plus-circle-fill me-2"></i>Agregar Botón de Menú</h6>
+        <p class="text-muted small mb-4">Asocia un nuevo botón de menú al tipo de usuario seleccionado.</p>
+        <form id="form-nuevo-boton" novalidate>
+          <input type="hidden" id="nb-tipo-user-hidden">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Nombre del Botón *</label>
+              <input type="text" class="form-control" id="nb-nombre" name="nombre"
+                placeholder="Ej: Matrículas" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Ruta (URL) <span class="text-muted small">(opcional)</span></label>
+              <input type="text" class="form-control" id="nb-ruta" name="ruta"
+                placeholder="Ej: /matriculas">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Icono Bootstrap <span class="text-muted small">(opcional)</span></label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="nb-icono" name="icono"
+                  placeholder="Ej: bi-journal-check">
+                <span class="input-group-text" id="nb-icono-preview">
+                  <i class="bi bi-question-circle" id="nb-icono-icon"></i>
+                </span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Tipo de Usuario *</label>
+              <select class="form-select" id="nb-tipo-user" name="tipo_user" required>
+                <option value="">— Seleccionar —</option>
+                <option value="DEV_USER">Desarrollador</option>
+                <option value="ADMIN">Administrador</option>
+                <option value="ESTUDIANTE">Estudiante</option>
+                <option value="PROFESOR">Entrenador / Profesor</option>
+                <option value="MEDICO">Personal Médico</option>
+                <option value="ADMINISTRATIVO">Administrativo</option>
+              </select>
+            </div>
+            <div class="col-md-4 d-none">
+              <label class="form-label fw-semibold">Institución</label>
+              <input type="hidden" id="nb-institucion" name="institucion" value="">
+            </div>
+          </div>
+          <div class="d-flex gap-2 justify-content-end mt-4">
+            <button type="reset" class="btn btn-outline-secondary" id="btn-reset-boton">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Limpiar
+            </button>
+            <button type="submit" class="btn btn-brand" id="btn-submit-boton">
+              <i class="bi bi-plus-lg me-1"></i>Agregar Botón
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div><!-- /tab-permisos -->
+
+</div><!-- /tab-content -->
+
+<!-- Toast container -->
+<div class="toast-container position-fixed top-0 end-0 p-3 mt-5" style="z-index:9999;" id="toast-container"></div>
+
+<!-- Toast CSS (inline para no depender de archivo externo) -->
+<style>
+.form-switch .form-check-input { cursor:pointer; }
+.table-container { overflow-x:auto; }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ════════════════════════════════════════════════════════════
+   HELPERS GLOBALES
+════════════════════════════════════════════════════════════ */
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  if (type === 'error') type = 'danger';
+  var icons = { success:'check-circle-fill', danger:'x-circle-fill', warning:'exclamation-triangle-fill', info:'info-circle-fill' };
+  var t = document.createElement('div');
+  t.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+  t.setAttribute('role','alert');
+  t.innerHTML =
+    '<div class="d-flex"><div class="toast-body">' +
+    '<i class="bi bi-' + (icons[type] || 'info-circle-fill') + ' me-2"></i>' + esc(msg) +
+    '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest(\'.toast\').remove()"></button></div>';
+  var c = document.getElementById('toast-container');
+  if (c) c.appendChild(t);
+  setTimeout(function() { if (t.parentNode) t.remove(); }, 4000);
+}
+
+function debounce(fn, ms) {
+  var timer;
+  return function() {
+    var args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function() { fn.apply(null, args); }, ms);
+  };
+}
+
+function togglePwd(inputId, btnId) {
+  var inp = document.getElementById(inputId);
+  var btn = document.getElementById(btnId);
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    if (btn) btn.querySelector('i').className = 'bi bi-eye-slash';
+  } else {
+    inp.type = 'password';
+    if (btn) btn.querySelector('i').className = 'bi bi-eye';
+  }
+}
+
+var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+
+/* ════════════════════════════════════════════════════════════
+   CATÁLOGOS LOCALES
+════════════════════════════════════════════════════════════ */
+var TIPO_LABELS = {
+  'DEV_USER':       'Desarrollador',
+  'ADMIN':          'Administrador',
+  'ESTUDIANTE':     'Estudiante',
+  'PROFESOR':       'Entrenador / Profesor',
+  'MEDICO':         'Personal Médico',
+  'ADMINISTRATIVO': 'Administrativo',
+};
+
+function tipoLabel(t) {
+  return TIPO_LABELS[t] || t || '—';
+}
+
+/* ════════════════════════════════════════════════════════════
+   TAB 1: USUARIOS
+════════════════════════════════════════════════════════════ */
+
+/* ── Estado ── */
+var allUsuarios   = [];   // cache de todos los usuarios cargados
+var searchTerm    = '';
+var apiListFailed = false;
+
+/* ── Fallback estático mientras la API no esté lista ── */
+var STATIC_USUARIOS = [
+  { id: 1, username: 'csoberon', type: 'DEV_USER', estado: 1, image: '' },
+];
+
+/* ── Cargar usuarios via API ── */
+function loadUsuarios() {
+  document.getElementById('usuarios-tbody').innerHTML =
+    '<tr><td colspan="5" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  document.getElementById('usuarios-info').textContent = 'Cargando usuarios...';
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'list', null, null)
+    .then(function(data) {
+      apiListFailed = false;
+      allUsuarios = Array.isArray(data) ? data : [];
+      renderUsuariosTable(allUsuarios);
+    })
+    .catch(function() {
+      apiListFailed = true;
+      allUsuarios = STATIC_USUARIOS.slice();
+      renderUsuariosTable(allUsuarios);
+      document.getElementById('usuarios-info').textContent =
+        'API de listado en desarrollo — mostrando datos locales.';
+    });
+}
+
+/* ── Renderizar tabla ── */
+function renderUsuariosTable(items) {
+  var tbody = document.getElementById('usuarios-tbody');
+  var info  = document.getElementById('usuarios-info');
+
+  if (!items || items.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" class="text-center text-muted py-5">' +
+      '<i class="bi bi-person-x fs-2 d-block mb-2 opacity-25"></i>' +
+      'No se encontraron usuarios.' +
+      '</td></tr>';
+    if (info && !apiListFailed) info.textContent = '0 usuarios encontrados.';
+    // Mostrar formulario crear cuando búsqueda no da resultados
+    if (searchTerm.length >= 1) {
+      showCrearForm(searchTerm);
+    }
+    return;
+  }
+
+  // Ocultar form crear si había resultados
+  if (searchTerm.length >= 1) {
+    hideCrearForm();
+  }
+
+  if (info && !apiListFailed) info.textContent = items.length + ' usuario(s) encontrado(s).';
+
+  tbody.innerHTML = items.map(function(u) {
+    var estadoBadge = parseInt(u.estado) !== 0
+      ? '<span class="badge bg-success rounded-pill">Activo</span>'
+      : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
+    var avatarLetter = (u.username || 'U').charAt(0).toUpperCase();
+    return '<tr>' +
+      '<td class="ps-4"><code>#' + esc(u.id) + '</code></td>' +
+      '<td>' +
+        '<div class="d-flex align-items-center gap-2">' +
+          '<div class="avatar-circle flex-shrink-0" style="width:34px;height:34px;font-size:.85rem;">' + esc(avatarLetter) + '</div>' +
+          '<span class="fw-semibold">' + esc(u.username) + '</span>' +
+        '</div>' +
+      '</td>' +
+      '<td><span class="badge rounded-pill" style="background:var(--app-surface-soft);color:var(--app-text-soft);border:1px solid var(--app-border);">' + esc(tipoLabel(u.type)) + '</span></td>' +
+      '<td>' + estadoBadge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<div class="d-flex gap-1 justify-content-end">' +
+          '<button type="button" class="btn btn-sm btn-outline-primary" ' +
+            'onclick="openEditarUsuario(' + u.id + ',\'' + esc(u.username) + '\',\'' + esc(u.type) + '\',\'' + esc(u.image || '') + '\')">' +
+            '<i class="bi bi-pencil me-1"></i>Editar</button>' +
+          '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+            'onclick="deshabilitarUsuario(' + u.id + ',\'' + esc(u.username) + '\',' + (parseInt(u.estado) !== 0 ? 1 : 0) + ')">' +
+            (parseInt(u.estado) !== 0
+              ? '<i class="bi bi-slash-circle me-1"></i>Deshabilitar'
+              : '<i class="bi bi-check-circle me-1"></i>Habilitar') +
+          '</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ── Búsqueda con debounce ── */
+var doUserSearch = debounce(function(q) {
+  searchTerm = q;
+  if (q.length === 0) {
+    renderUsuariosTable(allUsuarios);
+    hideCrearForm();
+    document.getElementById('usuarios-info').textContent = allUsuarios.length + ' usuario(s) registrado(s).';
+    return;
+  }
+
+  document.getElementById('user-search-spinner').classList.remove('d-none');
+  var filtered = allUsuarios.filter(function(u) {
+    return (u.username || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
+  });
+  document.getElementById('user-search-spinner').classList.add('d-none');
+  renderUsuariosTable(filtered);
+}, 350);
+
+/* ── Formulario crear: mostrar / ocultar ── */
+function showCrearForm(prefillUsername) {
+  var card = document.getElementById('form-crear-usuario-card');
+  card.classList.remove('d-none');
+  if (prefillUsername) {
+    var inp = document.getElementById('c-username');
+    if (inp && !inp.value) inp.value = prefillUsername;
+  }
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideCrearForm() {
+  document.getElementById('form-crear-usuario-card').classList.add('d-none');
+  document.getElementById('form-crear-usuario').reset();
+}
+
+/* ── Formulario editar: mostrar / ocultar ── */
+function openEditarUsuario(id, username, tipo, imagen) {
+  document.getElementById('e-user-id').value    = id;
+  document.getElementById('e-username').value   = username || '';
+  document.getElementById('e-password').value   = '';
+  document.getElementById('e-imagen').value     = imagen || '';
+  // Tipo de usuario select
+  var sel = document.getElementById('e-tipo-user');
+  for (var i = 0; i < sel.options.length; i++) {
+    sel.options[i].selected = (sel.options[i].value === tipo);
+  }
+  document.getElementById('edit-usuario-title').textContent = username || '';
+  var card = document.getElementById('form-editar-usuario-card');
+  card.classList.remove('d-none');
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideEditarForm() {
+  document.getElementById('form-editar-usuario-card').classList.add('d-none');
+  document.getElementById('form-editar-usuario').reset();
+}
+
+/* ── Deshabilitar / habilitar usuario ── */
+function deshabilitarUsuario(id, username, currentEstado) {
+  var accion  = currentEstado === 1 ? 'deshabilitar' : 'habilitar';
+  var confirm = window.confirm('¿' + (accion.charAt(0).toUpperCase() + accion.slice(1)) + ' al usuario "' + username + '"?');
+  if (!confirm) return;
+
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'disable', null, { id: id })
+    .then(function() {
+      showToast('Usuario ' + accion + 'do correctamente.', 'success');
+      loadUsuarios();
+    })
+    .catch(function(err) {
+      showToast(err.message || ('Error al ' + accion + ' el usuario.'), 'danger');
+    });
+}
+
+/* ── Crear usuario: submit ── */
+document.getElementById('form-crear-usuario').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('btn-submit-crear');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creando...';
+
+  var username  = document.getElementById('c-username').value.trim();
+  var password  = document.getElementById('c-password').value;
+  var tipo_user = document.getElementById('c-tipo-user').value;
+  var imagen    = document.getElementById('c-imagen').value.trim();
+
+  if (!username || !password || !tipo_user) {
+    showToast('Completa los campos requeridos.', 'warning');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Crear Usuario';
+    return;
+  }
+
+  var body = { username: username, password: password, tipo_user: tipo_user };
+  if (imagen) body.imagen = imagen;
+
+  Cuspide.api.call('POST', CONFIG.ENDPOINTS.usuarios, 'save', body, null)
+    .then(function() {
+      showToast('Usuario "' + username + '" creado correctamente.', 'success');
+      hideCrearForm();
+      searchTerm = '';
+      document.getElementById('usuario-search').value = '';
+      loadUsuarios();
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al crear el usuario.', 'danger');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Crear Usuario';
+    });
+});
+
+/* ── Editar usuario: submit ── */
+document.getElementById('form-editar-usuario').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('btn-submit-editar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  var id        = document.getElementById('e-user-id').value;
+  var username  = document.getElementById('e-username').value.trim();
+  var password  = document.getElementById('e-password').value;
+  var tipo_user = document.getElementById('e-tipo-user').value;
+  var imagen    = document.getElementById('e-imagen').value.trim();
+
+  if (!username || !tipo_user) {
+    showToast('Username y Tipo de Usuario son requeridos.', 'warning');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Cambios';
+    return;
+  }
+
+  var body = { username: username, tipo_user: tipo_user };
+  if (password) body.password = password;
+  if (imagen)   body.imagen   = imagen;
+
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'save', body, { id: id })
+    .then(function() {
+      showToast('Usuario actualizado correctamente.', 'success');
+      hideEditarForm();
+      loadUsuarios();
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al actualizar el usuario.', 'danger');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Cambios';
+    });
+});
+
+/* ── Botones de cancel/limpiar ── */
+document.getElementById('btn-nuevo-usuario').addEventListener('click', function() {
+  hideEditarForm();
+  showCrearForm('');
+});
+document.getElementById('btn-cancelar-crear').addEventListener('click', hideCrearForm);
+document.getElementById('btn-cancelar-crear-2').addEventListener('click', hideCrearForm);
+document.getElementById('btn-cancelar-editar').addEventListener('click', hideEditarForm);
+document.getElementById('btn-cancelar-editar-2').addEventListener('click', hideEditarForm);
+
+document.getElementById('usuario-search').addEventListener('input', function() {
+  doUserSearch(this.value.trim());
+});
+
+document.getElementById('btn-limpiar-usuarios').addEventListener('click', function() {
+  document.getElementById('usuario-search').value = '';
+  searchTerm = '';
+  renderUsuariosTable(allUsuarios);
+  hideCrearForm();
+  hideEditarForm();
+  document.getElementById('usuarios-info').textContent = allUsuarios.length + ' usuario(s) registrado(s).';
+  document.getElementById('usuario-search').focus();
+});
+
+
+/* ════════════════════════════════════════════════════════════
+   TAB 3: PERMISOS DE MENÚ
+════════════════════════════════════════════════════════════ */
+
+var currentPermisosTipo = '';
+
+/* ── Cargar botones para tipo seleccionado ── */
+function loadPermisos(tipo) {
+  currentPermisosTipo = tipo;
+  var tbody = document.getElementById('permisos-tbody');
+  var info  = document.getElementById('permisos-info');
+
+  tbody.innerHTML =
+    '<tr><td colspan="6" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  info.textContent = 'Cargando botones para ' + tipoLabel(tipo) + '...';
+
+  // Mostrar/ocultar form nuevo botón
+  var formCard = document.getElementById('form-nuevo-boton-card');
+  formCard.classList.remove('d-none');
+  document.getElementById('nb-tipo-user').value       = tipo;
+  document.getElementById('nb-tipo-user-hidden').value = tipo;
+  document.getElementById('nb-institucion').value      = institucionId;
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'buttons', null, { tipo_user: tipo, institucion: institucionId })
+    .then(function(data) {
+      var items = Array.isArray(data) ? data : [];
+      renderPermisosTable(items, tipo);
+      info.textContent = items.length + ' botón(es) para ' + tipoLabel(tipo) + '.';
+    })
+    .catch(function(err) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="text-center text-danger py-4">' +
+        '<i class="bi bi-exclamation-circle me-2"></i>' + esc(err.message || 'Error al cargar botones.') +
+        '</td></tr>';
+      info.textContent = 'Error al cargar.';
+    });
+}
+
+/* ── Renderizar tabla de botones ── */
+function renderPermisosTable(items, tipo) {
+  var tbody = document.getElementById('permisos-tbody');
+
+  if (!items.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" class="text-center text-muted py-5">' +
+      '<i class="bi bi-layout-sidebar fs-2 d-block mb-2 opacity-25"></i>' +
+      'No hay botones asignados a "' + esc(tipoLabel(tipo)) + '".</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(function(b) {
+    var checked = parseInt(b.estado) !== 0;
+    var iconEl  = b.icono
+      ? '<i class="bi ' + esc(b.icono) + ' fs-5"></i>'
+      : '<span class="text-muted small">—</span>';
+    var tipoBadge = '<span class="badge rounded-pill" style="background:var(--app-surface-soft);color:var(--app-text-soft);border:1px solid var(--app-border);">' + esc(b.tipo || tipo) + '</span>';
+    return '<tr>' +
+      '<td class="ps-4 text-muted small">' + esc(b.orden || '—') + '</td>' +
+      '<td class="fw-semibold">' + esc(b.nombre) + '</td>' +
+      '<td>' + tipoBadge + '</td>' +
+      '<td>' + iconEl + '</td>' +
+      '<td>' +
+        '<div class="form-check form-switch mb-0">' +
+          '<input class="form-check-input" type="checkbox" role="switch" ' +
+            'id="toggle-btn-' + esc(b.id) + '" ' +
+            (checked ? 'checked' : '') + ' ' +
+            'onchange="toggleBoton(' + b.id + ', this.checked)">' +
+          '<label class="form-check-label small" for="toggle-btn-' + esc(b.id) + '">' +
+            (checked ? 'Activo' : 'Inactivo') +
+          '</label>' +
+        '</div>' +
+      '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+          'onclick="toggleBoton(' + b.id + ', false, true)">' +
+          '<i class="bi bi-trash"></i>' +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ── Toggle estado de botón ── */
+function toggleBoton(id, estadoActivo, forceOff) {
+  var estado = forceOff ? 0 : (estadoActivo ? 1 : 0);
+  var label  = document.querySelector('label[for="toggle-btn-' + id + '"]');
+
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'button', { estado: estado }, { id: id })
+    .then(function() {
+      showToast('Botón ' + (estado ? 'activado' : 'desactivado') + ' correctamente.', 'success');
+      if (label) label.textContent = estado ? 'Activo' : 'Inactivo';
+      if (currentPermisosTipo) loadPermisos(currentPermisosTipo);
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al actualizar el botón.', 'danger');
+      // Revertir el toggle visual
+      var inp = document.getElementById('toggle-btn-' + id);
+      if (inp) inp.checked = !estadoActivo;
+      if (currentPermisosTipo) loadPermisos(currentPermisosTipo);
+    });
+}
+
+/* ── Formulario nuevo botón: submit ── */
+document.getElementById('form-nuevo-boton').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('btn-submit-boton');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Agregando...';
+
+  var nombre    = document.getElementById('nb-nombre').value.trim();
+  var ruta      = document.getElementById('nb-ruta').value.trim();
+  var icono     = document.getElementById('nb-icono').value.trim();
+  var tipo_user = document.getElementById('nb-tipo-user').value;
+  var inst      = document.getElementById('nb-institucion').value || institucionId;
+
+  if (!nombre || !ruta || !tipo_user) {
+    showToast('Nombre, ruta y tipo de usuario son requeridos.', 'warning');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Agregar Botón';
+    return;
+  }
+
+  var body = { nombre: nombre, tipo_user: tipo_user, institucion: inst };
+  if (ruta)  body.ruta  = ruta;
+  if (icono) body.icono = icono;
+
+  Cuspide.api.call('POST', CONFIG.ENDPOINTS.usuarios, 'button', body, null)
+    .then(function() {
+      showToast('Botón "' + nombre + '" agregado correctamente.', 'success');
+      document.getElementById('form-nuevo-boton').reset();
+      document.getElementById('nb-icono-icon').className = 'bi bi-question-circle';
+      if (currentPermisosTipo) {
+        document.getElementById('nb-tipo-user').value = currentPermisosTipo;
+        loadPermisos(currentPermisosTipo);
+      }
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al agregar el botón.', 'danger');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Agregar Botón';
+    });
+});
+
+/* ── Preview de icono en tiempo real ── */
+document.getElementById('nb-icono').addEventListener('input', function() {
+  var val  = this.value.trim();
+  var icon = document.getElementById('nb-icono-icon');
+  icon.className = val ? 'bi ' + val : 'bi bi-question-circle';
+});
+
+/* ── Reset limpia el preview ── */
+document.getElementById('btn-reset-boton').addEventListener('click', function() {
+  setTimeout(function() {
+    document.getElementById('nb-icono-icon').className = 'bi bi-question-circle';
+    if (currentPermisosTipo) {
+      document.getElementById('nb-tipo-user').value = currentPermisosTipo;
+    }
+  }, 10);
+});
+
+/* ── Cambio de tipo de usuario (select permisos) ── */
+document.getElementById('permisos-tipo-select').addEventListener('change', function() {
+  var tipo = this.value;
+  if (!tipo) {
+    document.getElementById('permisos-tbody').innerHTML =
+      '<tr><td colspan="6" class="text-center text-muted py-5">' +
+      '<i class="bi bi-layout-sidebar fs-2 d-block mb-2 opacity-25"></i>Selecciona un tipo de usuario.</td></tr>';
+    document.getElementById('permisos-info').textContent = 'Selecciona un tipo de usuario para cargar sus botones.';
+    document.getElementById('form-nuevo-boton-card').classList.add('d-none');
+    currentPermisosTipo = '';
+    return;
+  }
+  loadPermisos(tipo);
+});
+
+/* ── Sincronizar tipo al cambiar entre tabs ── */
+document.getElementById('tab-permisos-btn').addEventListener('click', function() {
+  institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+  document.getElementById('nb-institucion').value = institucionId;
+});
+
+/* ════════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════════ */
+function init() {
+  loadUsuarios();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  init();
+});
+</script>
+{% endblock %}

@@ -134,7 +134,7 @@
   const companyResource = function (resource) {
     const base = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.company).replace(/\/+$/, '');
     return request(base + '/?api=' + encodeURIComponent(resource), {
-      auth: false,
+      auth: true,
     });
   };
 
@@ -147,13 +147,23 @@
 
   const login = async function (username, password) {
     const encryptedPayload = await cifrarLogin(username, password);
-    const token = await request(CONFIG.ENDPOINTS.auth, {
+    const loginData = await request(CONFIG.ENDPOINTS.auth, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain; charset=UTF-8',
       },
       body: encryptedPayload,
     });
+    const token = typeof loginData === 'string'
+      ? loginData
+      : (loginData && (loginData.token || loginData.access_token));
+
+    if (!token) {
+      throw new ApiError('La API de login no devolvio un token valido.', {
+        status: 0,
+        payload: loginData,
+      });
+    }
 
     setToken(token);
     return token;
@@ -195,6 +205,32 @@
     clearToken,
     requireAuth,
     logout,
+  };
+
+  /**
+   * call(method, endpointPath, action, body, queryParams)
+   * Helper genérico para todos los endpoints nuevos.
+   * endpointPath: valor de CONFIG.ENDPOINTS.*
+   * action: string que va en ?api=action
+   * body: objeto para POST/PUT (null en GET)
+   * queryParams: objeto con params adicionales (ej. {q:'perez', id:12})
+   */
+  window.Cuspide.api.call = function (method, endpointPath, action, body, queryParams) {
+    var apiBase = (CONFIG.API_BASE_URL + endpointPath).replace(/\/+$/, '');
+    var url = apiBase + '/index.php?api=' + encodeURIComponent(action);
+    if (queryParams) {
+      Object.keys(queryParams).forEach(function (k) {
+        var v = queryParams[k];
+        if (v !== null && v !== undefined && v !== '') {
+          url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(v);
+        }
+      });
+    }
+    var opts = { method: method || 'GET', auth: true };
+    if (method !== 'GET' && body !== null && body !== undefined) {
+      opts.body = body;
+    }
+    return request(url, opts);
   };
 
   window.authFetch = function (url, options) {

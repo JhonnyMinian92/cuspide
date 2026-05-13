@@ -87,9 +87,9 @@ class ClaseServices
                        SUM(CASE WHEN a.estado = 1 THEN 1 ELSE 0 END)     AS asistencias,
                        SUM(CASE WHEN a.estado = 2 THEN 1 ELSE 0 END)     AS faltas
                 FROM clases c
-                LEFT JOIN periodo_academico pa ON pa.id = c.periodo_academico
+                LEFT JOIN periodos_academicos pa ON pa.id = c.periodo_academico
                 LEFT JOIN personas p           ON p.id  = c.docente
-                LEFT JOIN clase_matricula cm   ON cm.clase = c.id AND cm.estado = 1
+                LEFT JOIN clases_matricula cm  ON cm.clase = c.id AND cm.estado = 1
                 LEFT JOIN asistencias a        ON a.clase  = c.id
                 WHERE c.institucion = :inst
                 GROUP BY c.id
@@ -132,7 +132,7 @@ class ClaseServices
                        COUNT(cm.id)                          AS ocupados,
                        (c.cupo_maximo - COUNT(cm.id))        AS disponible
                 FROM clases c
-                LEFT JOIN clase_matricula cm ON cm.clase = c.id AND cm.estado = 1
+                LEFT JOIN clases_matricula cm ON cm.clase = c.id AND cm.estado = 1
                 WHERE c.id = :id
                 GROUP BY c.id";
 

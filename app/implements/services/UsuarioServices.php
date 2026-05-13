@@ -41,6 +41,9 @@ class UsuarioServices implements UsuarioServiceInterface
         }
 
         switch (true) {
+            case $method === 'GET' && $resource === 'list':
+                return $this->fetchUsuarios();
+
             case $method === 'GET' && $resource === 'buttons':
                 return $this->fetchButtons($queryParams);
 
@@ -62,6 +65,34 @@ class UsuarioServices implements UsuarioServiceInterface
     }
 
     // -------------------------------------------------------------------------
+    // fetchUsuarios
+    // -------------------------------------------------------------------------
+    private function fetchUsuarios(): array
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare(
+            "SELECT id, username, type, image
+             FROM users
+             ORDER BY username ASC"
+        );
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return array_map(static function (array $row): array {
+            $type = (string) ($row['type'] ?? '');
+            return [
+                'id'       => (int) $row['id'],
+                'username' => (string) $row['username'],
+                'type'     => $type,
+                'tipo_user'=> $type,
+                'image'    => $row['image'] ?? null,
+                'imagen'   => $row['image'] ?? null,
+                'estado'   => strtoupper($type) === 'INACTIVO' ? 0 : 1,
+            ];
+        }, $rows);
+    }
+
+    // -------------------------------------------------------------------------
     // fetchButtons
     // -------------------------------------------------------------------------
     private function fetchButtons(array $queryParams): array
@@ -75,18 +106,13 @@ class UsuarioServices implements UsuarioServiceInterface
 
         $db = Database::getInstance();
 
-        $sql = "SELECT b.id, b.nombre, b.ruta, b.icono
-                FROM boton_users bu
+        $sql = "SELECT b.id, b.orden, b.nombre, b.tipo AS ruta, b.icono, b.estado
+                FROM boton_user bu
                 JOIN botones b ON b.id = bu.boton
                 WHERE bu.type_user = :tipo
-                  AND bu.estado = 1";
+                  AND b.estado = 1";
 
         $params = [':tipo' => $tipoUser];
-
-        if ($institucion !== '') {
-            $sql .= " AND (bu.institucion = :inst OR bu.institucion IS NULL)";
-            $params[':inst'] = $institucion;
-        }
 
         $stmt = $db->prepare($sql);
         foreach ($params as $key => $value) {
@@ -99,9 +125,11 @@ class UsuarioServices implements UsuarioServiceInterface
         foreach ($rows as $row) {
             $result[] = [
                 'id'     => (int)$row['id'],
+                'orden'  => isset($row['orden']) ? (int)$row['orden'] : null,
                 'nombre' => $row['nombre'],
                 'ruta'   => $row['ruta'],
                 'icono'  => $row['icono'],
+                'estado' => (int)($row['estado'] ?? 1),
             ];
         }
         return $result;
@@ -128,27 +156,32 @@ class UsuarioServices implements UsuarioServiceInterface
         $ruta        = trim($data['ruta']);
         $icono       = $data['icono']       ?? null;
         $tipoUser    = $data['tipo_user'];
-        $institucion = $data['institucion'] ?? null;
         $estado      = 1;
 
         $db = Database::getInstance();
 
-        $sql = "INSERT INTO botones (nombre, ruta, icono, tipo_user, institucion, estado)
-                VALUES (:nombre, :ruta, :icono, :tipo_user, :institucion, :estado)";
+        $ordenStmt = $db->query('SELECT COALESCE(MAX(orden), 0) + 1 AS next_orden FROM botones');
+        $orden = (int)($ordenStmt->fetch(\PDO::FETCH_ASSOC)['next_orden'] ?? 1);
+
+        $sql = "INSERT INTO botones (orden, nombre, icono, tipo, color, estado)
+                VALUES (:orden, :nombre, :icono, :tipo, NULL, :estado)";
         $stmt = $db->prepare($sql);
+        $stmt->bindValue(':orden',       $orden, \PDO::PARAM_INT);
         $stmt->bindValue(':nombre',      $nombre);
-        $stmt->bindValue(':ruta',        $ruta);
-        $stmt->bindValue(':icono',       $icono);
-        $stmt->bindValue(':tipo_user',   $tipoUser);
-        $stmt->bindValue(':institucion', $institucion);
+        $stmt->bindValue(':icono',       $icono ?: 'bi-circle');
+        $stmt->bindValue(':tipo',        $ruta);
         $stmt->bindValue(':estado',      $estado, \PDO::PARAM_INT);
         $stmt->execute();
 
         $newId = (int)$db->lastInsertId();
 
+        $rel = $db->prepare('INSERT INTO boton_user (boton, type_user) VALUES (:boton, :type_user)');
+        $rel->execute([':boton' => $newId, ':type_user' => $tipoUser]);
+
         return [
             'id'     => $newId,
             'nombre' => $nombre,
+            'ruta'   => $ruta,
         ];
     }
 

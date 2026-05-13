@@ -65,13 +65,13 @@ class InventarioServices implements InventarioServiceInterface
                        pr.nombre,
                        pr.precio,
                        pc.nombre AS categoria,
-                       COALESCE(inv.cantidad_actual, 0) AS stock_actual,
-                       COALESCE(inv.cantidad_minima, 0) AS stock_minimo,
-                       CASE WHEN COALESCE(inv.cantidad_actual, 0) <= COALESCE(inv.cantidad_minima, 0)
+                       COALESCE(inv.stock_actual, 0) AS stock_actual,
+                       COALESCE(inv.stock_minimo, 0) AS stock_minimo,
+                       CASE WHEN COALESCE(inv.stock_actual, 0) <= COALESCE(inv.stock_minimo, 0)
                             THEN 1 ELSE 0
                        END AS alerta_stock
                 FROM productos pr
-                LEFT JOIN producto_categoria pc ON pc.id = pr.categoria
+                LEFT JOIN producto_categorias pc ON pc.id = pr.categoria
                 LEFT JOIN inventario inv ON inv.producto = pr.id AND inv.institucion = :inst
                 WHERE pr.estado = 1
                   AND pr.controla_stock = 1
@@ -116,12 +116,12 @@ class InventarioServices implements InventarioServiceInterface
         $db = Database::getInstance();
 
         $sql = "SELECT mi.id,
-                       mi.tipo_movimiento,
+                       mi.tipo AS tipo_movimiento,
                        mi.cantidad,
                        mi.fecha,
                        mi.referencia,
                        mi.observacion
-                FROM movimiento_inventario mi
+                FROM movimientos_inventario mi
                 WHERE mi.producto = :producto
                 ORDER BY mi.fecha DESC
                 LIMIT :lim";
@@ -184,25 +184,8 @@ class InventarioServices implements InventarioServiceInterface
 
         $db = Database::getInstance();
 
-        // Insert movement record
-        $sqlMov = "INSERT INTO movimiento_inventario
-                       (producto, variante, tipo_movimiento, cantidad, fecha, referencia, observacion, institucion)
-                   VALUES
-                       (:producto, :variante, :tipo_movimiento, :cantidad, :fecha, :referencia, :observacion, :institucion)";
-        $stmtMov = $db->prepare($sqlMov);
-        $stmtMov->execute([
-            ':producto'        => $productoId,
-            ':variante'        => $varianteId,
-            ':tipo_movimiento' => $tipoMov,
-            ':cantidad'        => $cantidad,
-            ':fecha'           => $fecha,
-            ':referencia'      => $referencia,
-            ':observacion'     => $observacion,
-            ':institucion'     => $institucion,
-        ]);
-
         // Check if inventario row exists
-        $sqlCheck = 'SELECT id, cantidad_actual FROM inventario WHERE producto = :producto AND institucion = :inst';
+        $sqlCheck = 'SELECT id, stock_actual FROM inventario WHERE producto = :producto AND institucion = :inst';
         $sqlCheck .= $varianteId !== null ? ' AND variante = :variante' : ' AND (variante IS NULL OR variante = 0)';
         $stmtChk  = $db->prepare($sqlCheck);
         $params   = [':producto' => $productoId, ':inst' => $institucion];
@@ -215,7 +198,7 @@ class InventarioServices implements InventarioServiceInterface
         if ($invRow) {
             // Update existing row
             $invId       = (int)$invRow['id'];
-            $stockActual = (float)$invRow['cantidad_actual'];
+            $stockActual = (float)$invRow['stock_actual'];
 
             $stockNuevo = match ($tipoMov) {
                 'ENTRADA' => $stockActual + $cantidad,
@@ -224,7 +207,7 @@ class InventarioServices implements InventarioServiceInterface
                 default   => $stockActual,
             };
 
-            $sqlUpd = 'UPDATE inventario SET cantidad_actual = :stock WHERE id = :id';
+            $sqlUpd = 'UPDATE inventario SET stock_actual = :stock WHERE id = :id';
             $stmtUpd = $db->prepare($sqlUpd);
             $stmtUpd->execute([':stock' => $stockNuevo, ':id' => $invId]);
         } else {
@@ -237,7 +220,7 @@ class InventarioServices implements InventarioServiceInterface
             };
 
             $sqlIns = "INSERT INTO inventario
-                           (producto, variante, cantidad_actual, cantidad_minima, institucion)
+                           (producto, variante, stock_actual, stock_minimo, institucion)
                        VALUES
                            (:producto, :variante, :stock, 0, :inst)";
             $stmtIns = $db->prepare($sqlIns);
@@ -248,6 +231,24 @@ class InventarioServices implements InventarioServiceInterface
                 ':inst'     => $institucion,
             ]);
         }
+
+        $sqlMov = "INSERT INTO movimientos_inventario
+                       (producto, variante, institucion, tipo, cantidad, stock_anterior, stock_nuevo, referencia, fecha, observacion)
+                   VALUES
+                       (:producto, :variante, :institucion, :tipo, :cantidad, :stock_anterior, :stock_nuevo, :referencia, :fecha, :observacion)";
+        $stmtMov = $db->prepare($sqlMov);
+        $stmtMov->execute([
+            ':producto'       => $productoId,
+            ':variante'       => $varianteId,
+            ':institucion'    => $institucion,
+            ':tipo'           => $tipoMov,
+            ':cantidad'       => $cantidad,
+            ':stock_anterior' => $stockActual ?? 0,
+            ':stock_nuevo'    => $stockNuevo,
+            ':referencia'     => $referencia,
+            ':fecha'          => $fecha,
+            ':observacion'    => $observacion,
+        ]);
 
         return [
             'producto'   => $productoId,

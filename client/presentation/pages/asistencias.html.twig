@@ -1,0 +1,326 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'asistencias' %}
+{% block title %}Asistencias y Permisos — Huaquillas F.C.{% endblock %}
+{% block page_title %}Asistencias y Permisos{% endblock %}
+
+{% block head %}
+<style>
+.attendance-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;}
+.attendance-list-row:hover{background:rgba(var(--bs-primary-rgb),.06);}
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .25s ease;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.25);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-info{background:#0dcaf0;color:#212529;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-12">
+    <div class="attendance-summary">
+      <div class="card chart-card">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Clases Activas</p>
+          <h4 class="fw-bold mb-0" id="count-clases">0</h4>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Actividades Activas</p>
+          <h4 class="fw-bold mb-0" id="count-actividades">0</h4>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Asistencias Registradas</p>
+          <h4 class="fw-bold mb-0" id="count-asistencias">0</h4>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Faltas Registradas</p>
+          <h4 class="fw-bold mb-0" id="count-faltas">0</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-7">
+    <div class="card chart-card">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+          <div>
+            <h6 class="fw-bold mb-1">Control por Clase o Actividad</h6>
+            <p class="text-muted small mb-0">Selecciona un grupo para registrar asistencia o permiso.</p>
+          </div>
+          <div class="input-group" style="max-width:320px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="attendance-search" placeholder="Buscar..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Tipo</th>
+                <th>Nombre</th>
+                <th class="text-center">Matriculados</th>
+                <th class="text-center">Asist.</th>
+                <th class="text-center">Faltas</th>
+                <th class="text-end">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="attendance-tbody">
+              <tr>
+                <td colspan="6" class="text-center text-muted py-5">
+                  <span class="spinner-border spinner-border-sm me-2"></span>Cargando datos...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <div class="card chart-card border-primary d-none" id="attendance-form-card">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-1" id="attendance-form-title">Registrar Asistencia</h6>
+        <p class="text-muted small mb-3" id="attendance-form-subtitle">Seleccione una clase o actividad.</p>
+
+        <form id="attendance-form" novalidate>
+          <input type="hidden" id="attendance-target-id">
+          <input type="hidden" id="attendance-target-type">
+          <div class="row g-3">
+            <div class="col-12 col-sm-6">
+              <label class="form-label fw-semibold" for="attendance-matricula">Matrícula <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="attendance-matricula" min="1" required>
+              <div class="invalid-feedback">Ingrese el ID de matrícula.</div>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label fw-semibold" for="attendance-fecha">Fecha <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="attendance-fecha" required>
+              <div class="invalid-feedback">Seleccione una fecha.</div>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label fw-semibold" for="attendance-estado">Estado</label>
+              <select class="form-select" id="attendance-estado">
+                <option value="1">Presente</option>
+                <option value="2">Falta</option>
+                <option value="3">Permiso / Justificado</option>
+              </select>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label fw-semibold" for="attendance-horario">Horario</label>
+              <input type="number" class="form-control" id="attendance-horario" min="1" placeholder="Opcional">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label fw-semibold" for="attendance-entrada">Entrada</label>
+              <input type="time" class="form-control" id="attendance-entrada">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label fw-semibold" for="attendance-salida">Salida</label>
+              <input type="time" class="form-control" id="attendance-salida">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="attendance-observacion">Observación</label>
+              <textarea class="form-control" id="attendance-observacion" rows="3" maxlength="250" placeholder="Motivo del permiso o detalle de la asistencia"></textarea>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check2-circle me-1"></i>Registrar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="attendance-cancel">
+              <i class="bi bi-x-lg me-1"></i>Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="alert alert-info mb-0" id="attendance-empty-form">
+      Seleccione una clase o actividad para registrar asistencia, falta o permiso justificado.
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var records = [];
+  var currentInstitution = null;
+
+  function toast(message, type) {
+    var el = document.createElement('div');
+    el.className = 'toast-notification toast-' + (type || 'info');
+    el.textContent = message;
+    document.body.appendChild(el);
+    requestAnimationFrame(function () { el.classList.add('show'); });
+    setTimeout(function () {
+      el.classList.remove('show');
+      setTimeout(function () { el.remove(); }, 250);
+    }, 2600);
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function getInstId() {
+    if (window.getCurrentInstitucionId && window.getCurrentInstitucionId()) {
+      return window.getCurrentInstitucionId();
+    }
+    return parseInt(localStorage.getItem('currentInstitucionId') || '0', 10) || currentInstitution || null;
+  }
+
+  function api(method, endpoint, action, body, params) {
+    return Cuspide.api.call(method, CONFIG.ENDPOINTS[endpoint], action, body, params);
+  }
+
+  function render() {
+    var query = document.getElementById('attendance-search').value.trim().toLowerCase();
+    var tbody = document.getElementById('attendance-tbody');
+    var filtered = records.filter(function (item) {
+      return !query || item.nombre.toLowerCase().indexOf(query) !== -1 || item.tipo.toLowerCase().indexOf(query) !== -1;
+    });
+
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">No se encontraron clases o actividades.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(function (item) {
+      return '<tr class="attendance-list-row">' +
+        '<td><span class="badge ' + (item.tipo === 'Clase' ? 'bg-primary' : 'bg-success') + '">' + item.tipo + '</span></td>' +
+        '<td class="fw-semibold">' + escapeHtml(item.nombre) + '</td>' +
+        '<td class="text-center">' + (item.matriculados || 0) + '</td>' +
+        '<td class="text-center text-success fw-semibold">' + (item.asistencias || 0) + '</td>' +
+        '<td class="text-center text-danger fw-semibold">' + (item.faltas || 0) + '</td>' +
+        '<td class="text-end"><button class="btn btn-sm btn-outline-primary" data-attendance-id="' + item.id + '" data-attendance-type="' + item.apiType + '"><i class="bi bi-pencil-square me-1"></i>Registrar</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function updateSummary() {
+    var clases = records.filter(function (item) { return item.apiType === 'clase'; });
+    var actividades = records.filter(function (item) { return item.apiType === 'actividad'; });
+    var asistencias = records.reduce(function (sum, item) { return sum + (parseInt(item.asistencias || 0, 10) || 0); }, 0);
+    var faltas = records.reduce(function (sum, item) { return sum + (parseInt(item.faltas || 0, 10) || 0); }, 0);
+    document.getElementById('count-clases').textContent = clases.length;
+    document.getElementById('count-actividades').textContent = actividades.length;
+    document.getElementById('count-asistencias').textContent = asistencias;
+    document.getElementById('count-faltas').textContent = faltas;
+  }
+
+  function openForm(id, type) {
+    var item = records.find(function (record) { return String(record.id) === String(id) && record.apiType === type; });
+    if (!item) return;
+    document.getElementById('attendance-target-id').value = item.id;
+    document.getElementById('attendance-target-type').value = item.apiType;
+    document.getElementById('attendance-form-title').textContent = 'Registrar ' + item.tipo;
+    document.getElementById('attendance-form-subtitle').textContent = item.nombre;
+    document.getElementById('attendance-form-card').classList.remove('d-none');
+    document.getElementById('attendance-empty-form').classList.add('d-none');
+  }
+
+  function closeForm() {
+    document.getElementById('attendance-form').reset();
+    document.getElementById('attendance-form').classList.remove('was-validated');
+    document.getElementById('attendance-fecha').valueAsDate = new Date();
+    document.getElementById('attendance-form-card').classList.add('d-none');
+    document.getElementById('attendance-empty-form').classList.remove('d-none');
+  }
+
+  function loadInstitution() {
+    var stateId = getInstId();
+    if (stateId) {
+      currentInstitution = stateId;
+      return Promise.resolve(stateId);
+    }
+
+    return api('GET', 'instituciones', 'list', null, null).then(function (items) {
+      if (!Array.isArray(items) || !items.length) throw new Error('No hay instituciones disponibles.');
+      currentInstitution = parseInt(items[0].id, 10);
+      if (window.setCurrentInstitucion) window.setCurrentInstitucion(currentInstitution);
+      return currentInstitution;
+    });
+  }
+
+  function loadData() {
+    return loadInstitution().then(function (instId) {
+      return Promise.all([
+        api('GET', 'clases', 'list', null, { institucion: instId }),
+        api('GET', 'actividades', 'list', null, { institucion: instId }),
+      ]);
+    }).then(function (responses) {
+      var clases = Array.isArray(responses[0]) ? responses[0] : [];
+      var actividades = Array.isArray(responses[1]) ? responses[1] : [];
+      records = clases.map(function (item) {
+        return Object.assign({}, item, { tipo: 'Clase', apiType: 'clase' });
+      }).concat(actividades.map(function (item) {
+        return Object.assign({}, item, { tipo: 'Actividad', apiType: 'actividad' });
+      }));
+      updateSummary();
+      render();
+    }).catch(function (error) {
+      document.getElementById('attendance-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-danger py-5">' + escapeHtml(error.message || 'No se pudo cargar asistencias.') + '</td></tr>';
+    });
+  }
+
+  document.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-attendance-id]');
+    if (btn) openForm(btn.getAttribute('data-attendance-id'), btn.getAttribute('data-attendance-type'));
+  });
+
+  document.getElementById('attendance-search').addEventListener('input', render);
+  document.getElementById('attendance-cancel').addEventListener('click', closeForm);
+
+  document.getElementById('attendance-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    form.classList.add('was-validated');
+    if (!form.checkValidity()) return;
+
+    var type = document.getElementById('attendance-target-type').value;
+    var targetId = parseInt(document.getElementById('attendance-target-id').value, 10);
+    var body = {
+      matricula: parseInt(document.getElementById('attendance-matricula').value, 10),
+      fecha: document.getElementById('attendance-fecha').value,
+      estado: parseInt(document.getElementById('attendance-estado').value, 10),
+      observacion: document.getElementById('attendance-observacion').value.trim(),
+    };
+
+    var horario = document.getElementById('attendance-horario').value;
+    var entrada = document.getElementById('attendance-entrada').value;
+    var salida = document.getElementById('attendance-salida').value;
+    if (horario) body.horario = parseInt(horario, 10);
+    if (entrada) body.hora_entrada = entrada;
+    if (salida) body.hora_salida = salida;
+
+    var endpoint = type === 'actividad' ? 'actividades' : 'clases';
+    body[type === 'actividad' ? 'actividad' : 'clase'] = targetId;
+
+    api('POST', endpoint, 'attendance', body, null)
+      .then(function () {
+        toast('Asistencia registrada correctamente.', 'success');
+        closeForm();
+        loadData();
+      })
+      .catch(function (error) {
+        toast(error.message || 'No se pudo registrar la asistencia.', 'error');
+      });
+  });
+
+  document.getElementById('attendance-fecha').valueAsDate = new Date();
+  loadData();
+})();
+</script>
+{% endblock %}

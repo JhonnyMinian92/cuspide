@@ -108,7 +108,7 @@ class CuentaCobrarServices implements CuentaCobrarServiceInterface
             $sqlDet = "SELECT vd.descripcion,
                               vd.cantidad,
                               vd.precio_unitario,
-                              vd.subtotal
+                              vd.total
                        FROM venta_detalle vd
                        WHERE vd.venta = :id";
             $stmtDet = $db->prepare($sqlDet);
@@ -122,7 +122,8 @@ class CuentaCobrarServices implements CuentaCobrarServiceInterface
                     'descripcion'     => $d['descripcion'],
                     'cantidad'        => (float)$d['cantidad'],
                     'precio_unitario' => (float)$d['precio_unitario'],
-                    'subtotal'        => (float)$d['subtotal'],
+                    'subtotal'        => (float)$d['total'],
+                    'total'           => (float)$d['total'],
                 ];
             }
 

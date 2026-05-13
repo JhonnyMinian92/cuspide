@@ -87,8 +87,8 @@ class ActividadServices
                        SUM(CASE WHEN asis.estado = 2 THEN 1 ELSE 0 END)       AS faltas
                 FROM actividades ac
                 JOIN deportes d              ON d.id    = ac.deporte
-                LEFT JOIN nivel_asignatura n ON n.id    = ac.nivel
-                LEFT JOIN actividad_matricula am  ON am.actividad = ac.id AND am.estado = 1
+                LEFT JOIN nivel n ON n.id    = ac.nivel
+                LEFT JOIN actividades_matricula am  ON am.actividad = ac.id AND am.estado = 1
                 LEFT JOIN asistencias asis        ON asis.actividad = ac.id
                 WHERE ac.institucion = :inst
                 GROUP BY ac.id
@@ -130,7 +130,7 @@ class ActividadServices
                        COUNT(am.id)                        AS ocupados,
                        (h.cupo_maximo - COUNT(am.id))      AS disponible
                 FROM horarios h
-                LEFT JOIN actividad_matricula am ON am.actividad = h.actividad AND am.estado = 1
+                LEFT JOIN actividades_matricula am ON am.actividad = h.actividad AND am.estado = 1
                 WHERE h.actividad = :id AND h.estado = 1
                 GROUP BY h.id
                 LIMIT 1";

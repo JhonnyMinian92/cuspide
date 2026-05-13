@@ -56,6 +56,11 @@ class ProductoServices implements ProductoServiceInterface
             case $method === 'GET' && $resource === 'categories':
                 return $this->fetchCategorias();
 
+            case in_array($method, ['POST', 'PUT'], true) && $resource === 'saveCategory':
+            case in_array($method, ['POST', 'PUT'], true) && $resource === 'savecategory':
+                $id = isset($queryParams['id']) ? (int)$queryParams['id'] : null;
+                return $this->saveCategoria($id);
+
             default:
                 throw new \RuntimeException('Recurso no encontrado o método no soportado.', 404);
         }
@@ -77,9 +82,10 @@ class ProductoServices implements ProductoServiceInterface
                        pr.controla_stock,
                        pr.estado,
                        pc.nombre AS categoria_nombre,
-                       COALESCE(inv.cantidad_actual, 0) AS stock
+                       pr.categoria,
+                       COALESCE(inv.stock_actual, 0) AS stock
                 FROM productos pr
-                LEFT JOIN producto_categoria pc ON pc.id = pr.categoria
+                LEFT JOIN producto_categorias pc ON pc.id = pr.categoria
                 LEFT JOIN inventario inv ON inv.producto = pr.id
                 WHERE pr.estado = 1";
 
@@ -112,6 +118,7 @@ class ProductoServices implements ProductoServiceInterface
                 'costo'           => (float)$row['costo'],
                 'controla_stock'  => (bool)$row['controla_stock'],
                 'estado'          => (int)$row['estado'],
+                'categoria'       => isset($row['categoria']) ? (int)$row['categoria'] : null,
                 'categoria_nombre'=> $row['categoria_nombre'] ?? null,
                 'stock'           => (float)$row['stock'],
             ];
@@ -197,7 +204,7 @@ class ProductoServices implements ProductoServiceInterface
     {
         $db   = Database::getInstance();
         $stmt = $db->prepare(
-            'SELECT id, nombre, descripcion FROM producto_categoria WHERE estado = 1 ORDER BY nombre ASC'
+            'SELECT id, nombre, nemonico, descripcion, institucion, estado FROM producto_categorias WHERE estado = 1 ORDER BY nombre ASC'
         );
         $stmt->execute();
         $rows   = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -206,9 +213,87 @@ class ProductoServices implements ProductoServiceInterface
             $result[] = [
                 'id'          => (int)$row['id'],
                 'nombre'      => $row['nombre'],
+                'nemonico'    => $row['nemonico'] ?? null,
                 'descripcion' => $row['descripcion'],
+                'institucion' => isset($row['institucion']) ? (int)$row['institucion'] : null,
+                'estado'      => (int)($row['estado'] ?? 1),
             ];
         }
         return $result;
+    }
+
+    // -------------------------------------------------------------------------
+    // saveCategoria
+    // -------------------------------------------------------------------------
+    private function saveCategoria(?int $id): array
+    {
+        $body = file_get_contents('php://input');
+        $data = json_decode($body, true);
+        if (!is_array($data)) {
+            throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
+        }
+
+        $nombre = trim((string)($data['nombre'] ?? ''));
+        if ($nombre === '') {
+            throw new \RuntimeException('El campo nombre es requerido.', 400);
+        }
+
+        $descripcion = isset($data['descripcion']) && $data['descripcion'] !== ''
+            ? trim((string)$data['descripcion'])
+            : null;
+        $nemonico = trim((string)($data['nemonico'] ?? ''));
+        if ($nemonico === '') {
+            $nemonico = strtoupper((string)preg_replace('/[^A-Z0-9]+/', '_', strtoupper($nombre)));
+        }
+        $institucion = isset($data['institucion']) && $data['institucion'] !== '' ? (int)$data['institucion'] : null;
+        $estado = isset($data['estado']) ? (int)$data['estado'] : 1;
+        $db = Database::getInstance();
+        $bodyId = isset($data['id']) ? (int)$data['id'] : 0;
+        $finalId = ($id !== null && $id > 0) ? $id : ($bodyId > 0 ? $bodyId : null);
+
+        if ($finalId !== null) {
+            $stmt = $db->prepare(
+                'UPDATE producto_categorias
+                 SET nombre = :nombre, nemonico = :nemonico, descripcion = :descripcion, institucion = :institucion, estado = :estado
+                 WHERE id = :id'
+            );
+            $stmt->execute([
+                ':nombre' => $nombre,
+                ':nemonico' => $nemonico,
+                ':descripcion' => $descripcion,
+                ':institucion' => $institucion,
+                ':estado' => $estado,
+                ':id' => $finalId,
+            ]);
+            if ($stmt->rowCount() === 0) {
+                $check = $db->prepare('SELECT id FROM producto_categorias WHERE id = :id');
+                $check->execute([':id' => $finalId]);
+                if (!$check->fetch(\PDO::FETCH_ASSOC)) {
+                    throw new \RuntimeException('Categoría no encontrada.', 404);
+                }
+            }
+        } else {
+            $stmt = $db->prepare(
+                'INSERT INTO producto_categorias (nombre, nemonico, descripcion, institucion, estado)
+                 VALUES (:nombre, :nemonico, :descripcion, :institucion, :estado)'
+            );
+            $stmt->execute([
+                ':nombre' => $nombre,
+                ':nemonico' => $nemonico,
+                ':descripcion' => $descripcion,
+                ':institucion' => $institucion,
+                ':estado' => $estado,
+            ]);
+            $finalId = (int)$db->lastInsertId();
+        }
+
+        return [
+            'id' => (int)$finalId,
+            'nombre' => $nombre,
+            'nemonico' => $nemonico,
+            'descripcion' => $descripcion,
+            'institucion' => $institucion,
+            'estado' => $estado,
+        ];
     }
 }

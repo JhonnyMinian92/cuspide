@@ -1,0 +1,384 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'instituciones' %}
+{% block title %}Instituciones — Huaquillas F.C.{% endblock %}
+{% block page_title %}Instituciones{% endblock %}
+
+{% block content %}
+
+<!-- ── Institución actual ── -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h6 class="fw-bold mb-1">
+          <i class="bi bi-building-fill me-2" style="color:var(--brand-color);"></i>Institución Activa
+        </h6>
+        <p class="text-muted small mb-0">Datos de la institución seleccionada como activa en el sistema.</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-edit-current">
+        <i class="bi bi-pencil me-1"></i>Editar
+      </button>
+    </div>
+
+    <!-- Vista de datos -->
+    <div id="inst-current-loading" class="text-center py-3">
+      <span class="spinner-border spinner-border-sm text-secondary me-2"></span>
+      <span class="text-muted small">Cargando...</span>
+    </div>
+    <div id="inst-current-data" class="d-none">
+      <div class="row g-3 align-items-center">
+        <div class="col-auto">
+          <div class="rounded d-flex align-items-center justify-content-center"
+            style="width:72px;height:72px;background:var(--app-surface-soft);border:1px solid var(--app-border);overflow:hidden;flex-shrink:0;">
+            <i class="bi bi-building fs-2 text-muted" id="inst-logo-placeholder"></i>
+            <img id="inst-logo-img" src="" alt="Logo" class="d-none"
+              style="width:100%;height:100%;object-fit:cover;"
+              onerror="this.classList.add('d-none');document.getElementById('inst-logo-placeholder').classList.remove('d-none');">
+          </div>
+        </div>
+        <div class="col">
+          <div class="row g-2">
+            <div class="col-md-3 col-6">
+              <div class="text-muted small mb-1">RUC</div>
+              <div class="fw-semibold" id="disp-ruc">—</div>
+            </div>
+            <div class="col-md-4 col-6">
+              <div class="text-muted small mb-1">Razón Social</div>
+              <div class="fw-semibold" id="disp-razon-social">—</div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="text-muted small mb-1">Nombre Comercial</div>
+              <div class="fw-semibold" id="disp-nombre">—</div>
+            </div>
+            <div class="col-md-2 col-6">
+              <div class="text-muted small mb-1">Estado</div>
+              <div id="disp-estado">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario crear / editar (oculto por defecto) -->
+    <div id="inst-form-wrap" class="d-none">
+      <hr style="border-color:var(--app-border);" class="mt-4">
+      <h6 class="fw-semibold mb-3" id="inst-form-title">
+        <i class="bi bi-pencil-square me-2"></i>Editar Institución
+      </h6>
+      <form id="form-institucion" novalidate>
+        <input type="hidden" id="f-id" value="">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">RUC *</label>
+            <input type="text" class="form-control" id="f-ruc" name="ruc" maxlength="20" required
+              placeholder="Ej: 0791842247001">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Razón Social *</label>
+            <input type="text" class="form-control" id="f-razon-social" name="razon_social" required
+              placeholder="Ej: Huaquillas Fútbol Club S.A.">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nombre Comercial *</label>
+            <input type="text" class="form-control" id="f-nombre" name="nombre" required
+              placeholder="Ej: Huaquillas FC">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">URL Logotipo <span class="text-muted small">(opcional)</span></label>
+            <input type="url" class="form-control" id="f-logotipo" name="logotipo"
+              placeholder="https://example.com/logo.png">
+          </div>
+          <div class="col-md-4 d-flex align-items-end pb-1">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="f-estado" name="estado" value="1" checked>
+              <label class="form-check-label fw-semibold" for="f-estado">Institución activa</label>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-4">
+          <button type="button" class="btn btn-outline-secondary" id="btn-cancel-form">
+            <i class="bi bi-x-lg me-1"></i>Cancelar
+          </button>
+          <button type="submit" class="btn btn-brand" id="btn-submit-inst">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Lista de instituciones ── -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h6 class="fw-bold mb-0">Lista de Instituciones</h6>
+    <p class="text-muted small mb-0" id="inst-list-info">Cargando...</p>
+  </div>
+  <button type="button" class="btn btn-brand btn-sm" id="btn-nueva-inst">
+    <i class="bi bi-plus-lg me-1"></i>Nueva Institución
+  </button>
+</div>
+
+<div class="card chart-card">
+  <div class="card-body p-0">
+    <div class="table-responsive table-container" style="border-radius:12px;">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width:60px;">ID</th>
+            <th>RUC</th>
+            <th>Nombre</th>
+            <th>Razón Social</th>
+            <th>Estado</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="inst-tbody">
+          <tr>
+            <td colspan="6" class="text-center text-muted py-5">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando instituciones...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container (top-right) -->
+<div class="toast-container position-fixed top-0 end-0 p-3 mt-5" style="z-index:9999;" id="toast-container"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ────────────────────────────────────────────────
+   HELPERS
+──────────────────────────────────────────────── */
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  if (type === 'error') type = 'danger';
+  var icons = { success:'check-circle-fill', danger:'x-circle-fill', warning:'exclamation-triangle-fill', info:'info-circle-fill' };
+  var t = document.createElement('div');
+  t.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+  t.setAttribute('role','alert');
+  t.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type]||'info-circle-fill') +
+    ' me-2"></i>' + esc(msg) + '</div>' +
+    '<button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest(\'.toast\').remove()"></button></div>';
+  var c = document.getElementById('toast-container');
+  if (c) c.appendChild(t);
+  setTimeout(function() { if (t.parentNode) t.remove(); }, 3000);
+}
+
+function estadoBadge(estado) {
+  return parseInt(estado) === 1
+    ? '<span class="badge bg-success">Activa</span>'
+    : '<span class="badge bg-secondary">Inactiva</span>';
+}
+
+/* ────────────────────────────────────────────────
+   ESTADO LOCAL
+──────────────────────────────────────────────── */
+var editingId = null;
+
+/* ────────────────────────────────────────────────
+   INSTITUCIÓN ACTUAL
+──────────────────────────────────────────────── */
+function loadCurrentInst() {
+  var id = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+  var loading = document.getElementById('inst-current-loading');
+  var data    = document.getElementById('inst-current-data');
+  loading.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary me-2"></span>' +
+    '<span class="text-muted small">Cargando...</span>';
+  loading.classList.remove('d-none');
+  data.classList.add('d-none');
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'data', null, { id: id })
+    .then(function(d) {
+      if (!d) return;
+      renderCurrentInst(d);
+    })
+    .catch(function(err) {
+      loading.innerHTML = '<span class="text-muted small"><i class="bi bi-info-circle me-1"></i>' +
+        esc(err.message || 'No se pudo cargar la institución actual.') + '</span>';
+    });
+}
+
+function renderCurrentInst(d) {
+  document.getElementById('inst-current-loading').classList.add('d-none');
+  document.getElementById('inst-current-data').classList.remove('d-none');
+
+  document.getElementById('disp-ruc').textContent          = d.ruc || '—';
+  document.getElementById('disp-razon-social').textContent = d.razon_social || '—';
+  document.getElementById('disp-nombre').textContent       = d.nombre || '—';
+  document.getElementById('disp-estado').innerHTML         = estadoBadge(d.estado);
+
+  if (d.logotipo) {
+    document.getElementById('inst-logo-placeholder').classList.add('d-none');
+    var img = document.getElementById('inst-logo-img');
+    img.src = d.logotipo;
+    img.classList.remove('d-none');
+  } else {
+    document.getElementById('inst-logo-placeholder').classList.remove('d-none');
+    document.getElementById('inst-logo-img').classList.add('d-none');
+  }
+}
+
+/* ────────────────────────────────────────────────
+   LISTA DE INSTITUCIONES
+──────────────────────────────────────────────── */
+function loadInstList() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'list', null, null)
+    .then(function(data) {
+      var items = Array.isArray(data) ? data : [];
+      renderInstTable(items);
+      document.getElementById('inst-list-info').textContent =
+        items.length + ' institución(es) registrada(s).';
+    })
+    .catch(function(err) {
+      document.getElementById('inst-tbody').innerHTML =
+        '<tr><td colspan="6" class="text-center text-danger py-4">' +
+        '<i class="bi bi-exclamation-circle me-2"></i>' + esc(err.message || 'Error al cargar.') + '</td></tr>';
+      document.getElementById('inst-list-info').textContent = 'Error al cargar.';
+    });
+}
+
+function renderInstTable(items) {
+  var tbody = document.getElementById('inst-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">' +
+      '<i class="bi bi-building fs-2 d-block mb-2 opacity-25"></i>No hay instituciones registradas.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(function(i) {
+    var safeI = JSON.stringify(i).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return '<tr>' +
+      '<td class="ps-4"><code>#' + esc(i.id) + '</code></td>' +
+      '<td><code>' + esc(i.ruc) + '</code></td>' +
+      '<td class="fw-semibold">' + esc(i.nombre) + '</td>' +
+      '<td class="text-muted small">' + esc(i.razon_social) + '</td>' +
+      '<td>' + estadoBadge(i.estado) + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary" ' +
+          'data-inst-id="' + esc(i.id) + '" onclick="openEditById(this)">' +
+          '<i class="bi bi-pencil me-1"></i>Editar</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ────────────────────────────────────────────────
+   FORMULARIO CREAR / EDITAR
+──────────────────────────────────────────────── */
+function openFormNew() {
+  editingId = null;
+  document.getElementById('form-institucion').reset();
+  document.getElementById('f-id').value = '';
+  document.getElementById('f-estado').checked = true;
+  document.getElementById('inst-form-title').innerHTML =
+    '<i class="bi bi-plus-circle me-2"></i>Nueva Institución';
+  showForm();
+}
+
+function openEditForm(d) {
+  editingId = d.id || null;
+  document.getElementById('f-id').value           = editingId || '';
+  document.getElementById('f-ruc').value           = d.ruc || '';
+  document.getElementById('f-razon-social').value  = d.razon_social || '';
+  document.getElementById('f-nombre').value        = d.nombre || '';
+  document.getElementById('f-logotipo').value      = d.logotipo || '';
+  document.getElementById('f-estado').checked      = parseInt(d.estado) === 1;
+  document.getElementById('inst-form-title').innerHTML =
+    '<i class="bi bi-pencil-square me-2"></i>Editar Institución — ' + esc(d.nombre);
+  showForm();
+}
+
+function openEditById(btn) {
+  var id = btn.getAttribute('data-inst-id');
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'data', null, { id: id })
+    .then(function(d) { if (d) openEditForm(d); })
+    .catch(function(err) { showToast(err.message || 'Error al cargar datos.', 'danger'); });
+}
+
+function showForm() {
+  document.getElementById('inst-form-wrap').classList.remove('d-none');
+  document.getElementById('inst-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideForm() {
+  document.getElementById('inst-form-wrap').classList.add('d-none');
+  document.getElementById('form-institucion').reset();
+  editingId = null;
+}
+
+/* ── Botón Editar institución actual ── */
+document.getElementById('btn-edit-current').addEventListener('click', function() {
+  var id = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'data', null, { id: id })
+    .then(function(d) { if (d) openEditForm(d); })
+    .catch(function(err) { showToast(err.message || 'Error al cargar datos.', 'danger'); });
+});
+
+/* ── Botón Nueva institución ── */
+document.getElementById('btn-nueva-inst').addEventListener('click', openFormNew);
+
+/* ── Cancelar ── */
+document.getElementById('btn-cancel-form').addEventListener('click', hideForm);
+
+/* ── Submit ── */
+document.getElementById('form-institucion').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('btn-submit-inst');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  var id     = document.getElementById('f-id').value;
+  var isEdit = !!id;
+
+  var body = {
+    ruc:          document.getElementById('f-ruc').value.trim(),
+    razon_social: document.getElementById('f-razon-social').value.trim(),
+    nombre:       document.getElementById('f-nombre').value.trim(),
+    logotipo:     document.getElementById('f-logotipo').value.trim() || null,
+    estado:       document.getElementById('f-estado').checked ? 1 : 0,
+  };
+
+  var method = isEdit ? 'PUT' : 'POST';
+  var params = isEdit ? { id: id } : null;
+
+  Cuspide.api.call(method, CONFIG.ENDPOINTS.instituciones, 'save', body, params)
+    .then(function() {
+      showToast(isEdit ? 'Institución actualizada correctamente.' : 'Institución creada correctamente.', 'success');
+      hideForm();
+      loadCurrentInst();
+      loadInstList();
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al guardar la institución.', 'danger');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar';
+    });
+});
+
+/* ────────────────────────────────────────────────
+   INIT
+──────────────────────────────────────────────── */
+function init() {
+  loadCurrentInst();
+  loadInstList();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  init();
+});
+</script>
+{% endblock %}

@@ -108,9 +108,9 @@ class PersonaServices implements PersonaServiceInterface
                        tp.nombre AS tipo,
                        i.nombre  AS institucion
                 FROM personas p
-                LEFT JOIN persona_institucion pi ON pi.persona = p.id AND pi.estado = 1
+                LEFT JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.estado = 1
                 LEFT JOIN tipo_persona tp        ON tp.id = pi.tipo
-                LEFT JOIN instituciones i        ON i.id  = pi.institucion
+                LEFT JOIN instituciones i        ON i.id  = pi.id_institucion
                 WHERE p.identificacion  LIKE :q1
                    OR p.primer_nombre   LIKE :q2
                    OR p.primer_apellido LIKE :q3
@@ -167,8 +167,8 @@ class PersonaServices implements PersonaServiceInterface
                          i.id      AS institucion_id
                   FROM persona_institucion pi
                   LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
-                  LEFT JOIN instituciones i  ON i.id  = pi.institucion
-                  WHERE pi.persona = :pid
+                  LEFT JOIN instituciones i  ON i.id  = pi.id_institucion
+                  WHERE pi.id_persona = :pid
                   LIMIT 1";
         $stmtPi = $db->prepare($sqlPi);
         $stmtPi->bindValue(':pid', $pid, \PDO::PARAM_INT);
@@ -229,8 +229,8 @@ class PersonaServices implements PersonaServiceInterface
                             i.id      AS institucion_id
                      FROM persona_institucion pi
                      LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
-                     LEFT JOIN instituciones i  ON i.id  = pi.institucion
-                     WHERE pi.persona = :pid";
+                     LEFT JOIN instituciones i  ON i.id  = pi.id_institucion
+                     WHERE pi.id_persona = :pid";
         $stmtRoles = $db->prepare($sqlRoles);
         $stmtRoles->bindValue(':pid', $personaId, \PDO::PARAM_INT);
         $stmtRoles->execute();

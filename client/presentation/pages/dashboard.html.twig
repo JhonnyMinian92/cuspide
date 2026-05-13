@@ -108,7 +108,7 @@
   async function loadEstadisticas() {
     try {
       // estadistica vive en users — si el back aún no lo implementa, cae al catch
-      const data = await authGet(CONFIG.ENDPOINTS.users, 'estadistica');
+      const data = await authGet(CONFIG.ENDPOINTS.users, 'find');
 
       if (Array.isArray(data) && data.length === 0) {
         setStatsPlaceholder('0');

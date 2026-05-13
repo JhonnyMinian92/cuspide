@@ -246,10 +246,10 @@ final class MatriculaServices implements MatriculaServiceInterface
                 (new ClaseMatriculaRepository())->save($claseMatEntity);
 
                 // Fetch clase price
-                $stmtPrice = $db->prepare('SELECT nombre, precio FROM clases WHERE id = :id LIMIT 1');
+                $stmtPrice = $db->prepare('SELECT nombre FROM clases WHERE id = :id LIMIT 1');
                 $stmtPrice->execute([':id' => $claseId]);
                 $claseRow  = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
-                $precio    = $claseRow ? (float) ($claseRow['precio'] ?? 0) : 0.0;
+                $precio    = 0.0;
                 $nombre    = $claseRow ? (string) ($claseRow['nombre'] ?? 'Clase') : 'Clase';
 
                 $subtotal += $precio;
@@ -313,8 +313,8 @@ final class MatriculaServices implements MatriculaServiceInterface
             // 7. Insert VentaDetalle for each item
             foreach ($ventaItems as $item) {
                 $stmtDet = $db->prepare(
-                    'INSERT INTO venta_detalle (venta, descripcion, cantidad, precio_unitario, descuento, subtotal)
-                     VALUES (:venta, :descripcion, :cantidad, :precio_unitario, :descuento, :subtotal)'
+                    'INSERT INTO venta_detalle (venta, descripcion, cantidad, precio_unitario, descuento, total)
+                     VALUES (:venta, :descripcion, :cantidad, :precio_unitario, :descuento, :total)'
                 );
                 $stmtDet->execute([
                     ':venta'           => $ventaId,
@@ -322,7 +322,7 @@ final class MatriculaServices implements MatriculaServiceInterface
                     ':cantidad'        => $item['cantidad'],
                     ':precio_unitario' => $item['precio_unitario'],
                     ':descuento'       => $item['descuento'],
-                    ':subtotal'        => $item['subtotal'],
+                    ':total'           => $item['subtotal'],
                 ]);
             }
 
