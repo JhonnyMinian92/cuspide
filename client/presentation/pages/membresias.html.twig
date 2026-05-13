@@ -1,184 +1,154 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'membresias' %}
-
 {% block title %}Membresías — Huaquillas F.C.{% endblock %}
 {% block page_title %}Membresías{% endblock %}
 
 {% block content %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}.toast-info{background:#0dcaf0;color:#212529;}
+.mem-card{border-radius:14px;border:1px solid var(--card-border);background:var(--card-bg);box-shadow:var(--card-shadow);transition:transform .18s ease,box-shadow .18s ease;overflow:hidden;display:flex;flex-direction:column;}
+.mem-card:hover{transform:translateY(-3px);box-shadow:0 20px 50px rgba(0,0,0,.32);}
+.mem-card-accent{height:5px;width:100%;}
+.mem-card-body{padding:1.4rem;flex:1;display:flex;flex-direction:column;}
+.mem-card-precio{font-size:2rem;font-weight:800;letter-spacing:-0.02em;line-height:1.1;}
+.mem-card-footer{padding:.9rem 1.4rem;border-top:1px solid var(--card-border);background:var(--app-bg-soft);}
+.mem-card.mem-inactive{opacity:.6;}
+.accent-0{background:linear-gradient(90deg,#e8b84b,#f0c96b);}
+.accent-1{background:linear-gradient(90deg,#3b82f6,#60a5fa);}
+.accent-2{background:linear-gradient(90deg,#10b981,#34d399);}
+.accent-3{background:linear-gradient(90deg,#8b5cf6,#a78bfa);}
+.accent-4{background:linear-gradient(90deg,#ef4444,#f87171);}
+.accent-5{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+</style>
 
+<!-- ─── Sección superior: buscador + cards ─── -->
 <div class="card chart-card mb-4">
   <div class="card-body p-4">
-
-    <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-center gap-3 mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-start gap-3 mb-4">
       <div>
-        <h6 class="fw-bold mb-1">Buscar Membresía</h6>
-        <p class="text-muted small mb-0">
-          Busca por alumno, tipo de membresía, estado o fechas. Si no existe, podrás registrarla aquí mismo.
-        </p>
+        <h6 class="fw-bold mb-1">Planes de Membresía</h6>
+        <p class="text-muted small mb-0">Consulta, edita o crea planes de membresía para los socios del club.</p>
       </div>
+      <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nueva-membresia">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Plan
+      </button>
     </div>
 
-    <!-- Buscador -->
-    <div class="row g-3 align-items-end">
-      <div class="col-12 col-lg-9">
-        <label for="membresia-search" class="form-label fw-semibold">Buscar membresía</label>
+    <!-- Búsqueda -->
+    <div class="row g-3 align-items-center mb-4">
+      <div class="col-12 col-lg-10">
         <div class="input-group">
-          <span class="input-group-text">
-            <i class="bi bi-search"></i>
-          </span>
-          <input
-            type="search"
-            class="form-control"
-            id="membresia-search"
-            placeholder="Ej: Lionel Messi, Mensual, Activo, 2026-05-08"
-            autocomplete="off"
-          >
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="mem-search"
+            placeholder="Buscar plan por título..." autocomplete="off">
         </div>
       </div>
-
-      <div class="col-12 col-lg-3">
-        <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-busqueda">
+      <div class="col-12 col-lg-2">
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-mem-limpiar">
           <i class="bi bi-x-circle me-1"></i>Limpiar
         </button>
       </div>
     </div>
 
-  </div>
-</div>
-
-<!-- Tabla de resultados -->
-<div class="card chart-card mb-4" id="membresias-list-card">
-  <div class="card-body p-4">
-
-    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
-      <div>
-        <h6 class="fw-bold mb-1">Lista de Membresías</h6>
-        <p class="text-muted small mb-0" id="membresias-result-info">
-          Ingresa un criterio de búsqueda para filtrar las membresías.
-        </p>
+    <!-- Cards grid -->
+    <div id="mem-cards-wrap">
+      <div class="row g-4" id="mem-cards-row">
+        <div class="col-12 text-center text-muted py-5">
+          <span class="spinner-border spinner-border-sm me-2"></span>Cargando planes...
+        </div>
       </div>
-    </div>
-
-    <div class="table-responsive table-container">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>ID</th>
-            <th>Alumno</th>
-            <th>Tipo Membresía</th>
-            <th>Fecha Inicio</th>
-            <th>Fecha Vencimiento</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="membresias-tbody">
-          <tr>
-            <td colspan="7" class="text-center text-muted py-4">
-              <i class="bi bi-credit-card me-2"></i>
-              Los datos de membresías se cargarán vía API próximamente.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- Sin resultados -->
+      <div id="mem-no-results" class="d-none mt-3">
+        <div class="alert mb-0" style="background:var(--info-bg);color:var(--info-text);border:1px solid var(--info-border);">
+          <i class="bi bi-info-circle me-2"></i>
+          Sin resultados para "<span id="mem-no-results-q"></span>". Puedes crear un nuevo plan a continuación.
+        </div>
+      </div>
     </div>
 
   </div>
 </div>
 
-<!-- Formulario nueva membresía -->
-<div class="card chart-card d-none" id="nueva-membresia-card">
+<!-- ─── Formulario Crear / Editar ─── -->
+<div class="card chart-card d-none" id="form-mem-card">
   <div class="card-body p-4">
-
-    <div class="alert alert-warning d-flex align-items-center" role="alert" id="nueva-membresia-alert">
-      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        No se encontraron coincidencias. Puedes registrar una nueva membresía.
-      </div>
-    </div>
-
-    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
-      <div>
-        <h6 class="fw-bold mb-1">
-          <i class="bi bi-credit-card-fill me-2"></i>Nueva Membresía
+        <h6 class="fw-bold mb-1" id="form-mem-title">
+          <i class="bi bi-star me-2"></i>Nuevo Plan de Membresía
         </h6>
-        <p class="text-muted small mb-0">
-          Completa los datos para registrar la membresía del alumno.
-        </p>
+        <p class="text-muted small mb-0">Completa la información del plan. Los campos con * son obligatorios.</p>
       </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-mem-form-cerrar">
+        <i class="bi bi-x-lg"></i>
+      </button>
     </div>
 
-    <form id="form-nueva-membresia">
+    <form id="form-mem" novalidate>
+      <input type="hidden" id="mem-id" value="">
       <div class="row g-3">
-
         <div class="col-md-6">
-          <label class="form-label fw-semibold" for="membresia-alumno">Alumno</label>
-          <input
-            type="text"
-            class="form-control"
-            id="membresia-alumno"
-            name="alumno"
-            placeholder="Ej: Carlos Soberon"
-            required
-          >
+          <label class="form-label fw-semibold">Título *</label>
+          <input type="text" class="form-control" id="mem-titulo"
+            placeholder="Ej: Plan Mensual" required maxlength="120">
         </div>
-
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Precio ($) *</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control" id="mem-precio"
+              placeholder="0.00" min="0" step="0.01" required>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Descuento (%)</label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="mem-porcentaje"
+              placeholder="0" min="0" max="100" step="1" value="0">
+            <span class="input-group-text">%</span>
+          </div>
+        </div>
         <div class="col-md-6">
-          <label class="form-label fw-semibold" for="membresia-tipo">Tipo de Membresía</label>
-          <select class="form-select" id="membresia-tipo" name="tipo_membresia" required>
-            <option value="">Seleccionar...</option>
-            <option value="Mensual">Mensual</option>
-            <option value="Trimestral">Trimestral</option>
-            <option value="Anual">Anual</option>
-            <option value="Socio GOLD">Socio GOLD</option>
-            <option value="Socio PLATINUM">Socio PLATINUM</option>
-          </select>
+          <label class="form-label fw-semibold">Descripción</label>
+          <textarea class="form-control" id="mem-descripcion" rows="3"
+            placeholder="Descripción del plan, beneficios incluidos..."></textarea>
         </div>
-
         <div class="col-md-6">
-          <label class="form-label fw-semibold" for="membresia-fecha-inicio">Fecha Inicio</label>
-          <input
-            type="date"
-            class="form-control"
-            id="membresia-fecha-inicio"
-            name="fecha_inicio"
-            required
-          >
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">URL Botón (opcional)</label>
+              <input type="text" class="form-control" id="mem-url-boton"
+                placeholder="https://...">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Fecha Inicio *</label>
+              <input type="date" class="form-control" id="mem-fecha-inicio" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Fecha Fin *</label>
+              <input type="date" class="form-control" id="mem-fecha-fin" required>
+            </div>
+          </div>
         </div>
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="membresia-fecha-vencimiento">Fecha Vencimiento</label>
-          <input
-            type="date"
-            class="form-control"
-            id="membresia-fecha-vencimiento"
-            name="fecha_vencimiento"
-            required
-          >
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="mem-activo" checked>
+            <label class="form-check-label fw-semibold" for="mem-activo">Plan activo</label>
+          </div>
         </div>
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="membresia-estado">Estado</label>
-          <select class="form-select" id="membresia-estado" name="estado">
-            <option value="Activo">Activo</option>
-            <option value="Vencido">Vencido</option>
-            <option value="Suspendido">Suspendido</option>
-          </select>
-        </div>
-
       </div>
 
-      <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
-        <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-nueva-membresia">
-          <i class="bi bi-arrow-left me-1"></i>Cancelar
+      <div class="d-flex gap-2 justify-content-end mt-4">
+        <button type="button" class="btn btn-outline-secondary" id="btn-mem-cancelar">
+          <i class="bi bi-x-lg me-1"></i>Cancelar
         </button>
-
-        <button type="submit" class="btn btn-brand">
-          <i class="bi bi-check-lg me-1"></i>Guardar Membresía
+        <button type="submit" class="btn btn-brand" id="btn-mem-submit">
+          <i class="bi bi-check-lg me-1"></i>Guardar Plan
         </button>
       </div>
     </form>
-
   </div>
 </div>
 
@@ -186,292 +156,269 @@
 
 {% block scripts %}
 <script>
-  /**
-   * Datos temporales.
-   * Cuando tengas API real, reemplaza este arreglo por la respuesta del backend.
-   */
-  var membresias = [
-    // Ejemplo:
-     {
-       id: 1,
-       alumno: 'Carlos Soberon',
-       tipo_membresia: 'Mensual',
-       fecha_inicio: '2026-05-01',
-       fecha_vencimiento: '2026-06-01',
-       estado: 'Activo'
-     },
-     {
-       id: 1,
-       alumno: 'Jhony Miñan',
-       tipo_membresia: 'Anual',
-       fecha_inicio: '2026-05-01',
-       fecha_vencimiento: '2027-05-01',
-       estado: 'Activo'
-     },
-     {
-       id: 1,
-       alumno: 'Carlos Soberon',
-       tipo_membresia: 'Mensual',
-       fecha_inicio: '2026-05-01',
-       fecha_vencimiento: '2026-06-01',
-       estado: 'Caducado'
-     }
-  ];
+/* ── Helpers ── */
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
+}
+function formatMoney(v) { return '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function debounce(fn, ms) {
+  var t;
+  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null, a); }, ms); };
+}
+function formatDate(s) {
+  if (!s) return '—';
+  var parts = String(s).split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return s;
+}
 
-  document.addEventListener('DOMContentLoaded', function () {
-    var searchInput = document.getElementById('membresia-search');
-    var clearButton = document.getElementById('btn-limpiar-busqueda');
-    var cancelButton = document.getElementById('btn-cancelar-nueva-membresia');
-    var form = document.getElementById('form-nueva-membresia');
+/* ── Estado ── */
+var membresiasList = [];
 
-    renderMembresias(membresias, '');
+/* ── API ── */
+function apiCall(method, endpoint, action, body, params) {
+  return Cuspide.api.call(method, CONFIG.ENDPOINTS[endpoint], action, body, params);
+}
 
-    if (searchInput) {
-      searchInput.addEventListener('input', function () {
-        var query = searchInput.value.trim();
-        var results = filterMembresias(query);
+/* ─────────────────────────────────────────────
+   CARGAR MEMBRESÍAS
+───────────────────────────────────────────── */
+function loadMembresias() {
+  document.getElementById('mem-cards-row').innerHTML =
+    '<div class="col-12 text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando planes...</div>';
+  document.getElementById('mem-no-results').classList.add('d-none');
 
-        renderMembresias(results, query);
-
-        if (query.length > 0 && results.length === 0) {
-          showNuevaMembresiaForm(query);
-        } else if (membresias.length === 0) {
-          showNuevaMembresiaForm(query);
-        } else {
-          hideNuevaMembresiaForm();
-        }
-      });
-    }
-
-    if (clearButton) {
-      clearButton.addEventListener('click', function () {
-        searchInput.value = '';
-        renderMembresias(membresias, '');
-
-        if (membresias.length === 0) {
-          showNuevaMembresiaForm('');
-        } else {
-          hideNuevaMembresiaForm();
-        }
-
-        searchInput.focus();
-      });
-    }
-
-    if (cancelButton) {
-      cancelButton.addEventListener('click', function () {
-        hideNuevaMembresiaForm();
-
-        if (searchInput) {
-          searchInput.value = '';
-          searchInput.focus();
-        }
-
-        renderMembresias(membresias, '');
-      });
-    }
-
-    if (form) {
-      form.addEventListener('submit', function (event) {
-        event.preventDefault();
-
-        var nuevaMembresia = {
-          id: membresias.length + 1,
-          alumno: document.getElementById('membresia-alumno').value.trim(),
-          tipo_membresia: document.getElementById('membresia-tipo').value,
-          fecha_inicio: document.getElementById('membresia-fecha-inicio').value,
-          fecha_vencimiento: document.getElementById('membresia-fecha-vencimiento').value,
-          estado: document.getElementById('membresia-estado').value
-        };
-
-        /**
-         * Aquí luego deberías llamar tu API, por ejemplo:
-         *
-         * await window.Cuspide.api.request('/app/controllers/api/membresias/', {
-         *   method: 'POST',
-         *   auth: true,
-         *   body: nuevaMembresia
-         * });
-         */
-
-        membresias.push(nuevaMembresia);
-
-        form.reset();
-        hideNuevaMembresiaForm();
-
-        if (searchInput) {
-          searchInput.value = '';
-        }
-
-        renderMembresias(membresias, '');
-
-        mostrarMensajeTemporal('Membresía registrada correctamente.', 'success');
-      });
-    }
-  });
-
-  function filterMembresias(query) {
-    if (!query) {
-      return membresias;
-    }
-
-    var normalizedQuery = normalizeText(query);
-
-    return membresias.filter(function (membresia) {
-      var searchable = [
-        membresia.id,
-        membresia.alumno,
-        membresia.tipo_membresia,
-        membresia.fecha_inicio,
-        membresia.fecha_vencimiento,
-        membresia.estado
-      ]
-        .filter(Boolean)
-        .join(' ');
-
-      return normalizeText(searchable).includes(normalizedQuery);
+  apiCall('GET', 'membresias', 'list', null, null)
+    .then(function(data) {
+      membresiasList = Array.isArray(data) ? data : [];
+      renderCards(membresiasList);
+    })
+    .catch(function(err) {
+      document.getElementById('mem-cards-row').innerHTML =
+        '<div class="col-12 text-center text-danger py-5"><i class="bi bi-exclamation-triangle fs-3 d-block mb-2"></i>' +
+        esc(err.message || 'Error al cargar membresías.') + '</div>';
     });
+}
+
+/* ─────────────────────────────────────────────
+   RENDER CARDS
+───────────────────────────────────────────── */
+function renderCards(items) {
+  var row = document.getElementById('mem-cards-row');
+  var noResults = document.getElementById('mem-no-results');
+
+  if (!items.length) {
+    row.innerHTML = '<div class="col-12 text-center text-muted py-5">' +
+      '<i class="bi bi-star fs-2 d-block mb-2 opacity-25"></i>' +
+      'No hay planes registrados.' +
+    '</div>';
+    return;
   }
 
-  function renderMembresias(items, query) {
-    var tbody = document.getElementById('membresias-tbody');
-    var info = document.getElementById('membresias-result-info');
+  noResults.classList.add('d-none');
+  row.innerHTML = items.map(function(m, idx) {
+    var accentClass = 'accent-' + (idx % 6);
+    var isActive    = parseInt(m.estado) === 1;
+    var descuento   = parseFloat(m.porcentaje || 0);
+    var vigencia    = formatDate(m.fecha_inicio) + ' — ' + formatDate(m.fecha_fin);
 
-    if (!tbody) return;
+    var descuentoBadge = descuento > 0
+      ? '<span class="badge ms-2" style="background:var(--success-bg);color:var(--success-text);border:1px solid var(--success-border);">' +
+          '<i class="bi bi-tag me-1"></i>' + descuento + '% dto.' +
+        '</span>'
+      : '';
 
-    if (!items || items.length === 0) {
-      var message = query
-        ? 'No se encontraron membresías con "' + escapeHtml(query) + '".'
-        : 'No hay membresías registradas todavía.';
+    var estadoBadge = isActive
+      ? '<span class="badge rounded-pill bg-success"><i class="bi bi-check-circle me-1"></i>Activo</span>'
+      : '<span class="badge rounded-pill bg-secondary"><i class="bi bi-slash-circle me-1"></i>Inactivo</span>';
 
-      tbody.innerHTML =
-        '<tr>' +
-          '<td colspan="7" class="text-center text-muted py-4">' +
-            '<i class="bi bi-search me-2"></i>' +
-            message +
-          '</td>' +
-        '</tr>';
+    return '<div class="col-12 col-sm-6 col-xl-4">' +
+      '<div class="mem-card' + (!isActive ? ' mem-inactive' : '') + '">' +
+        '<div class="mem-card-accent ' + accentClass + '"></div>' +
+        '<div class="mem-card-body">' +
+          '<div class="d-flex justify-content-between align-items-start mb-2">' +
+            '<div class="fw-bold fs-6">' + esc(m.titulo) + descuentoBadge + '</div>' +
+            estadoBadge +
+          '</div>' +
+          '<div class="mem-card-precio" style="color:var(--brand-color);">' +
+            formatMoney(m.precio) +
+            '<span class="fs-6 text-muted fw-normal">/plan</span>' +
+          '</div>' +
+          (m.descripcion
+            ? '<p class="text-muted small mt-2 mb-0" style="flex:1;">' + esc(m.descripcion) + '</p>'
+            : '<p class="text-muted small mt-2 mb-0 fst-italic" style="flex:1;">Sin descripción.</p>') +
+          '<div class="mt-3 small text-muted">' +
+            '<i class="bi bi-calendar-range me-1"></i>' + esc(vigencia) +
+          '</div>' +
+        '</div>' +
+        '<div class="mem-card-footer d-flex justify-content-end gap-2">' +
+          '<button type="button" class="btn btn-sm btn-outline-primary" onclick="editarMembresia(' + m.id + ')">' +
+            '<i class="bi bi-pencil me-1"></i>Editar' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
 
-      if (info) {
-        info.textContent = query
-          ? 'Sin coincidencias para la búsqueda actual.'
-          : 'No hay membresías registradas.';
-      }
-
-      showNuevaMembresiaForm(query || '');
-      return;
-    }
-
-    tbody.innerHTML = items.map(function (membresia) {
-      return (
-        '<tr>' +
-          '<td>' + escapeHtml(membresia.id || '') + '</td>' +
-          '<td>' + escapeHtml(membresia.alumno || '') + '</td>' +
-          '<td>' + escapeHtml(membresia.tipo_membresia || '') + '</td>' +
-          '<td>' + escapeHtml(membresia.fecha_inicio || '') + '</td>' +
-          '<td>' + escapeHtml(membresia.fecha_vencimiento || '') + '</td>' +
-          '<td>' +
-            '<span class="badge rounded-pill ' + getEstadoBadgeClass(membresia.estado) + '">' +
-              escapeHtml(membresia.estado || '—') +
-            '</span>' +
-          '</td>' +
-          '<td>' +
-            '<button type="button" class="btn btn-sm btn-outline-primary">' +
-              '<i class="bi bi-eye me-1"></i>Ver' +
-            '</button>' +
-          '</td>' +
-        '</tr>'
-      );
-    }).join('');
-
-    if (info) {
-      info.textContent = query
-        ? items.length + ' coincidencia(s) encontrada(s).'
-        : items.length + ' membresía(s) registrada(s).';
-    }
+/* ─────────────────────────────────────────────
+   BÚSQUEDA (debounce 350ms, filtro cliente)
+───────────────────────────────────────────── */
+var doMemSearch = debounce(function(q) {
+  var noResults = document.getElementById('mem-no-results');
+  if (!q) {
+    renderCards(membresiasList);
+    noResults.classList.add('d-none');
+    return;
   }
-
-  function showNuevaMembresiaForm(query) {
-    var card = document.getElementById('nueva-membresia-card');
-    var alumnoInput = document.getElementById('membresia-alumno');
-
-    if (card) {
-      card.classList.remove('d-none');
-    }
-
-    /**
-     * Si el usuario escribió un texto de búsqueda,
-     * lo precargamos como nombre del alumno.
-     */
-    if (query && alumnoInput && !alumnoInput.value) {
-      alumnoInput.value = query;
-    }
+  var filtered = membresiasList.filter(function(m) {
+    return (m.titulo || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
+  });
+  renderCards(filtered);
+  if (!filtered.length) {
+    document.getElementById('mem-no-results-q').textContent = q;
+    noResults.classList.remove('d-none');
+    // Auto-abrir formulario con título prelleno
+    document.getElementById('mem-id').value = '';
+    document.getElementById('form-mem').reset();
+    document.getElementById('mem-titulo').value = q;
+    document.getElementById('mem-activo').checked = true;
+    document.getElementById('form-mem-title').innerHTML = '<i class="bi bi-star me-2"></i>Nuevo Plan de Membresía';
+    document.getElementById('form-mem-card').classList.remove('d-none');
+    document.getElementById('form-mem-card').scrollIntoView({ behavior: 'smooth' });
+  } else {
+    noResults.classList.add('d-none');
   }
+}, 350);
 
-  function hideNuevaMembresiaForm() {
-    var card = document.getElementById('nueva-membresia-card');
+document.getElementById('mem-search').addEventListener('input', function() {
+  doMemSearch(this.value.trim());
+});
+document.getElementById('btn-mem-limpiar').addEventListener('click', function() {
+  document.getElementById('mem-search').value = '';
+  renderCards(membresiasList);
+  document.getElementById('mem-no-results').classList.add('d-none');
+});
 
-    if (card) {
-      card.classList.add('d-none');
-    }
-  }
+/* ─────────────────────────────────────────────
+   EDITAR MEMBRESÍA
+───────────────────────────────────────────── */
+function editarMembresia(id) {
+  var m = membresiasList.find(function(x) { return x.id == id; });
+  if (!m) return;
 
-  function normalizeText(value) {
-    return String(value || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-  }
+  document.getElementById('mem-id').value          = m.id;
+  document.getElementById('mem-titulo').value       = m.titulo || '';
+  document.getElementById('mem-precio').value       = m.precio || '';
+  document.getElementById('mem-porcentaje').value   = m.porcentaje || 0;
+  document.getElementById('mem-descripcion').value  = m.descripcion || '';
+  document.getElementById('mem-url-boton').value    = m.url_boton || '';
+  document.getElementById('mem-fecha-inicio').value = m.fecha_inicio || '';
+  document.getElementById('mem-fecha-fin').value    = m.fecha_fin || '';
+  document.getElementById('mem-activo').checked     = parseInt(m.estado) === 1;
 
-  function escapeHtml(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+  document.getElementById('form-mem-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Plan: ' + esc(m.titulo);
+  document.getElementById('form-mem-card').classList.remove('d-none');
+  document.getElementById('form-mem-card').scrollIntoView({ behavior: 'smooth' });
+}
 
-  function getEstadoBadgeClass(estado) {
-    var normalized = normalizeText(estado);
+/* ─────────────────────────────────────────────
+   MOSTRAR / CERRAR FORMULARIO
+───────────────────────────────────────────── */
+function mostrarFormNuevo() {
+  document.getElementById('mem-id').value = '';
+  document.getElementById('form-mem').reset();
+  document.getElementById('mem-activo').checked = true;
+  document.getElementById('form-mem-title').innerHTML = '<i class="bi bi-star me-2"></i>Nuevo Plan de Membresía';
+  document.getElementById('form-mem-card').classList.remove('d-none');
+  document.getElementById('form-mem-card').scrollIntoView({ behavior: 'smooth' });
+}
 
-    if (normalized === 'activo') {
-      return 'bg-success';
-    }
+function cerrarForm() {
+  document.getElementById('form-mem-card').classList.add('d-none');
+  document.getElementById('mem-id').value = '';
+  document.getElementById('form-mem').reset();
+  document.getElementById('mem-no-results').classList.add('d-none');
+  document.getElementById('mem-search').value = '';
+  renderCards(membresiasList);
+}
 
-    if (normalized === 'vencido') {
-      return 'bg-danger';
-    }
+document.getElementById('btn-nueva-membresia').addEventListener('click', mostrarFormNuevo);
+document.getElementById('btn-mem-form-cerrar').addEventListener('click', cerrarForm);
+document.getElementById('btn-mem-cancelar').addEventListener('click', cerrarForm);
 
-    if (normalized === 'suspendido') {
-      return 'bg-warning text-dark';
-    }
+/* ─────────────────────────────────────────────
+   GUARDAR (POST / PUT)
+───────────────────────────────────────────── */
+document.getElementById('form-mem').addEventListener('submit', function(e) {
+  e.preventDefault();
 
-    return 'bg-light text-dark';
-  }
+  var id          = document.getElementById('mem-id').value;
+  var titulo      = document.getElementById('mem-titulo').value.trim();
+  var precio      = document.getElementById('mem-precio').value;
+  var porcentaje  = document.getElementById('mem-porcentaje').value || 0;
+  var descripcion = document.getElementById('mem-descripcion').value.trim();
+  var urlBoton    = document.getElementById('mem-url-boton').value.trim();
+  var fechaInicio = document.getElementById('mem-fecha-inicio').value;
+  var fechaFin    = document.getElementById('mem-fecha-fin').value;
+  var activo      = document.getElementById('mem-activo').checked ? 1 : 0;
 
-  function mostrarMensajeTemporal(message, type) {
-    var alert = document.createElement('div');
+  if (!titulo)   { showToast('El título es obligatorio.', 'warning'); document.getElementById('mem-titulo').focus(); return; }
+  if (!precio || parseFloat(precio) < 0) { showToast('Ingresa un precio válido.', 'warning'); document.getElementById('mem-precio').focus(); return; }
+  if (!fechaInicio) { showToast('La fecha de inicio es obligatoria.', 'warning'); return; }
+  if (!fechaFin)    { showToast('La fecha de fin es obligatoria.', 'warning'); return; }
+  if (fechaFin < fechaInicio) { showToast('La fecha de fin debe ser posterior al inicio.', 'warning'); return; }
 
-    alert.className = 'alert alert-' + (type || 'info') + ' alert-dismissible fade show mt-3';
-    alert.role = 'alert';
-    alert.innerHTML =
-      '<i class="bi bi-check-circle-fill me-2"></i>' +
-      escapeHtml(message) +
-      '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>';
+  var body = {
+    titulo:       titulo,
+    precio:       parseFloat(precio),
+    porcentaje:   parseFloat(porcentaje),
+    descripcion:  descripcion,
+    url_boton:    urlBoton,
+    fecha_inicio: fechaInicio,
+    fecha_fin:    fechaFin,
+    estado:       activo
+  };
 
-    var cardBody = document.querySelector('.card.chart-card .card-body');
+  var btn = document.getElementById('btn-mem-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 
-    if (cardBody) {
-      cardBody.appendChild(alert);
+  var method = id ? 'PUT' : 'POST';
+  var params = id ? { id: id } : null;
 
-      setTimeout(function () {
-        alert.classList.remove('show');
-        setTimeout(function () {
-          alert.remove();
-        }, 200);
-      }, 3000);
-    }
-  }
+  apiCall(method, 'membresias', 'save', body, params)
+    .then(function() {
+      showToast(id ? 'Plan actualizado correctamente.' : 'Plan creado correctamente.', 'success');
+      cerrarForm();
+      loadMembresias();
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al guardar el plan.', 'error');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Plan';
+    });
+});
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadMembresias();
+});
 </script>
 {% endblock %}

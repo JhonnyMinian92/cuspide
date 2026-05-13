@@ -1,0 +1,546 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'facturas' %}
+{% block title %}Facturas — Huaquillas F.C.{% endblock %}
+{% block page_title %}Facturas{% endblock %}
+
+{% block content %}
+
+<!-- ── Barra de filtros ── -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="row g-3 align-items-end">
+
+      <!-- Selector de institución -->
+      <div class="col-12 col-sm-6 col-lg-3">
+        <label class="form-label fw-semibold small">
+          <i class="bi bi-building me-1"></i>Institución
+        </label>
+        <select class="form-select" id="fact-inst-select">
+          <option value="">Cargando...</option>
+        </select>
+      </div>
+
+      <!-- Tipo -->
+      <div class="col-6 col-sm-3 col-lg-2">
+        <label class="form-label fw-semibold small">Tipo</label>
+        <select class="form-select" id="fact-tipo-select">
+          <option value="">Todos</option>
+          <option value="MATRICULA">Matrícula</option>
+          <option value="VENTA">Venta</option>
+        </select>
+      </div>
+
+      <!-- Búsqueda -->
+      <div class="col-12 col-sm-9 col-lg-4">
+        <label class="form-label fw-semibold small">Buscar por número o cliente</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="fact-search"
+            placeholder="Ej: FAC-2025, Marco..." autocomplete="off">
+          <span class="input-group-text d-none" id="fact-search-spinner">
+            <span class="spinner-border spinner-border-sm"></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Botones de estado -->
+      <div class="col-12 col-lg-3">
+        <label class="form-label fw-semibold small d-none d-lg-block invisible">.</label>
+        <div class="btn-group w-100" role="group" id="fact-estado-group">
+          <button type="button" class="btn btn-outline-secondary active" data-estado="all">Todas</button>
+          <button type="button" class="btn btn-outline-secondary" data-estado="pending">Pendientes</button>
+          <button type="button" class="btn btn-outline-secondary" data-estado="paid">Pagadas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tabla principal ── -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-0">
+    <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-receipt me-2" style="color:var(--brand-color);"></i>Listado de Facturas
+        </h6>
+        <p class="text-muted small mb-0" id="fact-info">Cargando...</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-facts" title="Refrescar">
+        <i class="bi bi-arrow-repeat"></i>
+      </button>
+    </div>
+    <div class="table-responsive table-container"
+      style="border-radius:0 0 12px 12px;border-top:1px solid var(--table-border);border-left:none;border-right:none;border-bottom:none;">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Número</th>
+            <th>Fecha</th>
+            <th>Cliente</th>
+            <th>Tipo</th>
+            <th class="text-end">Total</th>
+            <th class="text-end">Saldo</th>
+            <th>Estado</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="fact-tbody">
+          <tr>
+            <td colspan="8" class="text-center text-muted py-5">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando facturas...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Búsqueda por cliente ── -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-person-lines-fill me-2" style="color:var(--brand-color);"></i>Buscar por Cliente
+        </h6>
+        <p class="text-muted small mb-0">Ingresa la cédula del cliente para ver sus facturas.</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-toggle-client-search">
+        <i class="bi bi-chevron-down" id="client-search-chevron"></i>
+      </button>
+    </div>
+    <div id="client-search-section">
+      <div class="row g-3">
+        <div class="col-12 col-md-8">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+            <input type="search" class="form-control" id="client-cedula-search"
+              placeholder="Cédula del cliente..." autocomplete="off">
+            <span class="input-group-text d-none" id="client-search-spinner">
+              <span class="spinner-border spinner-border-sm"></span>
+            </span>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <button type="button" class="btn btn-outline-secondary w-100" id="btn-clear-client">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </button>
+        </div>
+      </div>
+      <div id="client-facts-wrap" class="d-none mt-3">
+        <div class="table-responsive table-container" style="border-radius:12px;">
+          <table class="table table-hover align-middle mb-0" style="font-size:.88rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Número</th>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Saldo</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="client-facts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed top-0 end-0 p-3 mt-5" style="z-index:9999;" id="toast-container"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ────────────────────────────────────────────────
+   HELPERS
+──────────────────────────────────────────────── */
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  if (type === 'error') type = 'danger';
+  var icons = { success:'check-circle-fill', danger:'x-circle-fill', warning:'exclamation-triangle-fill', info:'info-circle-fill' };
+  var t = document.createElement('div');
+  t.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+  t.setAttribute('role','alert');
+  t.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type]||'info-circle-fill') +
+    ' me-2"></i>' + esc(msg) + '</div>' +
+    '<button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest(\'.toast\').remove()"></button></div>';
+  var c = document.getElementById('toast-container');
+  if (c) c.appendChild(t);
+  setTimeout(function() { if (t.parentNode) t.remove(); }, 3000);
+}
+
+function formatMoney(v) {
+  return '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  var d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('es-EC', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+function estadoBadge(estado) {
+  return parseInt(estado) === 1
+    ? '<span class="badge bg-warning text-dark">Pendiente</span>'
+    : '<span class="badge bg-success">Pagada</span>';
+}
+
+function tipoBadge(tipo) {
+  var colors = { MATRICULA: 'bg-info text-dark', VENTA: 'bg-primary' };
+  return '<span class="badge ' + (colors[tipo] || 'bg-secondary') + '">' + esc(tipo) + '</span>';
+}
+
+function debounce(fn, ms) {
+  var t;
+  return function() {
+    var a = arguments;
+    clearTimeout(t);
+    t = setTimeout(function() { fn.apply(null, a); }, ms);
+  };
+}
+
+/* ────────────────────────────────────────────────
+   ESTADO
+──────────────────────────────────────────────── */
+var institucionId  = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+var allFacturas    = [];
+var estadoFilter   = 'all';
+var clientSearchOpen = true;
+
+/* ────────────────────────────────────────────────
+   INSTITUCIONES SELECT
+──────────────────────────────────────────────── */
+function loadInstSelect() {
+  var sel    = document.getElementById('fact-inst-select');
+  var cached = window.CUSPIDE_STATE && window.CUSPIDE_STATE.instituciones && window.CUSPIDE_STATE.instituciones.length > 0;
+  var src    = cached
+    ? Promise.resolve(window.CUSPIDE_STATE.instituciones)
+    : Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'list', null, null);
+
+  src.then(function(data) {
+    if (!Array.isArray(data) || !data.length) {
+      sel.innerHTML = '<option value="">Sin instituciones</option>';
+      return;
+    }
+    sel.innerHTML = data.map(function(i) {
+      return '<option value="' + i.id + '"' + (i.id == institucionId ? ' selected' : '') + '>' +
+        esc(i.nombre) + '</option>';
+    }).join('');
+    institucionId = parseInt(sel.value) || institucionId;
+    loadFacturas();
+  }).catch(function() {
+    sel.innerHTML = '<option value="">Error al cargar</option>';
+  });
+}
+
+document.getElementById('fact-inst-select').addEventListener('change', function() {
+  institucionId = parseInt(this.value) || null;
+  if (window.setCurrentInstitucion) setCurrentInstitucion(institucionId);
+  loadFacturas();
+});
+
+/* ────────────────────────────────────────────────
+   CARGAR FACTURAS
+──────────────────────────────────────────────── */
+function loadFacturas() {
+  if (!institucionId) return;
+  setTableLoading();
+
+  var action = estadoFilter === 'pending' ? 'pending' : 'list';
+  var params = { institucion: institucionId, limit: 100, offset: 0 };
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.facturas, action, null, params)
+    .then(function(data) {
+      allFacturas = Array.isArray(data) ? data : [];
+      applyFiltersAndRender();
+    })
+    .catch(function(err) {
+      showTableError(err.message || 'Error al cargar facturas.');
+    });
+}
+
+function setTableLoading() {
+  document.getElementById('fact-tbody').innerHTML =
+    '<tr><td colspan="8" class="text-center text-muted py-5">' +
+    '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  document.getElementById('fact-info').textContent = 'Cargando...';
+}
+
+function showTableError(msg) {
+  document.getElementById('fact-tbody').innerHTML =
+    '<tr><td colspan="8" class="text-center text-danger py-4">' +
+    '<i class="bi bi-exclamation-circle me-2"></i>' + esc(msg) + '</td></tr>';
+  document.getElementById('fact-info').textContent = 'Error.';
+}
+
+function applyFiltersAndRender() {
+  var q    = document.getElementById('fact-search').value.trim().toLowerCase();
+  var tipo = document.getElementById('fact-tipo-select').value;
+
+  var items = allFacturas.filter(function(f) {
+    if (estadoFilter === 'pending' && parseInt(f.estado) !== 1) return false;
+    if (estadoFilter === 'paid'    && parseInt(f.estado) !== 2) return false;
+    if (tipo && f.tipo !== tipo) return false;
+    if (q) {
+      var num    = (f.numero   || '').toLowerCase();
+      var nombre = (f.nombre   || '').toLowerCase();
+      var cedula = (f.identificacion || '').toLowerCase();
+      if (!num.includes(q) && !nombre.includes(q) && !cedula.includes(q)) return false;
+    }
+    return true;
+  });
+
+  renderFactTable(items);
+  document.getElementById('fact-info').textContent = items.length + ' factura(s).';
+}
+
+function renderFactTable(items) {
+  var tbody = document.getElementById('fact-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5">' +
+      '<i class="bi bi-receipt fs-2 d-block mb-2 opacity-25"></i>No hay registros.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(function(f) {
+    var canCancel = parseInt(f.estado) === 1 &&
+      parseFloat(f.saldo) >= parseFloat(f.total) - 0.001;
+    var cancelBtn = canCancel
+      ? '<button type="button" class="btn btn-xs btn-sm btn-outline-danger ms-1" ' +
+          'title="Anular factura" onclick="anularFactura(' + f.id + ',\'' + esc(f.numero) + '\')">' +
+          '<i class="bi bi-x-octagon"></i></button>'
+      : '';
+    return '<tr>' +
+      '<td class="ps-4">' +
+        '<code class="fw-semibold">' + esc(f.numero) + '</code>' +
+      '</td>' +
+      '<td class="text-muted small">' + fmtDate(f.fecha) + '</td>' +
+      '<td>' +
+        '<div class="fw-semibold small">' + esc(f.nombre || '—') + '</div>' +
+        '<code style="font-size:.72rem;">' + esc(f.identificacion || '') + '</code>' +
+      '</td>' +
+      '<td>' + tipoBadge(f.tipo) + '</td>' +
+      '<td class="text-end fw-semibold">' + formatMoney(f.total) + '</td>' +
+      '<td class="text-end fw-bold" style="color:' + (parseFloat(f.saldo)>0?'var(--danger-text)':'var(--success-text)') + ';">' +
+        formatMoney(f.saldo) + '</td>' +
+      '<td>' + estadoBadge(f.estado) + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-xs btn-sm btn-outline-primary" ' +
+          'onclick="toggleDetalle(this,' + f.id + ')">' +
+          '<i class="bi bi-eye me-1"></i>Detalle</button>' +
+        cancelBtn +
+      '</td>' +
+    '</tr>' +
+    '<tr class="d-none" id="detalle-row-' + f.id + '">' +
+      '<td colspan="8" class="p-0">' +
+        '<div class="p-3" style="background:var(--app-surface-soft);">' +
+          '<div id="detalle-content-' + f.id + '" class="text-muted small">' +
+            '<span class="spinner-border spinner-border-sm me-2"></span>Cargando detalle...' +
+          '</div>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ────────────────────────────────────────────────
+   TOGGLE DETALLE
+──────────────────────────────────────────────── */
+function toggleDetalle(btn, facturaId) {
+  var row = document.getElementById('detalle-row-' + facturaId);
+  if (!row) return;
+  var isHidden = row.classList.contains('d-none');
+  if (isHidden) {
+    row.classList.remove('d-none');
+    btn.innerHTML = '<i class="bi bi-eye-slash me-1"></i>Ocultar';
+    loadDetalle(facturaId);
+  } else {
+    row.classList.add('d-none');
+    btn.innerHTML = '<i class="bi bi-eye me-1"></i>Detalle';
+  }
+}
+
+function loadDetalle(facturaId) {
+  var content = document.getElementById('detalle-content-' + facturaId);
+  if (!content || content.dataset.loaded === '1') return;
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.facturas, 'detail', null, { id: facturaId })
+    .then(function(data) {
+      content.dataset.loaded = '1';
+      var items = Array.isArray(data) ? data : (data && data.detalle ? data.detalle : []);
+      if (!items.length) {
+        content.innerHTML = '<em class="text-muted">Sin ítems de detalle.</em>';
+        return;
+      }
+      var rows = items.map(function(d) {
+        return '<tr>' +
+          '<td>' + esc(d.descripcion || d.producto) + '</td>' +
+          '<td class="text-center">' + esc(d.cantidad) + '</td>' +
+          '<td class="text-end">' + formatMoney(d.precio_unitario) + '</td>' +
+          '<td class="text-end">' + formatMoney(parseFloat(d.descuento || 0)) + '</td>' +
+          '<td class="text-end fw-semibold">' + formatMoney(d.total) + '</td>' +
+        '</tr>';
+      }).join('');
+      content.innerHTML =
+        '<div class="table-responsive" style="max-width:680px;">' +
+        '<table class="table table-sm align-middle mb-0" style="font-size:.82rem;">' +
+        '<thead class="table-light">' +
+          '<tr><th>Descripción</th><th class="text-center">Cant.</th>' +
+          '<th class="text-end">P.Unit.</th><th class="text-end">Desc.</th>' +
+          '<th class="text-end">Total</th></tr>' +
+        '</thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '</table></div>';
+    })
+    .catch(function(err) {
+      content.innerHTML = '<span class="text-danger small"><i class="bi bi-exclamation-circle me-1"></i>' +
+        esc(err.message || 'Error al cargar detalle.') + '</span>';
+    });
+}
+
+/* ────────────────────────────────────────────────
+   ANULAR FACTURA
+──────────────────────────────────────────────── */
+function anularFactura(id, numero) {
+  if (!confirm('¿Anular la factura ' + numero + '? Esta acción no se puede deshacer.')) return;
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.facturas, 'cancel', null, { id: id })
+    .then(function() {
+      showToast('Factura ' + numero + ' anulada correctamente.', 'success');
+      loadFacturas();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al anular la factura.', 'danger'); });
+}
+
+/* ────────────────────────────────────────────────
+   FILTROS
+──────────────────────────────────────────────── */
+/* Estado buttons */
+document.getElementById('fact-estado-group').addEventListener('click', function(e) {
+  var btn = e.target.closest('button[data-estado]');
+  if (!btn) return;
+  document.querySelectorAll('#fact-estado-group button').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  estadoFilter = btn.getAttribute('data-estado');
+  loadFacturas();
+});
+
+/* Tipo */
+document.getElementById('fact-tipo-select').addEventListener('change', function() {
+  applyFiltersAndRender();
+});
+
+/* Búsqueda debounced */
+var doSearch = debounce(function() {
+  var q = document.getElementById('fact-search').value.trim();
+  if (q.length === 0 || q.length >= 2) {
+    document.getElementById('fact-search-spinner').classList.add('d-none');
+    applyFiltersAndRender();
+  }
+}, 350);
+
+document.getElementById('fact-search').addEventListener('input', function() {
+  var q = this.value.trim();
+  if (q.length >= 2) {
+    document.getElementById('fact-search-spinner').classList.remove('d-none');
+  }
+  doSearch();
+});
+
+/* Refrescar */
+document.getElementById('btn-refresh-facts').addEventListener('click', function() {
+  loadFacturas();
+});
+
+/* ────────────────────────────────────────────────
+   BÚSQUEDA POR CLIENTE
+──────────────────────────────────────────────── */
+/* Toggle panel */
+document.getElementById('btn-toggle-client-search').addEventListener('click', function() {
+  clientSearchOpen = !clientSearchOpen;
+  var sec = document.getElementById('client-search-section');
+  var chevron = document.getElementById('client-search-chevron');
+  if (clientSearchOpen) {
+    sec.classList.remove('d-none');
+    chevron.className = 'bi bi-chevron-down';
+  } else {
+    sec.classList.add('d-none');
+    chevron.className = 'bi bi-chevron-right';
+  }
+});
+
+var doClientSearch = debounce(function(cedula) {
+  var wrap = document.getElementById('client-facts-wrap');
+  var tbody = document.getElementById('client-facts-tbody');
+  if (cedula.length < 2) {
+    wrap.classList.add('d-none');
+    document.getElementById('client-search-spinner').classList.add('d-none');
+    return;
+  }
+  document.getElementById('client-search-spinner').classList.remove('d-none');
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.facturas, 'byclient', null, { identificacion: cedula })
+    .then(function(data) {
+      var items = Array.isArray(data) ? data : [];
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">' +
+          '<i class="bi bi-person-x me-2"></i>Sin facturas para esta cédula.</td></tr>';
+      } else {
+        tbody.innerHTML = items.map(function(f) {
+          return '<tr>' +
+            '<td class="ps-3"><code>' + esc(f.numero) + '</code></td>' +
+            '<td class="text-muted small">' + fmtDate(f.fecha) + '</td>' +
+            '<td>' + tipoBadge(f.tipo) + '</td>' +
+            '<td class="text-end">' + formatMoney(f.total) + '</td>' +
+            '<td class="text-end fw-bold" style="color:' + (parseFloat(f.saldo)>0?'var(--danger-text)':'var(--success-text)') + ';">' +
+              formatMoney(f.saldo) + '</td>' +
+            '<td>' + estadoBadge(f.estado) + '</td>' +
+          '</tr>';
+        }).join('');
+      }
+      wrap.classList.remove('d-none');
+    })
+    .catch(function(err) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">' +
+        '<i class="bi bi-exclamation-circle me-2"></i>' + esc(err.message) + '</td></tr>';
+      wrap.classList.remove('d-none');
+    })
+    .finally(function() {
+      document.getElementById('client-search-spinner').classList.add('d-none');
+    });
+}, 350);
+
+document.getElementById('client-cedula-search').addEventListener('input', function() {
+  doClientSearch(this.value.trim());
+});
+
+document.getElementById('btn-clear-client').addEventListener('click', function() {
+  document.getElementById('client-cedula-search').value = '';
+  document.getElementById('client-facts-wrap').classList.add('d-none');
+});
+
+/* ────────────────────────────────────────────────
+   INIT
+──────────────────────────────────────────────── */
+function init() {
+  loadInstSelect();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  init();
+});
+</script>
+{% endblock %}

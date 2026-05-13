@@ -51,6 +51,9 @@ class UsuarioServices implements UsuarioServiceInterface
         }
 
         switch (true) {
+            case $method === 'GET' && $resource === 'list':
+                return $this->fetchUsuarios();
+
             case $method === 'GET' && $resource === 'buttons':
                 return $this->fetchButtons($queryParams);
 
@@ -69,6 +72,34 @@ class UsuarioServices implements UsuarioServiceInterface
             default:
                 throw new \RuntimeException('Recurso no encontrado o método no soportado.', 404);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchUsuarios
+    // -------------------------------------------------------------------------
+    private function fetchUsuarios(): array
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare(
+            "SELECT id, username, type, image
+             FROM users
+             ORDER BY username ASC"
+        );
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return array_map(static function (array $row): array {
+            $type = (string) ($row['type'] ?? '');
+            return [
+                'id'       => (int) $row['id'],
+                'username' => (string) $row['username'],
+                'type'     => $type,
+                'tipo_user'=> $type,
+                'image'    => $row['image'] ?? null,
+                'imagen'   => $row['image'] ?? null,
+                'estado'   => strtoupper($type) === 'INACTIVO' ? 0 : 1,
+            ];
+        }, $rows);
     }
 
     // -------------------------------------------------------------------------

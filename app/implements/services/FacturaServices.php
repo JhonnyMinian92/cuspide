@@ -42,6 +42,7 @@ final class FacturaServices implements FacturaServiceInterface
             $method === 'GET' && $resource === 'list'      => $this->fetchFacturas($queryParams),
             $method === 'GET' && $resource === 'byclient'  => $this->fetchByClient($queryParams),
             $method === 'GET' && $resource === 'pending'   => $this->fetchPendientes($queryParams),
+            $method === 'GET' && $resource === 'detail'    => $this->fetchDetail((int) ($queryParams['id'] ?? 0)),
             $method === 'PUT' && $resource === 'cancel'    => $this->cancelFactura((int) ($queryParams['id'] ?? 0)),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
         };
@@ -162,6 +163,33 @@ final class FacturaServices implements FacturaServiceInterface
             'id'     => $id,
             'estado' => 'ANULADO',
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchDetail
+    // -------------------------------------------------------------------------
+
+    private function fetchDetail(int $id): array
+    {
+        if ($id <= 0) {
+            throw new RuntimeException('ID de factura inválido.', 400);
+        }
+
+        $db = \Core\Database::getInstance();
+        $stmt = $db->prepare('SELECT vd.* FROM venta_detalle vd WHERE vd.venta = :id ORDER BY vd.id ASC');
+        $stmt->execute([':id' => $id]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return array_map(static fn(array $row): array => [
+            'id' => (int) $row['id'],
+            'descripcion' => $row['descripcion'] ?? null,
+            'producto' => $row['descripcion'] ?? null,
+            'cantidad' => (float) $row['cantidad'],
+            'precio_unitario' => (float) $row['precio_unitario'],
+            'descuento' => (float) $row['descuento'],
+            'subtotal' => (float) ($row['subtotal'] ?? $row['total'] ?? 0),
+            'total' => (float) ($row['total'] ?? $row['subtotal'] ?? 0),
+        ], $rows);
     }
 
     // -------------------------------------------------------------------------

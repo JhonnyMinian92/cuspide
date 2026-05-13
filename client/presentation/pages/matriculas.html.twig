@@ -1,0 +1,722 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'matriculas' %}
+{% block title %}Matrículas — CUSPIDE{% endblock %}
+{% block page_title %}Matrículas{% endblock %}
+
+{% block content %}
+
+<!-- Buscar persona -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
+      <div>
+        <h6 class="fw-bold mb-1">Buscar Persona</h6>
+        <p class="text-muted small mb-0">Busca al estudiante o profesor por cédula, nombre o apellido para ver y gestionar sus matrículas.</p>
+      </div>
+    </div>
+    <div class="row g-3 align-items-center">
+      <div class="col-12 col-lg-9">
+        <label for="mat-search" class="form-label fw-semibold">Cédula, nombre o apellido</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="mat-search"
+            placeholder="Ej: Pérez, 0701234567..." autocomplete="off">
+          <span class="input-group-text d-none" id="mat-search-spinner">
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+          </span>
+        </div>
+      </div>
+      <div class="col-12 col-lg-3">
+        <label class="form-label d-none d-lg-block invisible">.</label>
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-mat-limpiar">
+          <i class="bi bi-x-circle me-1"></i>Limpiar
+        </button>
+      </div>
+    </div>
+    <!-- Resultados de búsqueda (dropdown-style) -->
+    <div id="mat-search-results" class="d-none mt-3">
+      <div class="table-responsive table-container">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Identificación</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Institución</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="mat-search-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Persona seleccionada + matrículas -->
+<div class="d-none" id="mat-persona-section">
+
+  <!-- Info de la persona -->
+  <div class="card chart-card mb-4" style="border-left:4px solid var(--brand-color);">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+          <div class="avatar-circle" style="width:48px;height:48px;font-size:1.1rem;" id="mat-persona-avatar">?</div>
+          <div>
+            <div class="fw-bold fs-6" id="mat-persona-nombre">—</div>
+            <div class="d-flex flex-wrap gap-2 mt-1">
+              <span class="badge rounded-pill" style="background:var(--brand-color);color:var(--brand-text);" id="mat-persona-tipo">—</span>
+              <code class="small" id="mat-persona-cedula">—</code>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-brand" id="btn-nueva-matricula">
+            <i class="bi bi-plus-lg me-1"></i>Nueva Matrícula
+          </button>
+          <button type="button" class="btn btn-outline-secondary" id="btn-mat-cambiar-persona">
+            <i class="bi bi-person-fill-slash me-1"></i>Cambiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de matrículas -->
+  <div class="card chart-card mb-4">
+    <div class="card-body p-0">
+      <div class="px-4 pt-4 pb-2">
+        <h6 class="fw-bold mb-0">Matrículas</h6>
+        <p class="text-muted small mb-0" id="mat-list-info">Cargando...</p>
+      </div>
+      <div class="table-responsive table-container" style="border-radius:0 0 12px 12px; border-top:1px solid var(--table-border); border-left:none; border-right:none; border-bottom:none;">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Período</th>
+              <th>Membresía</th>
+              <th>Institución</th>
+              <th>Estado</th>
+              <th>Ítems</th>
+              <th class="text-end pe-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="mat-list-tbody">
+            <tr><td colspan="7" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando matrículas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /mat-persona-section -->
+
+<!-- Formulario nueva matrícula -->
+<div class="card chart-card d-none" id="form-mat-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h6 class="fw-bold mb-1"><i class="bi bi-journal-plus me-2"></i>Nueva Matrícula</h6>
+        <p class="text-muted small mb-0">Asigna membresía, período y selecciona las clases o actividades a incluir.</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cancelar-mat">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="form-nueva-mat">
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Membresía</label>
+          <select class="form-select" id="mat-membresia" name="membresia">
+            <option value="">Sin membresía</option>
+          </select>
+          <div class="form-text" id="mat-membresia-info"></div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Fecha de Inicio *</label>
+          <input type="date" class="form-control" id="mat-fecha-inicio" name="fecha_inicio" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Fecha de Fin *</label>
+          <input type="date" class="form-control" id="mat-fecha-fin" name="fecha_fin" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Institución *</label>
+          <select class="form-select" id="mat-institucion" name="institucion" required>
+            <option value="">Cargando...</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Descuento ($)</label>
+          <input type="number" class="form-control" id="mat-descuento" name="descuento" value="0" min="0" step="0.01">
+        </div>
+      </div>
+
+      <!-- Selección de clases -->
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-book me-2"></i>Clases</h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-load-clases">
+            <i class="bi bi-arrow-repeat me-1"></i>Cargar clases
+          </button>
+        </div>
+        <div id="clases-available" class="row g-2">
+          <div class="col-12 text-muted small">Presiona "Cargar clases" para ver las disponibles.</div>
+        </div>
+        <div class="mt-3" id="clases-seleccionadas-wrap">
+          <div class="fw-semibold small mb-2">Clases seleccionadas:</div>
+          <div id="clases-seleccionadas" class="d-flex flex-wrap gap-2">
+            <span class="text-muted small">Ninguna aún.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Selección de actividades -->
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-trophy me-2"></i>Actividades Deportivas</h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-load-actividades">
+            <i class="bi bi-arrow-repeat me-1"></i>Cargar actividades
+          </button>
+        </div>
+        <div id="actividades-available" class="row g-2">
+          <div class="col-12 text-muted small">Presiona "Cargar actividades" para ver las disponibles.</div>
+        </div>
+        <div class="mt-3" id="actividades-seleccionadas-wrap">
+          <div class="fw-semibold small mb-2">Actividades seleccionadas:</div>
+          <div id="actividades-seleccionadas" class="d-flex flex-wrap gap-2">
+            <span class="text-muted small">Ninguna aún.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning d-none" id="mat-form-warn">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span id="mat-form-warn-msg"></span>
+      </div>
+
+      <!-- Resumen de factura (tras crear) -->
+      <div class="alert alert-success d-none" id="mat-resultado">
+        <h6 class="fw-bold mb-2"><i class="bi bi-check-circle-fill me-2"></i>Matrícula creada</h6>
+        <div id="mat-resultado-body"></div>
+      </div>
+
+      <div class="d-flex gap-2 justify-content-end mt-3">
+        <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-mat-2">
+          <i class="bi bi-arrow-left me-1"></i>Cancelar
+        </button>
+        <button type="submit" class="btn btn-brand" id="btn-submit-mat">
+          <i class="bi bi-check-lg me-1"></i>Crear Matrícula
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Estado ── */
+var matPersona       = null;
+var clasesSeleccionadas     = [];
+var actividadesSeleccionadas = [];
+
+/* ── Helpers API ── */
+function apiGet(path, action, params) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  var url  = base + '/index.php?api=' + encodeURIComponent(action);
+  if (params) {
+    Object.keys(params).forEach(function(k) {
+      if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
+        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+      }
+    });
+  }
+  return Cuspide.api.request(url, { auth: true });
+}
+function apiPost(path, action, body) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  return Cuspide.api.request(base + '/index.php?api=' + encodeURIComponent(action), { method: 'POST', auth: true, body: body });
+}
+function apiPut(path, action, body, params) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  var url  = base + '/index.php?api=' + encodeURIComponent(action);
+  if (params) {
+    Object.keys(params).forEach(function(k) {
+      if (params[k] !== null && params[k] !== undefined) {
+        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+      }
+    });
+  }
+  return Cuspide.api.request(url, { method: 'PUT', auth: true, body: body });
+}
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  var icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
+  var toast = document.createElement('div');
+  toast.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+  toast.role = 'alert';
+  toast.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type]||'info-circle-fill') + ' me-2"></i>' + esc(msg) + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  var c = document.getElementById('toast-container');
+  if (c) c.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 5000);
+}
+
+function debounce(fn, ms) {
+  var t;
+  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null,a); }, ms); };
+}
+
+/* ── Búsqueda de personas ── */
+var doSearch = debounce(function(q) {
+  if (q.length < 2) { document.getElementById('mat-search-results').classList.add('d-none'); return; }
+  document.getElementById('mat-search-spinner').classList.remove('d-none');
+  apiGet(CONFIG.ENDPOINTS.personas, 'search', { q: q })
+    .then(function(data) {
+      renderSearchResults(Array.isArray(data) ? data : []);
+    })
+    .catch(function() { document.getElementById('mat-search-results').classList.add('d-none'); })
+    .finally(function() { document.getElementById('mat-search-spinner').classList.add('d-none'); });
+}, 350);
+
+function renderSearchResults(items) {
+  var wrap  = document.getElementById('mat-search-results');
+  var tbody = document.getElementById('mat-search-tbody');
+  if (!items.length) { wrap.classList.add('d-none'); return; }
+  wrap.classList.remove('d-none');
+  tbody.innerHTML = items.map(function(p) {
+    return '<tr>' +
+      '<td><code>' + esc(p.identificacion) + '</code></td>' +
+      '<td class="fw-semibold">' + esc(p.nombre_completo) + '</td>' +
+      '<td>' + esc(p.tipo) + '</td>' +
+      '<td class="text-muted small">' + esc(p.institucion) + '</td>' +
+      '<td><button type="button" class="btn btn-sm btn-brand" onclick="selectPersona(' + p.id + ',\'' + esc(p.nombre_completo) + '\',\'' + esc(p.tipo) + '\',\'' + esc(p.identificacion) + '\')">' +
+        '<i class="bi bi-check-lg me-1"></i>Seleccionar</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ── Seleccionar persona ── */
+function selectPersona(id, nombre, tipo, cedula) {
+  matPersona = { id: id, nombre: nombre, tipo: tipo, cedula: cedula };
+  document.getElementById('mat-search-results').classList.add('d-none');
+  document.getElementById('mat-search').value = '';
+
+  document.getElementById('mat-persona-avatar').textContent = (nombre.charAt(0) || '?').toUpperCase();
+  document.getElementById('mat-persona-nombre').textContent = nombre;
+  document.getElementById('mat-persona-tipo').textContent   = tipo;
+  document.getElementById('mat-persona-cedula').textContent = cedula;
+
+  document.getElementById('mat-persona-section').classList.remove('d-none');
+  document.getElementById('form-mat-card').classList.add('d-none');
+  loadMatriculas();
+}
+
+/* ── Cargar matrículas de la persona ── */
+function loadMatriculas() {
+  if (!matPersona) return;
+  document.getElementById('mat-list-info').textContent = 'Cargando...';
+  apiGet(CONFIG.ENDPOINTS.matriculas, 'list', { persona_id: matPersona.id })
+    .then(function(data) {
+      renderMatriculas(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al cargar matrículas.', 'danger');
+      renderMatriculas([]);
+    });
+}
+
+function renderMatriculas(items) {
+  var tbody = document.getElementById('mat-list-tbody');
+  var info  = document.getElementById('mat-list-info');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5"><i class="bi bi-journal-x fs-2 d-block mb-2 opacity-25"></i>Sin matrículas registradas.</td></tr>';
+    if (info) info.textContent = 'Sin matrículas.';
+    return;
+  }
+  if (info) info.textContent = items.length + ' matrícula(s).';
+  tbody.innerHTML = items.map(function(m) {
+    var estadoBadge = m.estado === 'ACTIVO'
+      ? '<span class="badge bg-success rounded-pill">Activo</span>'
+      : m.estado === 'ANULADO'
+        ? '<span class="badge bg-danger rounded-pill">Anulado</span>'
+        : '<span class="badge bg-secondary rounded-pill">' + esc(m.estado) + '</span>';
+
+    var clases     = (m.clases || []).length;
+    var actividades= (m.actividades || []).length;
+    var itemsBadge = '<span class="text-muted small"><i class="bi bi-book me-1"></i>' + clases + ' clase(s) · <i class="bi bi-trophy me-1"></i>' + actividades + ' act.</span>';
+
+    var acciones = '';
+    if (m.estado === 'ACTIVO') {
+      acciones = '<button type="button" class="btn btn-sm btn-outline-danger" onclick="anularMatricula(' + m.id + ')" title="Anular matrícula">' +
+        '<i class="bi bi-x-circle"></i></button>';
+    }
+
+    return '<tr>' +
+      '<td><code>#' + esc(m.id) + '</code></td>' +
+      '<td class="small">' + esc(m.fecha_inicio) + ' – ' + esc(m.fecha_fin) + '</td>' +
+      '<td>' + esc(m.membresia || '—') + '</td>' +
+      '<td class="text-muted small">' + esc(m.institucion) + '</td>' +
+      '<td>' + estadoBadge + '</td>' +
+      '<td>' + itemsBadge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="toggleItemsRow(this,' + m.id + ')" title="Ver ítems">' +
+          '<i class="bi bi-list-ul"></i></button>' +
+        acciones +
+      '</td>' +
+    '</tr>' +
+    '<tr class="items-row d-none" id="items-row-' + m.id + '">' +
+      '<td colspan="7" class="p-3" style="background:var(--app-bg-soft);">' +
+        renderItemsInline(m.clases, m.actividades, m.id, m.estado) +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderItemsInline(clases, actividades, matriculaId, estado) {
+  var canRemove = estado === 'ACTIVO';
+  var claseRows = (clases || []).map(function(c) {
+    var estadoC = c.estado ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Anulado</span>';
+    var remove  = canRemove && c.estado
+      ? '<button type="button" class="btn btn-xs btn-outline-danger btn-sm ms-2" onclick="anularItem(' + c.id + ',\'clase\')" title="Anular ítem"><i class="bi bi-x"></i></button>'
+      : '';
+    return '<li class="list-group-item list-group-item-action py-1 px-3" style="background:transparent;border-color:var(--table-border);">' +
+      '<i class="bi bi-book me-2 text-muted"></i>Clase #' + esc(c.clase) + ' — Horario #' + esc(c.horario) + ' ' + estadoC + remove + '</li>';
+  }).join('');
+  var actRows = (actividades || []).map(function(a) {
+    var estadoA = a.estado ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Anulado</span>';
+    var remove  = canRemove && a.estado
+      ? '<button type="button" class="btn btn-xs btn-outline-danger btn-sm ms-2" onclick="anularItem(' + a.id + ',\'actividad\')" title="Anular ítem"><i class="bi bi-x"></i></button>'
+      : '';
+    return '<li class="list-group-item list-group-item-action py-1 px-3" style="background:transparent;border-color:var(--table-border);">' +
+      '<i class="bi bi-trophy me-2 text-muted"></i>Actividad #' + esc(a.actividad) + ' — Horario #' + esc(a.horario) + ' ' + estadoA + remove + '</li>';
+  }).join('');
+  return '<ul class="list-group list-group-flush">' + (claseRows + actRows || '<li class="list-group-item text-muted py-1 px-3" style="background:transparent;">Sin ítems.</li>') + '</ul>';
+}
+
+function toggleItemsRow(btn, id) {
+  var row = document.getElementById('items-row-' + id);
+  if (!row) return;
+  if (row.classList.contains('d-none')) {
+    row.classList.remove('d-none');
+    btn.innerHTML = '<i class="bi bi-chevron-up"></i>';
+  } else {
+    row.classList.add('d-none');
+    btn.innerHTML = '<i class="bi bi-list-ul"></i>';
+  }
+}
+
+/* ── Anular matrícula ── */
+function anularMatricula(id) {
+  if (!confirm('¿Estás seguro de anular esta matrícula? Esta acción no se puede deshacer.')) return;
+  apiPut(CONFIG.ENDPOINTS.matriculas, 'cancel', {}, { id: id })
+    .then(function() {
+      showToast('Matrícula anulada correctamente.', 'success');
+      loadMatriculas();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al anular.', 'danger'); });
+}
+
+/* ── Anular ítem de matrícula ── */
+function anularItem(id, tipo) {
+  if (!confirm('¿Anular este ítem (' + tipo + ')?')) return;
+  apiPut(CONFIG.ENDPOINTS.matriculas, 'removeitem', {}, { id: id, tipo: tipo })
+    .then(function() {
+      showToast('Ítem anulado.', 'success');
+      loadMatriculas();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al anular ítem.', 'danger'); });
+}
+
+/* ── Nueva matrícula: mostrar / cargar datos ── */
+function showNuevaMatricula() {
+  clasesSeleccionadas      = [];
+  actividadesSeleccionadas = [];
+  updateClasesSeleccionadas();
+  updateActividadesSeleccionadas();
+  document.getElementById('mat-resultado').classList.add('d-none');
+  document.getElementById('mat-form-warn').classList.add('d-none');
+  document.getElementById('form-nueva-mat').reset();
+
+  loadMembresiastSelect();
+  loadInstitucionesSelect('mat-institucion');
+
+  // Preselect institution from global state
+  var instId = getCurrentInstitucionId ? getCurrentInstitucionId() : null;
+  if (instId) {
+    setTimeout(function() {
+      var sel = document.getElementById('mat-institucion');
+      if (sel) sel.value = instId;
+    }, 600);
+  }
+
+  document.getElementById('form-mat-card').classList.remove('d-none');
+  document.getElementById('form-mat-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function loadMembresiastSelect() {
+  var sel = document.getElementById('mat-membresia');
+  sel.innerHTML = '<option value="">Sin membresía</option>';
+  apiGet(CONFIG.ENDPOINTS.membresias, 'list')
+    .then(function(data) {
+      if (Array.isArray(data)) {
+        data.forEach(function(m) {
+          var opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.titulo + ' — $' + parseFloat(m.precio).toFixed(2);
+          if (m.porcentaje) opt.textContent += ' (' + m.porcentaje + '% dto.)';
+          sel.appendChild(opt);
+        });
+      }
+    })
+    .catch(function() {});
+  document.getElementById('mat-membresia-info').textContent = '';
+  sel.addEventListener('change', function() {
+    document.getElementById('mat-membresia-info').textContent = '';
+  });
+}
+
+function loadInstitucionesSelect(selectId) {
+  var sel = document.getElementById(selectId);
+  if (!sel) return;
+  if (window.CUSPIDE_STATE && window.CUSPIDE_STATE.instituciones && window.CUSPIDE_STATE.instituciones.length > 0) {
+    populateInstSelect(sel, window.CUSPIDE_STATE.instituciones);
+    return;
+  }
+  apiGet(CONFIG.ENDPOINTS.instituciones, 'list')
+    .then(function(data) { if (Array.isArray(data)) populateInstSelect(sel, data); })
+    .catch(function() { sel.innerHTML = '<option value="">Error al cargar</option>'; });
+}
+function populateInstSelect(sel, items) {
+  sel.innerHTML = '<option value="">— Seleccionar institución —</option>' +
+    items.map(function(i) { return '<option value="' + i.id + '">' + esc(i.nombre) + '</option>'; }).join('');
+}
+
+/* ── Cargar clases disponibles ── */
+document.getElementById('btn-load-clases').addEventListener('click', function() {
+  var instId = document.getElementById('mat-institucion').value;
+  if (!instId) { showToast('Selecciona una institución primero.', 'warning'); return; }
+  var wrap = document.getElementById('clases-available');
+  wrap.innerHTML = '<div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</div>';
+  apiGet(CONFIG.ENDPOINTS.clases, 'list', { institucion: instId })
+    .then(function(data) {
+      renderClasesDisponibles(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      wrap.innerHTML = '<div class="col-12 text-danger small">' + esc(err.message) + '</div>';
+    });
+});
+
+function renderClasesDisponibles(clases) {
+  var wrap = document.getElementById('clases-available');
+  if (!clases.length) { wrap.innerHTML = '<div class="col-12 text-muted small">No hay clases disponibles para esta institución.</div>'; return; }
+  wrap.innerHTML = clases.map(function(c) {
+    var yaSeleccionada = clasesSeleccionadas.some(function(s) { return s.clase_id === c.id; });
+    var disponibles = (c.cupo_maximo || 0) - (c.matriculados || 0);
+    var cupoText = disponibles > 0
+      ? '<span class="badge bg-success ms-1">' + disponibles + ' cupos</span>'
+      : '<span class="badge bg-danger ms-1">Sin cupo</span>';
+    return '<div class="col-md-6 col-lg-4">' +
+      '<div class="p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">' +
+        '<div class="d-flex justify-content-between align-items-start">' +
+          '<div>' +
+            '<div class="fw-semibold small">' + esc(c.nombre) + '</div>' +
+            '<div class="text-muted small">Docente: ' + esc(c.primer_nombre + ' ' + c.primer_apellido) + '</div>' +
+            '<div class="mt-1">' + cupoText + '</div>' +
+          '</div>' +
+          (yaSeleccionada
+            ? '<span class="badge bg-success"><i class="bi bi-check-lg"></i></span>'
+            : '<button type="button" class="btn btn-xs btn-outline-secondary btn-sm" onclick="addClase(' + c.id + ',\'' + esc(c.nombre) + '\')" ' + (disponibles <= 0 ? 'disabled title="Sin cupo"' : '') + '><i class="bi bi-plus-lg"></i></button>') +
+        '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function addClase(id, nombre) {
+  if (clasesSeleccionadas.some(function(c) { return c.clase_id === id; })) return;
+  clasesSeleccionadas.push({ clase_id: id, nombre: nombre, modalidad: 1, fecha_inicio: '', fecha_fin: '' });
+  updateClasesSeleccionadas();
+  document.getElementById('btn-load-clases').click();
+}
+
+function removeClase(id) {
+  clasesSeleccionadas = clasesSeleccionadas.filter(function(c) { return c.clase_id !== id; });
+  updateClasesSeleccionadas();
+}
+
+function updateClasesSeleccionadas() {
+  var wrap = document.getElementById('clases-seleccionadas');
+  if (!clasesSeleccionadas.length) {
+    wrap.innerHTML = '<span class="text-muted small">Ninguna aún.</span>';
+    return;
+  }
+  wrap.innerHTML = clasesSeleccionadas.map(function(c) {
+    return '<span class="badge d-flex align-items-center gap-2 p-2 rounded" style="background:var(--brand-color);color:var(--brand-text);">' +
+      '<i class="bi bi-book"></i>' + esc(c.nombre) +
+      '<button type="button" class="btn-close btn-close-dark btn-sm" onclick="removeClase(' + c.clase_id + ')"></button></span>';
+  }).join('');
+}
+
+/* ── Cargar actividades disponibles ── */
+document.getElementById('btn-load-actividades').addEventListener('click', function() {
+  var instId = document.getElementById('mat-institucion').value;
+  if (!instId) { showToast('Selecciona una institución primero.', 'warning'); return; }
+  var wrap = document.getElementById('actividades-available');
+  wrap.innerHTML = '<div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</div>';
+  apiGet(CONFIG.ENDPOINTS.actividades, 'list', { institucion: instId })
+    .then(function(data) {
+      renderActividadesDisponibles(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      wrap.innerHTML = '<div class="col-12 text-danger small">' + esc(err.message) + '</div>';
+    });
+});
+
+function renderActividadesDisponibles(acts) {
+  var wrap = document.getElementById('actividades-available');
+  if (!acts.length) { wrap.innerHTML = '<div class="col-12 text-muted small">No hay actividades disponibles.</div>'; return; }
+  wrap.innerHTML = acts.map(function(a) {
+    var yaSeleccionada = actividadesSeleccionadas.some(function(s) { return s.actividad_id === a.id; });
+    return '<div class="col-md-6 col-lg-4">' +
+      '<div class="p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">' +
+        '<div class="d-flex justify-content-between align-items-start">' +
+          '<div>' +
+            '<div class="fw-semibold small">' + esc(a.nombre) + '</div>' +
+            '<div class="text-muted small">' + esc(a.deporte) + ' · ' + esc(a.nivel) + '</div>' +
+            '<div class="text-muted small">$' + parseFloat(a.precio || 0).toFixed(2) + '</div>' +
+          '</div>' +
+          (yaSeleccionada
+            ? '<span class="badge bg-success"><i class="bi bi-check-lg"></i></span>'
+            : '<button type="button" class="btn btn-xs btn-outline-secondary btn-sm" onclick="addActividad(' + a.id + ',\'' + esc(a.nombre) + '\')"><i class="bi bi-plus-lg"></i></button>') +
+        '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function addActividad(id, nombre) {
+  if (actividadesSeleccionadas.some(function(a) { return a.actividad_id === id; })) return;
+  actividadesSeleccionadas.push({ actividad_id: id, nombre: nombre, modalidad: 1, fecha_inicio: '', fecha_fin: '' });
+  updateActividadesSeleccionadas();
+  document.getElementById('btn-load-actividades').click();
+}
+
+function removeActividad(id) {
+  actividadesSeleccionadas = actividadesSeleccionadas.filter(function(a) { return a.actividad_id !== id; });
+  updateActividadesSeleccionadas();
+}
+
+function updateActividadesSeleccionadas() {
+  var wrap = document.getElementById('actividades-seleccionadas');
+  if (!actividadesSeleccionadas.length) {
+    wrap.innerHTML = '<span class="text-muted small">Ninguna aún.</span>';
+    return;
+  }
+  wrap.innerHTML = actividadesSeleccionadas.map(function(a) {
+    return '<span class="badge d-flex align-items-center gap-2 p-2 rounded" style="background:var(--brand-color);color:var(--brand-text);">' +
+      '<i class="bi bi-trophy"></i>' + esc(a.nombre) +
+      '<button type="button" class="btn-close btn-close-dark btn-sm" onclick="removeActividad(' + a.actividad_id + ')"></button></span>';
+  }).join('');
+}
+
+/* ── Enviar nueva matrícula ── */
+document.getElementById('form-nueva-mat').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  var warn = document.getElementById('mat-form-warn');
+  warn.classList.add('d-none');
+
+  if (!clasesSeleccionadas.length && !actividadesSeleccionadas.length) {
+    document.getElementById('mat-form-warn-msg').textContent = 'Debes seleccionar al menos una clase o actividad.';
+    warn.classList.remove('d-none');
+    return;
+  }
+
+  var fechaInicio = document.getElementById('mat-fecha-inicio').value;
+  var fechaFin    = document.getElementById('mat-fecha-fin').value;
+  var instId      = parseInt(document.getElementById('mat-institucion').value);
+  var membresiaId = parseInt(document.getElementById('mat-membresia').value) || null;
+  var descuento   = parseFloat(document.getElementById('mat-descuento').value) || 0;
+
+  var clases = clasesSeleccionadas.map(function(c) {
+    return { clase_id: c.clase_id, modalidad: 1, fecha_inicio: fechaInicio, fecha_fin: fechaFin };
+  });
+  var actividades = actividadesSeleccionadas.map(function(a) {
+    return { actividad_id: a.actividad_id, modalidad: 1, fecha_inicio: fechaInicio, fecha_fin: fechaFin };
+  });
+
+  var body = {
+    persona:      matPersona.id,
+    fecha_inicio: fechaInicio,
+    fecha_fin:    fechaFin,
+    membresia:    membresiaId,
+    institucion:  instId,
+    descuento:    descuento,
+    clases:       clases,
+    actividades:  actividades,
+  };
+
+  var btn = document.getElementById('btn-submit-mat');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creando...';
+
+  apiPost(CONFIG.ENDPOINTS.matriculas, 'create', body)
+    .then(function(data) {
+      var res = document.getElementById('mat-resultado');
+      document.getElementById('mat-resultado-body').innerHTML =
+        '<div class="row g-2 small">' +
+        '<div class="col-sm-6"><strong>Matrícula:</strong> #' + esc(data.matricula_id) + '</div>' +
+        '<div class="col-sm-6"><strong>Factura:</strong> ' + esc(data.numero_factura) + '</div>' +
+        '<div class="col-sm-4"><strong>Subtotal:</strong> $' + parseFloat(data.subtotal||0).toFixed(2) + '</div>' +
+        '<div class="col-sm-4"><strong>Descuento:</strong> $' + parseFloat(data.descuento||0).toFixed(2) + '</div>' +
+        '<div class="col-sm-4"><strong>Total:</strong> <span class="fw-bold fs-6">$' + parseFloat(data.total||0).toFixed(2) + '</span></div>' +
+        '</div>';
+      res.classList.remove('d-none');
+      showToast('Matrícula creada. Factura: ' + data.numero_factura, 'success');
+      loadMatriculas();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al crear matrícula.', 'danger'); })
+    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Crear Matrícula'; });
+});
+
+/* ── Botones de UI ── */
+document.getElementById('btn-nueva-matricula').addEventListener('click', showNuevaMatricula);
+
+function hideMatForm() {
+  document.getElementById('form-mat-card').classList.add('d-none');
+  clasesSeleccionadas = [];
+  actividadesSeleccionadas = [];
+}
+document.getElementById('btn-cancelar-mat').addEventListener('click', hideMatForm);
+document.getElementById('btn-cancelar-mat-2').addEventListener('click', hideMatForm);
+
+document.getElementById('btn-mat-cambiar-persona').addEventListener('click', function() {
+  document.getElementById('mat-persona-section').classList.add('d-none');
+  document.getElementById('form-mat-card').classList.add('d-none');
+  matPersona = null;
+  document.getElementById('mat-search').focus();
+});
+
+document.getElementById('btn-mat-limpiar').addEventListener('click', function() {
+  document.getElementById('mat-search').value = '';
+  document.getElementById('mat-search-results').classList.add('d-none');
+  document.getElementById('mat-search').focus();
+});
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+  var inp = document.getElementById('mat-search');
+  inp.addEventListener('input', function() { doSearch(this.value.trim()); });
+});
+</script>
+{% endblock %}

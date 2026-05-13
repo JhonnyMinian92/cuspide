@@ -1,0 +1,566 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'pagos' %}
+{% block title %}Pagos — CUSPIDE{% endblock %}
+{% block page_title %}Registro de Pagos{% endblock %}
+
+{% block content %}
+
+<!-- Selector de institución -->
+<div class="d-flex align-items-center gap-3 mb-4">
+  <label class="fw-semibold small text-nowrap" for="pagos-institucion-select">
+    <i class="bi bi-building me-1"></i>Institución:
+  </label>
+  <select class="form-select form-select-sm" id="pagos-institucion-select" style="max-width:280px;">
+    <option value="">Cargando...</option>
+  </select>
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-pendientes" title="Refrescar pendientes">
+    <i class="bi bi-arrow-repeat"></i>
+  </button>
+</div>
+
+<!-- Layout principal: dos columnas -->
+<div class="row g-4">
+
+  <!-- COLUMNA IZQUIERDA: Registrar Cobro -->
+  <div class="col-12 col-xl-7">
+    <div class="card chart-card h-100">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-1"><i class="bi bi-cash-coin me-2" style="color:var(--brand-color);"></i>Registrar Cobro</h6>
+        <p class="text-muted small mb-4">Busca al cliente, revisa sus facturas pendientes y registra el pago.</p>
+
+        <!-- Paso 1: buscar persona -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold small text-uppercase tracking-wide" style="letter-spacing:.05em;">
+            1 · Buscar cliente
+          </label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="pago-search"
+              placeholder="Cédula, nombre o apellido..." autocomplete="off">
+            <span class="input-group-text d-none" id="pago-search-spinner">
+              <span class="spinner-border spinner-border-sm"></span>
+            </span>
+          </div>
+          <div id="pago-search-results" class="d-none mt-2">
+            <div class="list-group" id="pago-search-list"></div>
+          </div>
+        </div>
+
+        <!-- Cliente seleccionado -->
+        <div id="pago-cliente-info" class="d-none mb-4">
+          <div class="p-3 rounded d-flex justify-content-between align-items-center"
+            style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+            <div class="d-flex align-items-center gap-3">
+              <div class="avatar-circle" id="pago-cliente-avatar" style="width:40px;height:40px;">?</div>
+              <div>
+                <div class="fw-bold" id="pago-cliente-nombre">—</div>
+                <div class="d-flex gap-2 mt-1">
+                  <code class="small" id="pago-cliente-cedula">—</code>
+                  <span class="badge bg-secondary rounded-pill small" id="pago-cliente-tipo">—</span>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cambiar-cliente" title="Cambiar cliente">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Paso 2: facturas pendientes -->
+        <div id="pago-facturas-section" class="d-none mb-4">
+          <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+            2 · Facturas pendientes (más antigua → más reciente)
+          </label>
+          <div id="pago-facturas-loading" class="text-muted small">
+            <span class="spinner-border spinner-border-sm me-1"></span> Cargando...
+          </div>
+          <div id="pago-facturas-list" class="d-none"></div>
+          <!-- Total adeudado -->
+          <div id="pago-total-adeudado" class="d-none mt-3 p-3 rounded" style="background:var(--danger-bg);border:1px solid var(--danger-border);">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="fw-semibold" style="color:var(--danger-text);">Total adeudado:</span>
+              <span class="fw-bold fs-5" style="color:var(--danger-text);" id="pago-total-valor">$0.00</span>
+            </div>
+          </div>
+          <div id="pago-sin-deuda" class="d-none alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i>Este cliente no tiene deudas pendientes.
+          </div>
+        </div>
+
+        <!-- Paso 3: formulario de pago -->
+        <div id="pago-form-section" class="d-none">
+          <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+            3 · Registrar pago
+          </label>
+          <form id="form-pago">
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="form-label fw-semibold">Monto a pagar *</label>
+                <div class="input-group">
+                  <span class="input-group-text fw-bold">$</span>
+                  <input type="number" class="form-control form-control-lg fw-bold" id="pago-monto"
+                    name="monto" step="0.01" min="0.01" required placeholder="0.00">
+                </div>
+                <div class="form-text" id="pago-monto-hint"></div>
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label fw-semibold">Forma de Pago *</label>
+                <select class="form-select" id="pago-forma" name="forma_pago" required>
+                  <option value="">— Seleccionar —</option>
+                  <option value="1">Efectivo</option>
+                  <option value="2">Transferencia Bancaria</option>
+                  <option value="3">Tarjeta de Crédito</option>
+                  <option value="4">Tarjeta de Débito</option>
+                  <option value="5">Cheque</option>
+                </select>
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label fw-semibold">Referencia <span class="text-muted small">(opcional)</span></label>
+                <input type="text" class="form-control" id="pago-referencia" name="referencia"
+                  placeholder="Nº transferencia, recibo...">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label fw-semibold">Observación <span class="text-muted small">(opcional)</span></label>
+                <input type="text" class="form-control" id="pago-observacion" name="observacion"
+                  placeholder="Nota del pago...">
+              </div>
+            </div>
+            <div class="mt-4">
+              <button type="submit" class="btn btn-brand btn-lg w-100 fw-bold" id="btn-registrar-pago">
+                <i class="bi bi-check-circle-fill me-2"></i>Registrar Pago
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Resultado del pago -->
+        <div id="pago-resultado" class="d-none mt-4"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- COLUMNA DERECHA: Pendientes globales -->
+  <div class="col-12 col-xl-5">
+    <div class="card chart-card h-100">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Pendientes</h6>
+            <p class="text-muted small mb-0">Todas las facturas con saldo pendiente.</p>
+          </div>
+          <div>
+            <span class="badge rounded-pill fs-6 fw-bold" style="background:var(--danger-bg);color:var(--danger-text);border:1px solid var(--danger-border);" id="pendientes-total-badge">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Filtro -->
+        <div class="mb-3">
+          <input type="search" class="form-control form-control-sm" id="pendientes-filter"
+            placeholder="Filtrar por nombre o cédula...">
+        </div>
+
+        <!-- Tabla de pendientes -->
+        <div id="pendientes-loading" class="text-center py-4 text-muted">
+          <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+        </div>
+        <div id="pendientes-container" class="d-none">
+          <div class="table-responsive" style="max-height:520px;overflow-y:auto;">
+            <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Cliente</th>
+                  <th>Factura</th>
+                  <th class="text-end">Saldo</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="pendientes-tbody"></tbody>
+            </table>
+          </div>
+          <div class="mt-2 text-muted small" id="pendientes-info"></div>
+        </div>
+        <div id="pendientes-empty" class="d-none text-center py-4 text-muted">
+          <i class="bi bi-check-circle-fill fs-2 d-block mb-2 text-success opacity-50"></i>
+          Sin facturas pendientes.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Estado ── */
+var pagoCliente      = null;
+var facturasPendientes = [];
+var allPendientes    = [];
+var currentInstId    = null;
+
+/* ── Helpers API ── */
+function apiGet(path, action, params) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  var url  = base + '/index.php?api=' + encodeURIComponent(action);
+  if (params) {
+    Object.keys(params).forEach(function(k) {
+      if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
+        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+      }
+    });
+  }
+  return Cuspide.api.request(url, { auth: true });
+}
+function apiPost(path, action, body) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  return Cuspide.api.request(base + '/index.php?api=' + encodeURIComponent(action), { method: 'POST', auth: true, body: body });
+}
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function fmt(n) { return '$' + parseFloat(n || 0).toFixed(2); }
+
+function showToast(msg, type) {
+  type = type || 'success';
+  var icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
+  var toast = document.createElement('div');
+  toast.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+  toast.role = 'alert';
+  toast.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type]||'info-circle-fill') + ' me-2"></i>' + esc(msg) + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  var c = document.getElementById('toast-container');
+  if (c) c.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 5000);
+}
+
+function debounce(fn, ms) {
+  var t;
+  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null,a); }, ms); };
+}
+
+/* ── Instituciones ── */
+function loadInstitucionesSelect() {
+  var sel = document.getElementById('pagos-institucion-select');
+  var cached = window.CUSPIDE_STATE && window.CUSPIDE_STATE.instituciones && window.CUSPIDE_STATE.instituciones.length > 0;
+  var src = cached
+    ? Promise.resolve(window.CUSPIDE_STATE.instituciones)
+    : apiGet(CONFIG.ENDPOINTS.instituciones, 'list');
+
+  src.then(function(data) {
+    if (!Array.isArray(data) || !data.length) {
+      sel.innerHTML = '<option value="">Sin instituciones</option>';
+      return;
+    }
+    sel.innerHTML = data.map(function(i) {
+      return '<option value="' + i.id + '">' + esc(i.nombre) + '</option>';
+    }).join('');
+    var savedId = getCurrentInstitucionId ? getCurrentInstitucionId() : null;
+    if (savedId) {
+      for (var i = 0; i < sel.options.length; i++) {
+        if (parseInt(sel.options[i].value) === savedId) { sel.selectedIndex = i; break; }
+      }
+    }
+    currentInstId = parseInt(sel.value) || null;
+    if (currentInstId) loadPendientes();
+  }).catch(function() {
+    sel.innerHTML = '<option value="">Error al cargar</option>';
+  });
+}
+
+document.getElementById('pagos-institucion-select').addEventListener('change', function() {
+  currentInstId = parseInt(this.value) || null;
+  if (setCurrentInstitucion) setCurrentInstitucion(currentInstId);
+  if (currentInstId) loadPendientes();
+});
+
+document.getElementById('btn-refresh-pendientes').addEventListener('click', function() {
+  currentInstId = parseInt(document.getElementById('pagos-institucion-select').value) || null;
+  if (currentInstId) loadPendientes();
+});
+
+/* ── Cargar pendientes institucionales ── */
+function loadPendientes() {
+  if (!currentInstId) return;
+  document.getElementById('pendientes-loading').classList.remove('d-none');
+  document.getElementById('pendientes-container').classList.add('d-none');
+  document.getElementById('pendientes-empty').classList.add('d-none');
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'pending', { institucion: currentInstId })
+    .then(function(data) {
+      allPendientes = Array.isArray(data) ? data : [];
+      renderPendientes(allPendientes);
+    })
+    .catch(function(err) {
+      document.getElementById('pendientes-loading').innerHTML = '<div class="text-danger small">' + esc(err.message) + '</div>';
+    })
+    .finally(function() {
+      document.getElementById('pendientes-loading').classList.add('d-none');
+    });
+}
+
+function renderPendientes(items) {
+  var total = items.reduce(function(acc, p) { return acc + parseFloat(p.saldo || 0); }, 0);
+  document.getElementById('pendientes-total-badge').textContent = fmt(total);
+
+  if (!items.length) {
+    document.getElementById('pendientes-container').classList.add('d-none');
+    document.getElementById('pendientes-empty').classList.remove('d-none');
+    return;
+  }
+  document.getElementById('pendientes-empty').classList.add('d-none');
+  document.getElementById('pendientes-container').classList.remove('d-none');
+
+  var sorted = items.slice().sort(function(a, b) { return new Date(a.fecha) - new Date(b.fecha); });
+  var tbody  = document.getElementById('pendientes-tbody');
+  tbody.innerHTML = sorted.map(function(p) {
+    var saldo   = parseFloat(p.saldo || 0);
+    var saldoClass = saldo > 0 ? 'color:var(--danger-text);' : '';
+    var tipoBadge = '<span class="badge bg-secondary rounded-pill" style="font-size:.7rem;">' + esc(p.tipo) + '</span>';
+    return '<tr>' +
+      '<td>' +
+        '<div class="fw-semibold" style="font-size:.82rem;">' + esc(p.nombre) + '</div>' +
+        '<code style="font-size:.7rem;">' + esc(p.identificacion) + '</code>' +
+      '</td>' +
+      '<td>' +
+        '<div style="font-size:.75rem;">' + esc(p.numero) + '</div>' +
+        '<div>' + tipoBadge + '</div>' +
+        '<div style="font-size:.72rem;color:var(--app-text-muted);">' + esc(p.fecha) + '</div>' +
+      '</td>' +
+      '<td class="text-end fw-bold" style="' + saldoClass + '">' + fmt(saldo) + '</td>' +
+      '<td>' +
+        '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' +
+          'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')">' +
+          '<i class="bi bi-cash"></i>' +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('pendientes-info').textContent = items.length + ' factura(s) pendiente(s).';
+}
+
+/* ── Filtro pendientes ── */
+document.getElementById('pendientes-filter').addEventListener('input', debounce(function() {
+  var q = this.value.trim().toLowerCase();
+  if (!q) { renderPendientes(allPendientes); return; }
+  var filtered = allPendientes.filter(function(p) {
+    return (p.nombre||'').toLowerCase().includes(q) || (p.identificacion||'').includes(q);
+  });
+  renderPendientes(filtered);
+}, 200));
+
+/* ── Cobrar desde tabla de pendientes ── */
+function cobrarDesdeTabla(cedula, nombre) {
+  document.getElementById('pago-search').value = cedula;
+  doSearch(cedula);
+  document.getElementById('form-pago').querySelector('#pago-monto').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Búsqueda de cliente ── */
+var doSearch = debounce(function(q) {
+  if (q.length < 2) { document.getElementById('pago-search-results').classList.add('d-none'); return; }
+  document.getElementById('pago-search-spinner').classList.remove('d-none');
+  apiGet(CONFIG.ENDPOINTS.personas, 'search', { q: q })
+    .then(function(data) { renderSearchList(Array.isArray(data) ? data : []); })
+    .catch(function() { document.getElementById('pago-search-results').classList.add('d-none'); })
+    .finally(function() { document.getElementById('pago-search-spinner').classList.add('d-none'); });
+}, 300);
+
+function renderSearchList(items) {
+  var wrap = document.getElementById('pago-search-results');
+  var list = document.getElementById('pago-search-list');
+  if (!items.length) { wrap.classList.add('d-none'); return; }
+  wrap.classList.remove('d-none');
+  list.innerHTML = items.map(function(p) {
+    return '<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2" ' +
+      'onclick="selectCliente(' + p.id + ',\'' + esc(p.nombre_completo) + '\',\'' + esc(p.identificacion) + '\',\'' + esc(p.tipo) + '\')">' +
+      '<div>' +
+        '<div class="fw-semibold small">' + esc(p.nombre_completo) + '</div>' +
+        '<code class="small">' + esc(p.identificacion) + '</code>' +
+      '</div>' +
+      '<span class="badge bg-secondary rounded-pill">' + esc(p.tipo) + '</span>' +
+    '</button>';
+  }).join('');
+}
+
+/* ── Seleccionar cliente ── */
+function selectCliente(id, nombre, cedula, tipo) {
+  pagoCliente = { id: id, nombre: nombre, cedula: cedula, tipo: tipo };
+  document.getElementById('pago-search-results').classList.add('d-none');
+  document.getElementById('pago-search').value = '';
+
+  document.getElementById('pago-cliente-avatar').textContent = (nombre.charAt(0)||'?').toUpperCase();
+  document.getElementById('pago-cliente-nombre').textContent = nombre;
+  document.getElementById('pago-cliente-cedula').textContent = cedula;
+  document.getElementById('pago-cliente-tipo').textContent   = tipo;
+  document.getElementById('pago-cliente-info').classList.remove('d-none');
+
+  document.getElementById('pago-resultado').classList.add('d-none');
+  document.getElementById('form-pago').reset();
+
+  loadFacturasPendientesCliente();
+}
+
+/* ── Cargar facturas pendientes del cliente ── */
+function loadFacturasPendientesCliente() {
+  document.getElementById('pago-facturas-section').classList.remove('d-none');
+  document.getElementById('pago-facturas-loading').classList.remove('d-none');
+  document.getElementById('pago-facturas-list').classList.add('d-none');
+  document.getElementById('pago-total-adeudado').classList.add('d-none');
+  document.getElementById('pago-sin-deuda').classList.add('d-none');
+  document.getElementById('pago-form-section').classList.add('d-none');
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'history', { persona_id: pagoCliente.id })
+    .then(function(data) {
+      facturasPendientes = (data.facturas || []).filter(function(f) { return !f.pagada; });
+      renderFacturasCliente(facturasPendientes);
+    })
+    .catch(function(err) {
+      document.getElementById('pago-facturas-loading').innerHTML = '<div class="text-danger small">' + esc(err.message) + '</div>';
+    })
+    .finally(function() {
+      document.getElementById('pago-facturas-loading').classList.add('d-none');
+    });
+}
+
+function renderFacturasCliente(facturas) {
+  var list = document.getElementById('pago-facturas-list');
+  if (!facturas.length) {
+    document.getElementById('pago-sin-deuda').classList.remove('d-none');
+    return;
+  }
+  var totalSaldo = facturas.reduce(function(acc, f) { return acc + parseFloat(f.saldo || 0); }, 0);
+
+  var sorted = facturas.slice().sort(function(a,b) { return new Date(a.fecha) - new Date(b.fecha); });
+  list.innerHTML = sorted.map(function(f, idx) {
+    var saldo = parseFloat(f.saldo || 0);
+    var total = parseFloat(f.total || 0);
+    var pct   = total > 0 ? Math.round((1 - saldo/total) * 100) : 0;
+    var aging = '';
+    if (f.fecha) {
+      var days = Math.floor((Date.now() - new Date(f.fecha).getTime()) / 86400000);
+      if (days > 60) aging = '<span class="badge bg-danger ms-1">' + days + 'd</span>';
+      else if (days > 30) aging = '<span class="badge bg-warning text-dark ms-1">' + days + 'd</span>';
+      else aging = '<span class="badge bg-secondary ms-1">' + days + 'd</span>';
+    }
+    var fifoTag = idx === 0 ? '<span class="badge ms-1" style="background:var(--brand-color);color:var(--brand-text);">FIFO</span>' : '';
+    return '<div class="p-3 mb-2 rounded d-flex justify-content-between align-items-start" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">' +
+      '<div>' +
+        '<div class="fw-semibold small">' + esc(f.numero) + fifoTag + aging + '</div>' +
+        '<div class="text-muted small">' + esc(f.tipo) + ' · ' + esc(f.fecha) + '</div>' +
+        '<div class="mt-1">' +
+          '<div class="progress" style="height:4px;width:140px;background:var(--app-border);">' +
+            '<div class="progress-bar bg-success" style="width:' + pct + '%"></div>' +
+          '</div>' +
+          '<div class="text-muted" style="font-size:.72rem;">Pagado ' + pct + '%</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="text-end">' +
+        '<div class="text-muted small text-decoration-line-through">' + fmt(total) + '</div>' +
+        '<div class="fw-bold" style="color:var(--danger-text);">' + fmt(saldo) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  list.classList.remove('d-none');
+  document.getElementById('pago-total-valor').textContent = fmt(totalSaldo);
+  document.getElementById('pago-total-adeudado').classList.remove('d-none');
+  document.getElementById('pago-form-section').classList.remove('d-none');
+
+  document.getElementById('pago-monto').value = totalSaldo.toFixed(2);
+  document.getElementById('pago-monto-hint').textContent = 'Máximo sugerido: ' + fmt(totalSaldo) + '. El sistema aplica el pago desde la factura más antigua (FIFO).';
+}
+
+/* ── Registrar pago ── */
+document.getElementById('form-pago').addEventListener('submit', function(e) {
+  e.preventDefault();
+  if (!pagoCliente) { showToast('Selecciona un cliente.', 'warning'); return; }
+  if (!currentInstId) { showToast('Selecciona una institución.', 'warning'); return; }
+
+  var monto      = parseFloat(document.getElementById('pago-monto').value);
+  var formaPago  = parseInt(document.getElementById('pago-forma').value);
+  var referencia = document.getElementById('pago-referencia').value.trim() || null;
+  var observacion= document.getElementById('pago-observacion').value.trim() || null;
+
+  if (monto <= 0) { showToast('El monto debe ser mayor a 0.', 'warning'); return; }
+
+  var btn = document.getElementById('btn-registrar-pago');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+
+  var body = {
+    persona:     pagoCliente.id,
+    forma_pago:  formaPago,
+    institucion: currentInstId,
+    monto:       monto,
+    referencia:  referencia,
+    observacion: observacion,
+  };
+
+  apiPost(CONFIG.ENDPOINTS.pagos, 'register', body)
+    .then(function(data) {
+      renderPagoResultado(data, monto);
+      loadFacturasPendientesCliente();
+      loadPendientes();
+      this.reset();
+    }.bind(this))
+    .catch(function(err) { showToast(err.message || 'Error al registrar pago.', 'danger'); })
+    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registrar Pago'; });
+});
+
+function renderPagoResultado(data, monto) {
+  var ventasSaldadas = (data.ventas_saldadas || []).map(function(v) {
+    return '<li class="small">Factura #' + esc(v.venta_id) + ' — aplicado: ' + fmt(v.monto_aplicado) +
+      (parseFloat(v.saldo_restante) > 0 ? ' · Restante: ' + fmt(v.saldo_restante) : ' ✓ Saldada') + '</li>';
+  }).join('');
+  var html =
+    '<div class="alert alert-success">' +
+      '<h6 class="fw-bold mb-2"><i class="bi bi-check-circle-fill me-2"></i>Pago registrado correctamente</h6>' +
+      '<div class="row g-2 small mb-2">' +
+        '<div class="col-sm-6"><strong>Nº pago:</strong> ' + esc(data.numero_pago) + '</div>' +
+        '<div class="col-sm-6"><strong>Monto aplicado:</strong> <span class="fw-bold">' + fmt(data.monto_aplicado) + '</span></div>' +
+        (parseFloat(data.saldo_restante) > 0
+          ? '<div class="col-12"><strong>Saldo sobrante:</strong> ' + fmt(data.saldo_restante) + '</div>'
+          : '') +
+      '</div>' +
+      (ventasSaldadas ? '<ul class="mb-0 ps-3">' + ventasSaldadas + '</ul>' : '') +
+    '</div>';
+  var res = document.getElementById('pago-resultado');
+  res.innerHTML = html;
+  res.classList.remove('d-none');
+  res.scrollIntoView({ behavior: 'smooth' });
+  showToast('Pago de ' + fmt(monto) + ' registrado.', 'success');
+}
+
+/* ── Cambiar cliente ── */
+document.getElementById('btn-cambiar-cliente').addEventListener('click', function() {
+  pagoCliente = null;
+  facturasPendientes = [];
+  document.getElementById('pago-cliente-info').classList.add('d-none');
+  document.getElementById('pago-facturas-section').classList.add('d-none');
+  document.getElementById('pago-form-section').classList.add('d-none');
+  document.getElementById('pago-resultado').classList.add('d-none');
+  document.getElementById('pago-search').focus();
+});
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+  loadInstitucionesSelect();
+
+  var inp = document.getElementById('pago-search');
+  inp.addEventListener('input', function() { doSearch(this.value.trim()); });
+
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.getElementById('pago-search-results').classList.add('d-none');
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -57,7 +57,7 @@ class MembresiaRepository
     $stmt->execute([':id' => $id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    return $row ? new Membresia($row['id'], $row['titulo'], $row['precio'], $row['porcentaje'], $row['descripcion'], $row['url_boton'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado']) : null;
+    return $row ? new Membresia($row['id'], $row['titulo'], $row['precio'], (float)$row['porcentaje'], $row['descripcion'] ?? '', $row['url_boton'] ?? '', $row['fecha_inicio'], $row['fecha_fin'], $row['estado']) : null;
   }
 
   public function findAll(): array
@@ -65,6 +65,6 @@ class MembresiaRepository
     $stmt = $this->db->query('SELECT * FROM membresias ORDER BY fecha_inicio DESC');
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    return array_map(fn($row) => new Membresia($row['id'], $row['titulo'], $row['precio'], $row['porcentaje'], $row['descripcion'], $row['url_boton'], $row['fecha_inicio'], $row['fecha_fin'], $row['estado']), $rows ?: []);
+    return array_map(fn($row) => new Membresia($row['id'], $row['titulo'], $row['precio'], (float)$row['porcentaje'], $row['descripcion'] ?? '', $row['url_boton'] ?? '', $row['fecha_inicio'], $row['fecha_fin'], $row['estado']), $rows ?: []);
   }
 }

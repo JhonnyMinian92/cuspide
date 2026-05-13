@@ -219,7 +219,7 @@ final class MatriculaServices implements MatriculaServiceInterface
                 $this->claseMatRepo->save($claseMatEntity);
 
                 // Fetch clase price
-                $stmtPrice = $db->prepare('SELECT nombre, precio FROM clases WHERE id = :id LIMIT 1');
+                $stmtPrice = $db->prepare('SELECT nombre FROM clases WHERE id = :id LIMIT 1');
                 $stmtPrice->execute([':id' => $claseId]);
                 $claseRow = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
                 $precio   = $claseRow ? (float) ($claseRow['precio'] ?? 0) : 0.0;
