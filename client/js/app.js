@@ -255,91 +255,88 @@ function resolveMenuHref(item) {
   return '#';
 }
 
-function resolveMenuIcon(icon, routeKey) {
-  var iconsByRoute = {
-    dashboard:      'house-fill',
-    alumnos:        'people-fill',
-    personas:       'person-lines-fill',
-    membresias:     'credit-card-fill',
-    matriculas:     'journal-check',
-    pagos:          'cash-coin',
-    cobros:         'cash-coin',
-    facturas:       'receipt',
-    cuentascobrar:      'currency-dollar',
-    'cuentas-x-cobrar': 'currency-dollar',
-    asignaturas:    'book-fill',
-    actividades:    'trophy-fill',
-    deportes:       'trophy-fill',
-    inventario:     'box-seam-fill',
-    productos:      'bag-fill',
-    ventas:         'cart-fill',
-    horarios:       'calendar3-fill',
-    instituciones:  'building-fill',
-    usuarios:       'shield-lock-fill',
-    categorias:     'tags-fill',
-    configuracion:  'gear-fill',
-    perfil:         'person-circle',
-    asistencias:    'clipboard-check-fill',
-  };
+/**
+ * buildMenuIconHtml — usa SIEMPRE el icono que devuelve el backend
+ * (campo `icon`/`icono` en la respuesta de /buttom?api=menu).
+ * Acepta los formatos comunes guardados en la tabla `botones`:
+ *   - "bi-house-fill"        → <i class="bi bi-house-fill"></i>
+ *   - "bi bi-house-fill"     → <i class="bi bi-house-fill"></i>
+ *   - "fa-home" / "fas fa-x" → <i class="fa fa-home"></i>
+ *   - "house-fill"           → <i class="bi bi-house-fill"></i>  (default a Bootstrap Icons)
+ * Si la BD no envía icono se cae a "bi-circle" para no romper la fila.
+ */
+function buildMenuIconHtml(rawIcon) {
+  var icon = String(rawIcon == null ? '' : rawIcon).trim();
 
-  var iconKey = String(icon || '')
-    .trim()
-    .replace(/\b(bi|fa|fas|far|icon)\b/g, '')
-    .replace(/\s+/g, ' ');
-  iconKey = normalizeRouteKey(iconKey).replace(/^bi-/, '').replace(/^fa-/, '');
-  if (iconKey && /^[a-z0-9-]+$/.test(iconKey)) {
-    var iconAliases = {
-      home: 'house-fill',
-      house: 'house-fill',
-      user: 'person-fill',
-      users: 'people-fill',
-      people: 'people-fill',
-      money: 'cash-coin',
-      dollar: 'currency-dollar',
-      invoice: 'receipt',
-      calendar: 'calendar3-fill',
-      school: 'book-fill',
-      sport: 'trophy-fill',
-      settings: 'gear-fill',
-      config: 'gear-fill',
-    };
-    return iconAliases[iconKey] || iconKey;
+  if (!icon) {
+    return '<i class="bi bi-circle me-2"></i>';
   }
 
-  return iconsByRoute[routeKey] || iconsByRoute[normalizeRouteKey(routeKey).replace(/-/g, '')] || 'circle';
+  // Ya viene con clases compuestas ("bi bi-x", "fas fa-x", etc.)
+  if (/\s/.test(icon)) {
+    return '<i class="' + escapeHtml(icon) + ' me-2"></i>';
+  }
+
+  // Prefijo Bootstrap Icons
+  if (icon.indexOf('bi-') === 0) {
+    return '<i class="bi ' + escapeHtml(icon) + ' me-2"></i>';
+  }
+
+  // Prefijo Font Awesome
+  if (icon.indexOf('fa-') === 0) {
+    return '<i class="fa ' + escapeHtml(icon) + ' me-2"></i>';
+  }
+
+  // Nombre suelto → asumir Bootstrap Icons
+  return '<i class="bi bi-' + escapeHtml(icon) + ' me-2"></i>';
+}
+
+function clearMenuLoadingState(menuEl) {
+  if (!menuEl) return;
+  menuEl.classList.remove('sidebar-menu-loading');
+  menuEl.removeAttribute('aria-busy');
 }
 
 async function loadMenu() {
+  var menuEl = document.getElementById('sidebar-menu');
+
   try {
     const items = await Cuspide.api.menu();
 
-    if (!Array.isArray(items) || items.length === 0) return;
-
-    var menuEl = document.getElementById('sidebar-menu');
     if (!menuEl) return;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      menuEl.innerHTML = '<li class="nav-item"><span class="nav-link text-muted small">Sin opciones disponibles</span></li>';
+      clearMenuLoadingState(menuEl);
+      return;
+    }
 
     var currentPath = resolveRouteAlias(window.location.pathname) || window.location.pathname;
 
     var rendered = items
+      .slice()
       .sort(function (a, b) { return (a.orden || 0) - (b.orden || 0); })
       .map(function (item) {
         var href = resolveMenuHref(item);
-        var rawRoute = normalizeRouteKey(href.replace(/^\//, '') || item.nombre);
-        var icon = resolveMenuIcon(item.icon || item.icono, rawRoute);
+        var iconHtml = buildMenuIconHtml(item.icon || item.icono);
         var isActive = currentPath === href ? 'active' : '';
         var label = escapeHtml(item.nombre || 'Opción');
 
         return '<li class="nav-item">' +
           '<a class="nav-link ' + isActive + '" href="' + escapeHtml(href) + '">' +
-          '<i class="bi bi-' + escapeHtml(icon) + ' me-2"></i>' + label +
+          iconHtml + label +
           '</a></li>';
       })
       .join('');
 
     menuEl.innerHTML = rendered;
+    clearMenuLoadingState(menuEl);
 
   } catch (err) {
-    // Si falla, se mantiene el menú estático del Twig
+    if (menuEl) {
+      menuEl.innerHTML = '<li class="nav-item"><span class="nav-link text-muted small">No se pudo cargar el menú</span></li>';
+      clearMenuLoadingState(menuEl);
+    }
   }
 }
 
