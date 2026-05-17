@@ -13,79 +13,16 @@
     <div class="brand-name" id="sidebar-institucion-nombre">Huaquillas<br>Fútbol Club</div>
   </div>
 
-  <!-- Navegación dinámica: se renderiza via loadMenu() en app.js -->
-  <ul class="nav flex-column py-2 flex-grow-1" id="sidebar-menu">
-    <!-- Menú estático de respaldo; será reemplazado por app.js -->
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'dashboard' %}active{% endif %}" href="/dashboard">
-        <i class="bi bi-house-fill me-2"></i>Dashboard
-      </a>
+  <!-- Navegación dinámica: se renderiza via loadMenu() en app.js.
+       Mientras llega la respuesta del backend se muestra un skeleton
+       (evita el flash del menú estático completo). -->
+  <ul class="nav flex-column py-2 flex-grow-1 sidebar-menu-loading" id="sidebar-menu" aria-busy="true">
+    {% for i in 1..8 %}
+    <li class="nav-item sidebar-skeleton-item" aria-hidden="true">
+      <span class="sidebar-skeleton-icon"></span>
+      <span class="sidebar-skeleton-text"></span>
     </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'personas' %}active{% endif %}" href="/personas">
-        <i class="bi bi-person-lines-fill me-2"></i>Personas
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'matriculas' %}active{% endif %}" href="/matriculas">
-        <i class="bi bi-journal-check me-2"></i>Matrículas
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'pagos' %}active{% endif %}" href="/pagos">
-        <i class="bi bi-cash-coin me-2"></i>Pagos
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'facturas' %}active{% endif %}" href="/facturas">
-        <i class="bi bi-receipt me-2"></i>Facturas
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'cuentascobrar' %}active{% endif %}" href="/cuentascobrar">
-        <i class="bi bi-currency-dollar me-2"></i>Cuentas x Cobrar
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'asignaturas' %}active{% endif %}" href="/asignaturas">
-        <i class="bi bi-book-fill me-2"></i>Asignaturas
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'actividades' %}active{% endif %}" href="/actividades">
-        <i class="bi bi-trophy-fill me-2"></i>Actividades
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'horarios' %}active{% endif %}" href="/horarios">
-        <i class="bi bi-calendar3-fill me-2"></i>Horarios
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'productos' %}active{% endif %}" href="/productos">
-        <i class="bi bi-bag-fill me-2"></i>Productos
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'ventas' %}active{% endif %}" href="/ventas">
-        <i class="bi bi-cart-fill me-2"></i>Ventas
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'instituciones' %}active{% endif %}" href="/instituciones">
-        <i class="bi bi-building-fill me-2"></i>Instituciones
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'usuarios' %}active{% endif %}" href="/usuarios">
-        <i class="bi bi-shield-lock-fill me-2"></i>Usuarios
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if currentPage == 'configuracion' %}active{% endif %}" href="/configuracion">
-        <i class="bi bi-person-circle me-2"></i>Perfil
-      </a>
-    </li>
+    {% endfor %}
   </ul>
 
   <!-- Footer del sidebar: muestra nombre del usuario (cargado via loadUserProfile() en app.js) -->
