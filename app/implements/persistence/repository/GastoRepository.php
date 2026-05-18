@@ -48,21 +48,51 @@ class GastoRepository
     return $row ? $this->map($row) : null;
   }
 
-  public function findByInstitucion(int $institucionId, int $limit = 50): array
+  public function findByInstitucion(int $institucionId, array $filters): array
   {
-    $stmt = $this->db->prepare(
-      "SELECT g.*,
+    $limit = (int) ($filters['limit'] ?? 20);
+    $page = (int) ($filters['page'] ?? 1);
+    $offset = ($page - 1) * $limit;
+    $fechaInicio = $filters['fecha_inicio'] ?? null;
+    $fechaFin = $filters['fecha_fin'] ?? null;
+
+    $whereClauses = ['g.institucion = :inst', 'g.estado = 1'];
+    $params = [':inst' => $institucionId];
+
+    if ($fechaInicio) {
+      $whereClauses[] = 'g.fecha >= :fecha_inicio';
+      $params[':fecha_inicio'] = $fechaInicio;
+    }
+    if ($fechaFin) {
+      $whereClauses[] = 'g.fecha <= :fecha_fin';
+      $params[':fecha_fin'] = $fechaFin . ' 23:59:59';
+    }
+
+    $whereSql = implode(' AND ', $whereClauses);
+
+    $countSql = "SELECT COUNT(*) FROM gastos g WHERE $whereSql";
+    $countStmt = $this->db->prepare($countSql);
+    $countStmt->execute($params);
+    $totalItems = (int) $countStmt->fetchColumn();
+
+    $itemsSql = "SELECT g.*,
               CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.primer_apellido,'')) AS nombre_persona
        FROM gastos g
        LEFT JOIN personas p ON p.id = g.persona
-       WHERE g.institucion = :inst AND g.estado = 1
-       ORDER BY g.fecha DESC
-       LIMIT :lim"
-    );
-    $stmt->bindValue(':inst', $institucionId, PDO::PARAM_INT);
-    $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+       WHERE $whereSql
+       ORDER BY g.fecha DESC, g.id DESC
+       LIMIT :limit OFFSET :offset";
+
+    $itemsStmt = $this->db->prepare($itemsSql);
+    foreach ($params as $key => $val) {
+      $itemsStmt->bindValue($key, $val);
+    }
+    $itemsStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $itemsStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $itemsStmt->execute();
+    $items = $itemsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    return ['items' => $items, 'total' => $totalItems];
   }
 
   public function sumByInstitucionAndMonth(int $institucionId, int $year, int $month): float
@@ -96,9 +126,17 @@ class GastoRepository
   private function map(array $row): Gasto
   {
     return new Gasto(
-      $row['id'], $row['numero'], $row['fecha'], $row['descripcion'],
-      $row['tipo_gasto'], (float) $row['monto'], $row['institucion'],
-      $row['persona'] ?? null, $row['referencia'] ?? null, $row['observacion'] ?? null, $row['estado']
+      $row['id'],
+      $row['numero'],
+      $row['fecha'],
+      $row['descripcion'],
+      $row['tipo_gasto'],
+      (float) $row['monto'],
+      $row['institucion'],
+      $row['persona'] ?? null,
+      $row['referencia'] ?? null,
+      $row['observacion'] ?? null,
+      $row['estado']
     );
   }
 }

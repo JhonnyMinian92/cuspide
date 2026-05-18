@@ -49,23 +49,36 @@ final class GastoServices implements GastoServiceInterface
 
     private function fetchGastos(int $instId, array $queryParams): array
     {
-        $repo  = new GastoRepository();
-        $limit = (int) ($queryParams['limit'] ?? 50);
-        $rows  = $repo->findByInstitucion($instId, $limit);
+        $repo = new GastoRepository();
+        $filters = [
+            'limit'        => (int) ($queryParams['limit'] ?? 20),
+            'page'         => (int) ($queryParams['page'] ?? 1),
+            'fecha_inicio' => !empty($queryParams['fecha_inicio']) ? (string) $queryParams['fecha_inicio'] : null,
+            'fecha_fin'    => !empty($queryParams['fecha_fin']) ? (string) $queryParams['fecha_fin'] : null,
+        ];
 
-        return array_map(fn($r) => [
-            'id'           => (int) $r['id'],
-            'numero'       => $r['numero'],
-            'fecha'        => $r['fecha'],
-            'descripcion'  => $r['descripcion'],
-            'tipo_gasto'   => $r['tipo_gasto'],
-            'monto'        => (float) $r['monto'],
-            'referencia'   => $r['referencia'] ?? null,
-            'observacion'  => $r['observacion'] ?? null,
-            'persona_id'   => isset($r['persona']) ? (int) $r['persona'] : null,
-            'nombre_persona' => $r['nombre_persona'] ?? null,
-            'estado'       => (int) $r['estado'],
-        ], $rows);
+        $result = $repo->findByInstitucion($instId, $filters);
+        $items = $result['items'];
+        $totalItems = $result['total'];
+
+        return [
+            'items' => array_map(fn($r) => [
+                'id'           => (int) $r['id'],
+                'numero'       => $r['numero'],
+                'fecha'        => $r['fecha'],
+                'descripcion'  => $r['descripcion'],
+                'tipo_gasto'   => $r['tipo_gasto'],
+                'monto'        => (float) $r['monto'],
+                'referencia'   => $r['referencia'] ?? null,
+                'observacion'  => $r['observacion'] ?? null,
+                'persona_id'   => isset($r['persona']) ? (int) $r['persona'] : null,
+                'nombre_persona' => $r['nombre_persona'] ?? null,
+                'estado'       => (int) $r['estado'],
+            ], $items),
+            'totalItems'  => $totalItems,
+            'totalPages'  => (int) ceil($totalItems / $filters['limit']),
+            'currentPage' => $filters['page'],
+        ];
     }
 
     private function saveGasto(?int $id, int $instId, int $userId): array
