@@ -1,44 +1,30 @@
 <?php
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Max-Age: 3600");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-declare(strict_types=1);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 require_once __DIR__ . '/../../../implements/services/ContratoServices.php';
 
-use Services\ContratoServices;
-
-header('Content-Type: application/json; charset=utf-8');
-
-$method  = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$allowed = ['GET', 'POST', 'PUT'];
-
-if (!in_array($method, $allowed, true)) {
-    http_response_code(405);
-    echo json_encode(['status' => 'error', 'data' => null, 'message' => 'Método HTTP no permitido.'], JSON_UNESCAPED_UNICODE);
-    exit;
-}
+$method = $_SERVER['REQUEST_METHOD'];
+$queryParams = $_GET;
+$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 
 try {
-    $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if ($auth === '' && function_exists('getallheaders')) {
-        $headers = getallheaders();
-        $auth    = (string) ($headers['Authorization'] ?? $headers['authorization'] ?? '');
-    }
-
-    $service = new ContratoServices();
-    $result  = $service->processRequest(
-        $method,
-        (string) ($_SERVER['REQUEST_URI'] ?? ''),
-        $_GET,
-        $auth
-    );
-
-    echo json_encode(['status' => 'success', 'data' => $result, 'message' => 'OK.'], JSON_UNESCAPED_UNICODE);
-
+    $service = new \Services\ContratoServices();
+    $result = $service->processRequest($method, $queryParams, $authHeader);
+    http_response_code(200);
+    echo json_encode($result);
 } catch (\RuntimeException $e) {
-    $code = in_array($e->getCode(), [400, 401, 403, 404, 405, 500], true) ? $e->getCode() : 400;
-    http_response_code($code);
-    echo json_encode(['status' => 'error', 'data' => null, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
-} catch (\Throwable $e) {
+    http_response_code($e->getCode() > 0 ? $e->getCode() : 400);
+    echo json_encode(['error' => $e->getMessage()]);
+} catch (\Exception $e) {
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'data' => null, 'message' => 'Error interno: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['error' => 'Ocurrió un error inesperado en el servidor.']);
 }

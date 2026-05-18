@@ -5,6 +5,13 @@
 {% block page_title %}Contratos de Empleados{% endblock %}
 
 {% block content %}
+<!-- Acceso rápido -->
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="/empleados" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-person-badge me-1"></i>Gestionar Empleados
+  </a>
+</div>
+
 <style>
 .toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
 .toast-notification.show{opacity:1;transform:translateX(0);}
@@ -76,12 +83,7 @@
         <div class="col-md-6">
           <label class="form-label fw-semibold">Nivel / Cargo</label>
           <select class="form-select" id="c-nivel">
-            <option value="0">Sin nivel especificado</option>
-            <option value="1">Nivel 1 — Asistente</option>
-            <option value="2">Nivel 2 — Técnico</option>
-            <option value="3">Nivel 3 — Entrenador</option>
-            <option value="4">Nivel 4 — Coordinador</option>
-            <option value="5">Nivel 5 — Director</option>
+            <option value="0">Cargando niveles...</option>
           </select>
         </div>
       </div>
@@ -220,6 +222,29 @@ function editarContrato(id) {
   document.getElementById('form-contrato-card').scrollIntoView({ behavior: 'smooth' });
 }
 
+/* ── Cargar niveles ── */
+async function loadNiveles() {
+  var sel = document.getElementById('c-nivel');
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.contratos, 'niveles', null, null);
+    nivelesList = Array.isArray(data) ? data : [];
+    populateNivelesSelect(nivelesList);
+  } catch (err) {
+    sel.innerHTML = '<option value="0">Error al cargar niveles</option>';
+  }
+}
+
+function populateNivelesSelect(items) {
+  var sel = document.getElementById('c-nivel');
+  sel.innerHTML = '<option value="0">Sin nivel especificado</option>';
+  items.forEach(function(n) {
+    var opt = document.createElement('option');
+    opt.value = n.id;
+    opt.textContent = n.nombre;
+    sel.appendChild(opt);
+  });
+}
+
 /* ── Abrir/Cerrar formulario ── */
 function mostrarFormContrato() {
   document.getElementById('contrato-id').value    = '';
@@ -275,12 +300,14 @@ document.getElementById('form-contrato').addEventListener('submit', async functi
   var fin       = document.getElementById('c-fecha-fin').value;
   if (!personaId) { showToast('Selecciona un empleado.', 'warning'); return; }
   if (!inicio || !fin) { showToast('Las fechas de inicio y fin son obligatorias.', 'warning'); return; }
+  var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
   var body = {
     persona_id:        personaId,
     fecha_inscripcion: document.getElementById('c-fecha-insc').value || new Date().toISOString().slice(0,10),
     fecha_inicio:      inicio,
     fecha_fin:         fin,
     nivel:             parseInt(document.getElementById('c-nivel').value) || 0,
+    institucion:       institucionId
   };
   var btn = document.getElementById('btn-submit-contrato');
   btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
@@ -301,6 +328,7 @@ document.getElementById('form-contrato').addEventListener('submit', async functi
 document.addEventListener('DOMContentLoaded', function() {
   checkAuth();
   loadContratos();
+  loadNiveles();
   document.getElementById('btn-nuevo-contrato').addEventListener('click', mostrarFormContrato);
   document.getElementById('btn-cerrar-form-contrato').addEventListener('click', cerrarFormContrato);
   document.getElementById('btn-cancelar-contrato').addEventListener('click', cerrarFormContrato);

@@ -18,41 +18,23 @@ class NivelRepository
     $this->db = Database::getInstance();
   }
 
-  public function save(Nivel $nivel): Nivel
-  {
-    if ($nivel->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO nivel (nemonico, nombre) VALUES (:nemonico, :nombre)");
-      $stmt->execute([
-        ':nemonico' => $nivel->getNemonico(),
-        ':nombre' => $nivel->getNombre(),
-      ]);
-      $nivel->setId($this->db->lastInsertId());
-    } else {
-      $stmt = $this->db->prepare("UPDATE nivel SET nemonico = :nemonico, nombre = :nombre WHERE id = :id");
-      $stmt->execute([
-        ':id' => $nivel->getId(),
-        ':nemonico' => $nivel->getNemonico(),
-        ':nombre' => $nivel->getNombre(),
-      ]);
-    }
-
-    return $nivel;
-  }
-
   public function findById(int $id): ?Nivel
   {
     $stmt = $this->db->prepare('SELECT * FROM nivel WHERE id = :id');
     $stmt->execute([':id' => $id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return $row ? new Nivel($row['id'], $row['nemonico'], $row['nombre']) : null;
+    return $row ? $this->map($row) : null;
   }
 
   public function findAll(): array
   {
-    $stmt = $this->db->query('SELECT * FROM nivel ORDER BY nombre ASC');
+    $stmt = $this->db->query('SELECT * FROM nivel ORDER BY id ASC');
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return array_map(fn($row) => $this->map($row), $rows ?: []);
+  }
 
-    return array_map(fn($row) => new Nivel($row['id'], $row['nemonico'], $row['nombre']), $rows ?: []);
+  private function map(array $row): Nivel
+  {
+    return new Nivel((int)$row['id'], $row['nombre']);
   }
 }

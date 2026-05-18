@@ -5,7 +5,7 @@ namespace Entitys;
 require_once __DIR__ . '/../repository/ContratoRepository.php';
 require_once __DIR__ . '/Persona.php';
 require_once __DIR__ . '/Institucion.php';
-require_once __DIR__ . '/Nivel.php';
+require_once __DIR__ . '/NivelAcademico.php';
 
 class Contrato
 {
@@ -28,35 +28,65 @@ class Contrato
     $this->persona = $this->extractId($persona);
   }
 
-  public function getId(): ?int { return $this->id; }
-  public function getFechaInscripcion(): string { return $this->fecha_inscripcion; }
-  public function getFechaInicio(): string { return $this->fecha_inicio; }
-  public function getFechaFin(): string { return $this->fecha_fin; }
-  public function getNivel(): ?Nivel { return Nivel::from($this->nivel); }
-  public function getInstitucion(): ?Institucion { return Institucion::from($this->institucion); }
-  public function getPersona(): ?Persona { return Persona::from($this->persona); }
-
-  public function setId(?int $id): void { $this->id = $id; }
-  public function setFechaInscripcion(string $v): void { $this->fecha_inscripcion = $v; }
-  public function setFechaInicio(string $v): void { $this->fecha_inicio = $v; }
-  public function setFechaFin(string $v): void { $this->fecha_fin = $v; }
-  public function setNivel(mixed $v): void { $this->nivel = $this->extractId($v); }
-  public function setInstitucion(mixed $v): void { $this->institucion = $this->extractId($v); }
-  public function setPersona(mixed $v): void { $this->persona = $this->extractId($v); }
-
-  private function extractId(mixed $value): int
+  public function getId(): ?int
   {
-    if (is_object($value) && method_exists($value, 'getId')) return $value->getId();
+    return $this->id;
+  }
+
+  public function getFechaInscripcion(): string
+  {
+    return $this->fecha_inscripcion;
+  }
+
+  public function getFechaInicio(): string
+  {
+    return $this->fecha_inicio;
+  }
+
+  public function getFechaFin(): string
+  {
+    return $this->fecha_fin;
+  }
+
+  public function getNivel(): ?NivelAcademico
+  {
+    return $this->nivel === 0 ? null : NivelAcademico::from($this->nivel);
+  }
+
+  public function getInstitucion(): ?Institucion
+  {
+    return $this->institucion === 0 ? null : Institucion::from($this->institucion);
+  }
+
+  public function getPersona(): ?Persona
+  {
+    return $this->persona === 0 ? null : Persona::from($this->persona);
+  }
+
+  public function setId(?int $id): void
+  {
+    $this->id = $id;
+  }
+
+  private function extractId(mixed $value): ?int
+  {
+    if ($value === null) {
+      return null;
+    }
+    if (is_object($value) && method_exists($value, 'getId')) {
+      return $value->getId();
+    }
     return (int) $value;
   }
 
   public static function from(int $id): ?self
   {
+    if ($id === 0) return null;
     try {
       $repo = new \Repositories\ContratoRepository();
-      $entity = $repo->findById($id);
-      if ($entity) return $entity;
-    } catch (\Exception $e) {}
-    return new self($id, '', '', '', 0, 0, 0);
+      return $repo->findById($id);
+    } catch (\Exception $e) {
+      return null;
+    }
   }
 }
