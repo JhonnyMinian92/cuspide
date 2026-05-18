@@ -227,17 +227,27 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     tbody.innerHTML = ventas.map(function(v) {
-      var pagada = parseFloat(v.saldo || 0) <= 0;
+      let estadoBadgeHtml = '';
+      let accionesHtml = '';
+
+      if (v.estado === 2) { // Anulada
+        estadoBadgeHtml = '<span class="badge bg-danger">Anulada</span>';
+        accionesHtml = '<button type="button" class="btn btn-sm btn-outline-info" onclick="verDetalleVenta(' + v.id + ')"><i class="bi bi-eye me-1"></i>Ver</button>';
+      } else { // Activa (Pagada o Pendiente)
+        const pagada = parseFloat(v.saldo || 0) <= 0;
+        estadoBadgeHtml = '<span class="badge ' + (pagada ? 'bg-success' : 'bg-warning text-dark') + '">' + (pagada ? 'Pagada' : 'Pendiente') + '</span>';
+        accionesHtml = '<button type="button" class="btn btn-sm btn-outline-info" onclick="verDetalleVenta(' + v.id + ')"><i class="bi bi-eye me-1"></i>Ver</button> ' +
+                       '<button type="button" class="btn btn-sm btn-outline-danger" onclick="anularVenta(' + v.id + ')"><i class="bi bi-trash me-1"></i>Anular</button>';
+      }
+
       return '<tr>' +
         '<td><code>' + esc(v.numero) + '</code><br><small class="text-muted">' + esc(v.fecha.substring(0, 10)) + '</small></td>' +
         '<td>' + esc(v.nombre) + '<br><small class="text-muted">' + esc(v.identificacion) + '</small></td>' +
         '<td>' + esc(v.tipo) + '</td>' +
         '<td class="text-end fw-bold">' + money(v.total) + '</td>' +
-        '<td class="text-end ' + (pagada ? 'text-success' : 'text-warning') + '">' + money(v.saldo) + '</td>' +
-        '<td class="text-center"><span class="badge ' + (pagada ? 'bg-success' : 'bg-warning text-dark') + '">' + (pagada ? 'Pagada' : 'Pendiente') + '</span></td>' +
-        '<td class="text-end"><button type="button" class="btn btn-sm btn-outline-info" onclick="verDetalleVenta(' + v.id + ')">' +
-          '<i class="bi bi-eye me-1"></i>Ver' +
-        '</button></td>' +
+        '<td class="text-end ' + (parseFloat(v.saldo || 0) <= 0 ? 'text-success' : 'text-warning') + '">' + money(v.saldo) + '</td>' +
+        '<td class="text-center">' + estadoBadgeHtml + '</td>' +
+        '<td class="text-end">' + accionesHtml + '</td>' +
       '</tr>';
     }).join('');
   }
@@ -431,6 +441,20 @@ document.addEventListener('DOMContentLoaded', function() {
   loadInitialData();
   renderCart();
 });
+
+async function anularVenta(ventaId) {
+  if (!confirm('¿Estás seguro de que deseas anular esta venta? Esta acción no se puede deshacer, anulará los pagos asociados y revertirá el stock de los productos.')) {
+    return;
+  }
+  try {
+    showToast('Anulando venta...', 'info');
+    await api('POST', 'ventas', 'cancel', null, { id: ventaId });
+    showToast('Venta anulada correctamente.', 'success');
+    loadVentas(currentFilters.page); // Recargar la página actual
+  } catch (err) {
+    showToast(err.message || 'Error al anular la venta.', 'error');
+  }
+}
 
 async function verDetalleVenta(ventaId) {
   var modalBody = document.getElementById('modal-detalle-body');

@@ -47,9 +47,11 @@ class VentaServices
     private ProductoRepository            $productoRepo;
     private FormaPagoRepository           $formaPagoRepo;
     private array                         $security;
+    private \PDO                          $db;
 
     public function __construct()
     {
+        $this->db             = Database::getInstance();
         $this->ventaRepo      = new VentaRepository();
         $this->detalleRepo    = new VentaDetalleRepository();
         $this->pagoRepo       = new PagoRepository();
@@ -89,6 +91,12 @@ class VentaServices
 
             case $method === 'POST' && $resource === 'create':
                 return $this->createVenta();
+
+            case $method === 'POST' && $resource === 'cancel':
+                if (empty($queryParams['id'])) {
+                    throw new \RuntimeException('El parámetro id es requerido.', 400);
+                }
+                return $this->cancelVenta((int)$queryParams['id']);
 
             case $method === 'GET' && $resource === 'formas_pago':
                 return $this->fetchFormasPago();
@@ -396,6 +404,79 @@ class VentaServices
             'total'  => $total,
             'saldo'  => $saldo,
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // cancelVenta
+    // -------------------------------------------------------------------------
+    private function cancelVenta(int $ventaId): array
+    {
+        $venta = $this->ventaRepo->findById($ventaId);
+        if (!$venta) {
+            throw new \RuntimeException('Venta no encontrada.', 404);
+        }
+        if ($venta->getEstado()?->getId() !== 1) { // 1 = Activo
+            throw new \RuntimeException('La venta ya ha sido anulada.', 409);
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            // 1. Revertir stock de cada item
+            $detalles = $this->detalleRepo->findByVenta($ventaId);
+            foreach ($detalles as $detalle) {
+                $producto = $detalle->getProducto();
+                if ($producto && $producto->getControlaStock()) {
+                    $institucionId = (int) $venta->getInstitucion()->getId();
+                    $productoId = (int) $producto->getId();
+                    $cantidadDevuelta = (float) $detalle->getCantidad();
+
+                    // Actualizar inventario
+                    $inv = $this->inventarioRepo->findByProductoAndInstitucion($productoId, $institucionId);
+                    if ($inv) {
+                        $stockAnterior = $inv->getStockActual();
+                        $stockNuevo = $stockAnterior + $cantidadDevuelta;
+                        $inv->setStockActual($stockNuevo);
+                        $inv->setFechaActualizacion(date('Y-m-d H:i:s'));
+                        $this->inventarioRepo->save($inv);
+                    } else {
+                        // Este caso es improbable si se realizó una venta, pero por seguridad...
+                        $stockAnterior = 0.0;
+                        $stockNuevo = $cantidadDevuelta;
+                    }
+
+                    // Registrar el movimiento de inventario
+                    $movimiento = new MovimientoInventario(
+                        null,
+                        $productoId,
+                        null,
+                        $institucionId,
+                        'ENTRADA', // O 'DEVOLUCION'
+                        $cantidadDevuelta,
+                        $stockAnterior,
+                        $stockNuevo,
+                        $venta->getNumero(),
+                        date('Y-m-d H:i:s'),
+                        'Anulación de Venta ' . $venta->getNumero()
+                    );
+                    $this->movimientoRepo->save($movimiento);
+                }
+            }
+
+            // 2. Anular pagos asociados
+            $stmtPagos = $this->db->prepare('UPDATE pagos SET estado = 2 WHERE venta = :venta_id');
+            $stmtPagos->execute([':venta_id' => $ventaId]);
+
+            // 3. Anular la venta (actualiza estado y pone saldo a 0)
+            $this->ventaRepo->cancel($ventaId);
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw new \RuntimeException('Error al anular la venta: ' . $e->getMessage(), 500);
+        }
+
+        return ['id' => $ventaId, 'status' => 'ANULADO'];
     }
 
     // -------------------------------------------------------------------------

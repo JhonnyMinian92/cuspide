@@ -169,7 +169,8 @@ class VentaRepository
 
   public function cancel(int $id): void
   {
-    $stmt = $this->db->prepare('UPDATE ventas SET estado = 2 WHERE id = :id');
+    // Also sets saldo to 0, which is logical for a cancelled sale.
+    $stmt = $this->db->prepare('UPDATE ventas SET estado = 2, saldo = 0 WHERE id = :id');
     $stmt->execute([':id' => $id]);
   }
 
