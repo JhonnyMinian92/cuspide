@@ -83,6 +83,11 @@ final class GastoServices implements GastoServiceInterface
         $referencia  = isset($body['referencia'])  && $body['referencia']  !== '' ? (string) $body['referencia']  : null;
         $observacion = isset($body['observacion']) && $body['observacion'] !== '' ? (string) $body['observacion'] : null;
         $personaId   = isset($body['persona_id']) && $body['persona_id'] > 0 ? (int) $body['persona_id'] : null;
+        $persona = (new PersonaRepository())->findByUserId($userId);
+        if ($persona === null) {
+            throw new RuntimeException('No se encontró persona asociada al usuario para registrar el gasto.', 404);
+        }
+        $personaId = (int) $persona->getId();
         $estado      = (int) ($body['estado'] ?? 1);
 
         if ($fecha === '' || $descripcion === '' || $tipoGasto === '') {

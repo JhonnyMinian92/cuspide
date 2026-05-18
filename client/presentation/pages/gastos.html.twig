@@ -219,7 +219,7 @@ function editarGasto(id) {
   var g = gastosList.find(function(x) { return x.id == id; });
   if (!g) return;
   document.getElementById('gasto-id').value    = g.id;
-  document.getElementById('g-fecha').value     = g.fecha;
+  document.getElementById('g-fecha').value     = g.fecha ? g.fecha.substring(0, 10) : '';
   document.getElementById('g-tipo').value      = g.tipo_gasto;
   document.getElementById('g-monto').value     = g.monto;
   document.getElementById('g-descripcion').value = g.descripcion;
