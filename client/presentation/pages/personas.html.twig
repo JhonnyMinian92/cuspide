@@ -1,31 +1,59 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'personas' %}
-{% block title %}Empleados — SportAdmin{% endblock %}
-{% block page_title %}Empleados{% endblock %}
+{% block title %}Personal — SportAdmin{% endblock %}
+{% block page_title %}Gestión de Personal{% endblock %}
 
 {% block content %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+.dynamic-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem;}
+.dynamic-row input{flex:1;}
+#persona-tabs{border-bottom:1px solid var(--card-border,#dee2e6);}
+#persona-tabs .nav-link{color:var(--app-text,#495057);opacity:.65;border:none;border-bottom:2px solid transparent;border-radius:0;padding:.65rem 1.1rem;font-size:.88rem;transition:opacity .15s,border-color .15s;}
+#persona-tabs .nav-link:hover:not(.active){opacity:1;}
+#persona-tabs .nav-link.active{color:var(--brand-color,#e8b84b);opacity:1;border-bottom-color:var(--brand-color,#e8b84b);background:transparent;font-weight:600;}
+.tab-content>.tab-pane{padding:1.25rem 0 .25rem;}
+</style>
 
-<!-- Resumen Empleados -->
-<div class="row g-4 mb-4">
-  <div class="col-12 col-sm-6 col-xl-3">
-    <div class="card stat-card text-white" style="background:#1a2235;">
-      <div class="card-body d-flex align-items-center justify-content-between">
-        <div>
-          <div class="stat-label">Total Empleados</div>
-          <div class="stat-value" id="stat-empleados">—</div>
+<!-- Barra superior -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mb-4">
+      <div>
+        <h6 class="fw-bold mb-1">Personal Registrado</h6>
+        <p class="text-muted small mb-0">Total: <strong id="personas-count">—</strong> empleados activos en tu institución.</p>
+      </div>
+      <div class="d-flex gap-2 flex-shrink-0">
+        <button type="button" class="btn btn-brand" id="btn-nuevo-empleado">
+          <i class="bi bi-person-plus-fill me-1"></i>Nuevo Empleado
+        </button>
+      </div>
+    </div>
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-10">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="persona-search"
+            placeholder="Buscar por nombre, apellido o identificación..." autocomplete="off">
         </div>
-        <div class="stat-icon"><i class="bi bi-person-badge-fill"></i></div>
+      </div>
+      <div class="col-12 col-lg-2">
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-busqueda">
+          <i class="bi bi-x-circle me-1"></i>Limpiar
+        </button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Últimos empleados -->
+<!-- Tabla de resultados -->
 <div class="card chart-card mb-4">
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h6 class="fw-bold mb-0">Últimos Empleados Registrados</h6>
-      <small class="text-muted" id="empleados-list-info">Últimos 20</small>
+      <h6 class="fw-bold mb-0">Lista de Personal</h6>
+      <small class="text-muted" id="personas-result-info">Últimos 20 registros</small>
     </div>
     <div class="table-responsive table-container">
       <table class="table table-hover align-middle mb-0">
@@ -38,7 +66,7 @@
             <th class="text-end">Acciones</th>
           </tr>
         </thead>
-        <tbody id="empleados-tbody">
+        <tbody id="personas-tbody">
           <tr><td colspan="5" class="text-center text-muted py-4">
             <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
           </td></tr>
@@ -48,425 +76,251 @@
   </div>
 </div>
 
-<!-- Buscador + acción nueva -->
-<div class="card chart-card mb-4">
-  <div class="card-body p-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
-      <div>
-        <h6 class="fw-bold mb-1">Gestión de Personas</h6>
-        <p class="text-muted small mb-0">Busca por cédula, nombre o apellido. Selecciona una persona para ver y editar sus secciones.</p>
+<!-- Modal Persona (Empleado) -->
+<div class="modal fade" id="modal-persona" tabindex="-1" aria-labelledby="modal-persona-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header border-bottom-0 pb-1">
+        <h5 class="modal-title" id="modal-persona-label">
+          <i class="bi bi-person-badge me-2"></i>Ficha del Empleado
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
-      <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nueva-persona">
-        <i class="bi bi-person-plus-fill me-1"></i>Nueva Persona
-      </button>
-    </div>
-    <div class="row g-3 align-items-center">
-      <div class="col-12 col-lg-9">
-        <label for="persona-search" class="form-label fw-semibold">Buscar persona</label>
-        <div class="input-group">
-          <span class="input-group-text"><i class="bi bi-search"></i></span>
-          <input type="search" class="form-control" id="persona-search"
-            placeholder="Ej: Pérez, Juan, 0701234567..." autocomplete="off">
-          <span class="input-group-text d-none" id="search-spinner-wrap">
-            <span class="spinner-border spinner-border-sm" role="status"></span>
-          </span>
+
+      <div class="modal-body pt-0">
+
+        <!-- Spinner -->
+        <div id="modal-spinner" class="text-center py-5 d-none">
+          <span class="spinner-border text-primary mb-2"></span>
+          <p class="text-muted small mb-0">Cargando ficha...</p>
         </div>
-      </div>
-      <div class="col-12 col-lg-3">
-        <label class="form-label d-none d-lg-block invisible">.</label>
-        <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-personas">
-          <i class="bi bi-x-circle me-1"></i>Limpiar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- Tabla de resultados -->
-<div class="card chart-card mb-4">
-  <div class="card-body p-0">
-    <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
-      <div>
-        <h6 class="fw-bold mb-0">Resultados</h6>
-        <p class="text-muted small mb-0" id="personas-info">Ingresa al menos 2 caracteres.</p>
-      </div>
-    </div>
-    <div class="table-responsive table-container" style="border-radius:0 0 12px 12px; border-top:1px solid var(--table-border); border-left:none; border-right:none; border-bottom:none;">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Identificación</th>
-            <th>Nombre Completo</th>
-            <th>Tipo</th>
-            <th>Institución</th>
-            <th class="text-end pe-4">Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="personas-tbody">
-          <tr>
-            <td colspan="5" class="text-center text-muted py-5">
-              <i class="bi bi-person-lines-fill fs-2 d-block mb-2 opacity-25"></i>
-              Ingresa un criterio de búsqueda.
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- Detalle de persona con tabs (hidden by default) -->
-<div class="card chart-card mb-4 d-none" id="persona-detail-card">
-  <div class="card-body p-4">
-
-    <!-- Header del detalle -->
-    <div class="d-flex justify-content-between align-items-start mb-4">
-      <div class="d-flex align-items-center gap-3">
-        <div class="avatar-circle" style="width:52px;height:52px;font-size:1.2rem;" id="detail-avatar">—</div>
-        <div>
-          <h5 class="fw-bold mb-1" id="detail-nombre">—</h5>
-          <div class="d-flex flex-wrap gap-2">
-            <span class="badge rounded-pill" style="background:var(--brand-color);color:var(--brand-text);" id="detail-tipo">—</span>
-            <span class="text-muted small" id="detail-cedula">—</span>
-            <span class="text-muted small" id="detail-institucion">—</span>
-          </div>
+        <!-- Error -->
+        <div id="modal-error" class="alert alert-danger mt-2 d-none" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <span id="modal-error-msg"></span>
         </div>
-      </div>
-      <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" id="btn-cerrar-detalle">
-        <i class="bi bi-x-lg"></i>
-      </button>
-    </div>
 
-    <!-- Spinner de carga de secciones -->
-    <div id="detail-loading" class="text-center py-4">
-      <div class="spinner-border text-secondary" role="status"></div>
-      <p class="text-muted mt-2 mb-0 small">Cargando datos...</p>
-    </div>
+        <form id="form-persona" novalidate>
+          <input type="hidden" id="persona-id">
 
-    <!-- Tabs (ocultas hasta cargar) -->
-    <div id="detail-tabs-wrapper" class="d-none">
-      <ul class="nav nav-pills flex-wrap gap-1 mb-4" id="persona-tabs-nav">
-        <li class="nav-item">
-          <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-personal" type="button">
-            <i class="bi bi-person me-1"></i>Personal
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-contacto" type="button">
-            <i class="bi bi-telephone me-1"></i>Contacto
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-medico" type="button">
-            <i class="bi bi-heart-pulse me-1"></i>Médico
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-fisico" type="button">
-            <i class="bi bi-rulers me-1"></i>Físico
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-roles" type="button">
-            <i class="bi bi-building me-1"></i>Roles
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-matp" type="button">
-            <i class="bi bi-journal-check me-1"></i>Matrículas
-          </button>
-        </li>
-      </ul>
+          <!-- ── Nav Tabs ── -->
+          <ul class="nav nav-tabs" id="persona-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab">
+                <i class="bi bi-person me-1"></i>Personal
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-contacto" type="button" role="tab">
+                <i class="bi bi-telephone me-1"></i>Contacto
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-institucion" type="button" role="tab">
+                <i class="bi bi-building me-1"></i>Institución
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-medica" type="button" role="tab">
+                <i class="bi bi-heart-pulse me-1"></i>Ficha Médica
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-acceso" type="button" role="tab">
+                <i class="bi bi-key me-1"></i>Acceso
+              </button>
+            </li>
+          </ul>
 
-      <div class="tab-content">
+          <div class="tab-content" id="persona-tabs-content">
 
-        <!-- TAB: DATOS PERSONALES -->
-        <div class="tab-pane fade show active" id="tab-personal">
-          <div id="tab-personal-view" class="mb-3"></div>
-          <div id="tab-personal-form" class="d-none">
-            <form id="form-personal">
+            <!-- ══ TAB 1: DATOS PERSONALES ══ -->
+            <div class="tab-pane fade show active" id="tab-personal" role="tabpanel">
               <div class="row g-3">
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Identificación *</label>
-                  <input type="text" class="form-control" name="identificacion" id="e-identificacion" required>
+                  <input type="text" class="form-control" id="p-identificacion" placeholder="Ej: 0701234567" required>
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Primer Nombre *</label>
-                  <input type="text" class="form-control" name="primer_nombre" id="e-primer-nombre" required>
+                  <input type="text" class="form-control" id="p-primer-nombre" placeholder="Ej: Juan" required>
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Segundo Nombre</label>
-                  <input type="text" class="form-control" name="segundo_nombre" id="e-segundo-nombre">
+                  <input type="text" class="form-control" id="p-segundo-nombre">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Primer Apellido *</label>
-                  <input type="text" class="form-control" name="primer_apellido" id="e-primer-apellido" required>
+                  <input type="text" class="form-control" id="p-primer-apellido" placeholder="Ej: Pérez" required>
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Segundo Apellido</label>
-                  <input type="text" class="form-control" name="segundo_apellido" id="e-segundo-apellido">
+                  <input type="text" class="form-control" id="p-segundo-apellido">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Fecha Nacimiento</label>
-                  <input type="date" class="form-control" name="fecha_nacimiento" id="e-fecha-nacimiento">
+                  <input type="date" class="form-control" id="p-fecha-nac">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Género</label>
-                  <select class="form-select" name="genero" id="e-genero">
-                    <option value="">— Seleccionar —</option>
-                    <option value="1">Masculino</option>
-                    <option value="2">Femenino</option>
-                    <option value="3">Otro</option>
+                  <select class="form-select" id="p-genero">
+                    <option value="">Sin especificar</option>
                   </select>
                 </div>
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Etnia</label>
-                  <select class="form-select" name="etnia" id="e-etnia">
-                    <option value="">— Seleccionar —</option>
-                    <option value="1">Mestizo</option>
-                    <option value="2">Indígena</option>
-                    <option value="3">Afroecuatoriano</option>
-                    <option value="4">Montubio</option>
-                    <option value="5">Blanco</option>
-                    <option value="6">Otro</option>
+                  <select class="form-select" id="p-etnia">
+                    <option value="">Sin especificar</option>
                   </select>
                 </div>
                 <div class="col-md-6">
+                  <label class="form-label fw-semibold">Nacionalidad</label>
+                  <select class="form-select" id="p-nacionalidad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Ciudad</label>
+                  <select class="form-select" id="p-ciudad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-12">
                   <label class="form-label fw-semibold">Dirección</label>
-                  <input type="text" class="form-control" name="direccion" id="e-direccion">
+                  <input type="text" class="form-control" id="p-direccion" placeholder="Dirección de domicilio">
                 </div>
               </div>
-              <div class="d-flex gap-2 justify-content-end mt-4">
-                <button type="button" class="btn btn-outline-secondary" onclick="cancelEdit('personal')">Cancelar</button>
-                <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>Guardar</button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div><!-- /tab-personal -->
 
-        <!-- TAB: CONTACTO -->
-        <div class="tab-pane fade" id="tab-contacto">
-          <div id="tab-contacto-view" class="mb-3"></div>
-          <div id="tab-contacto-form" class="d-none">
-            <form id="form-contacto">
-              <p class="text-muted small mb-3">Edita los datos de contacto. Los cambios se enviarán como parte de la actualización de la persona.</p>
-              <h6 class="fw-semibold mb-2">Teléfonos</h6>
-              <div id="edit-telefonos-list"></div>
-              <button type="button" class="btn btn-sm btn-outline-secondary mb-4" id="btn-add-tel">
-                <i class="bi bi-plus-circle me-1"></i>Agregar Teléfono
-              </button>
-              <h6 class="fw-semibold mb-2">Correos Electrónicos</h6>
-              <div id="edit-correos-list"></div>
-              <button type="button" class="btn btn-sm btn-outline-secondary mb-4" id="btn-add-email">
-                <i class="bi bi-plus-circle me-1"></i>Agregar Correo
-              </button>
-              <div class="d-flex gap-2 justify-content-end">
-                <button type="button" class="btn btn-outline-secondary" onclick="cancelEdit('contacto')">Cancelar</button>
-                <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>Guardar</button>
+            <!-- ══ TAB 2: CONTACTO ══ -->
+            <div class="tab-pane fade" id="tab-contacto" role="tabpanel">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-phone me-1"></i>Teléfonos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-telefono">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="telefonos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="telefono-placeholder">Sin teléfonos registrados.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-envelope me-1"></i>Correos Electrónicos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-correo">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="correos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="correo-placeholder">Sin correos registrados.</p>
+                </div>
               </div>
-            </form>
-          </div>
-        </div>
+            </div><!-- /tab-contacto -->
 
-        <!-- TAB: MÉDICO -->
-        <div class="tab-pane fade" id="tab-medico">
-          <div id="tab-medico-view" class="mb-3"></div>
-          <div id="tab-medico-form" class="d-none">
-            <form id="form-medico">
+            <!-- ══ TAB 3: INSTITUCIÓN ══ -->
+            <div class="tab-pane fade" id="tab-institucion" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Rol / Cargo *</label>
+                  <select class="form-select" id="p-tipo-persona" required>
+                    <option value="">Seleccionar rol</option>
+                  </select>
+                  <div class="form-text">Determina el rol de la persona en la institución.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Estado en la Institución</label>
+                  <select class="form-select" id="p-estado-pi">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+            </div><!-- /tab-institucion -->
+
+            <!-- ══ TAB 4: FICHA MÉDICA ══ -->
+            <div class="tab-pane fade" id="tab-medica" role="tabpanel">
               <div class="row g-3">
                 <div class="col-md-4">
                   <label class="form-label fw-semibold">Grupo Sanguíneo</label>
-                  <select class="form-select" name="grupo_sanguineo" id="e-grupo-sanguineo">
-                    <option value="">— Seleccionar —</option>
-                    <option value="O+">O+</option><option value="O-">O-</option>
+                  <select class="form-select" id="p-grupo-sanguineo">
+                    <option value="">Sin especificar</option>
                     <option value="A+">A+</option><option value="A-">A-</option>
                     <option value="B+">B+</option><option value="B-">B-</option>
                     <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                    <option value="O+">O+</option><option value="O-">O-</option>
                   </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Nombre — Contacto de Emergencia</label>
+                  <input type="text" class="form-control" id="p-contacto-nombre" placeholder="Ej: María García">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Teléfono — Contacto de Emergencia</label>
+                  <input type="text" class="form-control" id="p-contacto-telefono" placeholder="Ej: 0987654321">
                 </div>
                 <div class="col-12">
                   <label class="form-label fw-semibold">Alergias</label>
-                  <textarea class="form-control" name="alergias" id="e-alergias" rows="2" placeholder="Ej: Polen, mariscos, penicilina..."></textarea>
+                  <textarea class="form-control" id="p-alergias" rows="3"
+                    placeholder="Describa las alergias conocidas (alimentos, medicamentos, etc.)..."></textarea>
                 </div>
-                <div class="col-12">
+                <div class="col-md-6">
                   <label class="form-label fw-semibold">Enfermedades Preexistentes</label>
-                  <textarea class="form-control" name="enfermedades_preexistentes" id="e-enfermedades" rows="2" placeholder="Ej: Diabetes tipo 2, asma..."></textarea>
+                  <textarea class="form-control" id="p-enfermedades" rows="3"
+                    placeholder="Enfermedades crónicas o condiciones previas..."></textarea>
                 </div>
-                <div class="col-12">
+                <div class="col-md-6">
                   <label class="form-label fw-semibold">Medicamentos Actuales</label>
-                  <textarea class="form-control" name="medicamentos_actuales" id="e-medicamentos" rows="2" placeholder="Ej: Metformina 500mg..."></textarea>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Contacto de Emergencia</label>
-                  <input type="text" class="form-control" name="contacto_emergencia_nombre" id="e-emergencia-nombre" placeholder="Nombre completo">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">Teléfono de Emergencia</label>
-                  <input type="text" class="form-control" name="contacto_emergencia_telefono" id="e-emergencia-tel" placeholder="0991234567">
+                  <textarea class="form-control" id="p-medicamentos" rows="3"
+                    placeholder="Medicamentos que toma actualmente y dosis..."></textarea>
                 </div>
               </div>
-              <div class="d-flex gap-2 justify-content-end mt-4">
-                <button type="button" class="btn btn-outline-secondary" onclick="cancelEdit('medico')">Cancelar</button>
-                <button type="submit" class="btn btn-brand"><i class="bi bi-check-lg me-1"></i>Guardar</button>
+            </div><!-- /tab-medica -->
+
+            <!-- ══ TAB 5: ACCESO AL SISTEMA ══ -->
+            <div class="tab-pane fade" id="tab-acceso" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Usuario</label>
+                  <input type="text" class="form-control" id="p-username" autocomplete="new-password" placeholder="Ej: juan.perez">
+                  <div class="form-text">Opcional. Permite a la persona acceder al sistema.</div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Contraseña</label>
+                  <input type="password" class="form-control" id="p-password" autocomplete="new-password" placeholder="Dejar en blanco para no cambiar">
+                  <div class="form-text">Si se deja en blanco, la contraseña actual no se modificará.</div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Rol de Usuario</label>
+                  <select class="form-select" id="p-tipo-user">
+                    <option value="">— Seleccionar rol —</option>
+                    <option value="PROFESOR">Profesor / Entrenador</option>
+                    <option value="SECRETARIA">Secretaria</option>
+                    <option value="CONTADOR">Contador</option>
+                    <option value="MEDICO">Personal Médico</option>
+                    <option value="ADMINISTRADOR">Administrador</option>
+                  </select>
+                </div>
               </div>
-            </form>
-          </div>
-        </div>
+            </div><!-- /tab-acceso -->
 
-        <!-- TAB: FÍSICO -->
-        <div class="tab-pane fade" id="tab-fisico">
-          <div id="tab-fisico-view"></div>
-        </div>
+          </div><!-- /tab-content -->
+        </form>
+      </div><!-- /modal-body -->
 
-        <!-- TAB: ROLES -->
-        <div class="tab-pane fade" id="tab-roles">
-          <div id="tab-roles-view"></div>
-        </div>
-
-        <!-- TAB: MATRÍCULAS DE LA PERSONA -->
-        <div class="tab-pane fade" id="tab-matp">
-          <div id="tab-matp-view"></div>
-        </div>
-
-      </div><!-- /tab-content -->
-    </div><!-- /detail-tabs-wrapper -->
-  </div>
-</div>
-
-<!-- Formulario nueva persona (hidden by default) -->
-<div class="card chart-card d-none" id="nueva-persona-card">
-  <div class="card-body p-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div>
-        <h6 class="fw-bold mb-1"><i class="bi bi-person-plus-fill me-2"></i>Nueva Persona</h6>
-        <p class="text-muted small mb-0">Completa los datos obligatorios (*) para registrar la persona en el sistema.</p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-brand" id="btn-guardar-persona">
+          <i class="bi bi-check-lg me-1"></i>Guardar Cambios
+        </button>
       </div>
-      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cancelar-nueva">
-        <i class="bi bi-x-lg"></i>
-      </button>
     </div>
-    <form id="form-nueva-persona">
-      <div class="row g-3">
-        <!-- Datos básicos -->
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Identificación *</label>
-          <input type="text" class="form-control" name="identificacion" id="n-identificacion" required>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Primer Nombre *</label>
-          <input type="text" class="form-control" name="primer_nombre" id="n-primer-nombre" required>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Segundo Nombre</label>
-          <input type="text" class="form-control" name="segundo_nombre" id="n-segundo-nombre">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Primer Apellido *</label>
-          <input type="text" class="form-control" name="primer_apellido" id="n-primer-apellido" required>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Segundo Apellido</label>
-          <input type="text" class="form-control" name="segundo_apellido" id="n-segundo-apellido">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Fecha Nacimiento</label>
-          <input type="date" class="form-control" name="fecha_nacimiento" id="n-fecha-nacimiento">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Género</label>
-          <select class="form-select" name="genero" id="n-genero">
-            <option value="">— Seleccionar —</option>
-            <option value="1">Masculino</option>
-            <option value="2">Femenino</option>
-            <option value="3">Otro</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">Etnia</label>
-          <select class="form-select" name="etnia" id="n-etnia">
-            <option value="">— Seleccionar —</option>
-            <option value="1">Mestizo</option>
-            <option value="2">Indígena</option>
-            <option value="3">Afroecuatoriano</option>
-            <option value="4">Montubio</option>
-            <option value="5">Blanco</option>
-            <option value="6">Otro</option>
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Institución *</label>
-          <select class="form-select" name="institucion" id="n-institucion" required>
-            <option value="">Cargando...</option>
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Tipo de Persona *</label>
-          <select class="form-select" name="tipo_persona" id="n-tipo-persona" required>
-            <option value="">— Seleccionar —</option>
-            <option value="1">Estudiante</option>
-            <option value="2">Profesor / Entrenador</option>
-            <option value="3">Secretaria</option>
-            <option value="4">Contador</option>
-            <option value="5">Personal Médico</option>
-            <option value="6">Administrativo</option>
-            <option value="7">Asistente</option>
-            <option value="8">Mantenimiento</option>
-          </select>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Dirección</label>
-          <input type="text" class="form-control" name="direccion" id="n-direccion">
-        </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Grupo Sanguíneo</label>
-          <select class="form-select" name="grupo_sanguineo" id="n-grupo-sanguineo">
-            <option value="">— Seleccionar —</option>
-            <option value="O+">O+</option><option value="O-">O-</option>
-            <option value="A+">A+</option><option value="A-">A-</option>
-            <option value="B+">B+</option><option value="B-">B-</option>
-            <option value="AB+">AB+</option><option value="AB-">AB-</option>
-          </select>
-        </div>
-        <!-- Separador: acceso al sistema -->
-        <div class="col-12 mt-1">
-          <div class="d-flex align-items-center gap-3">
-            <hr class="flex-grow-1 m-0">
-            <span class="text-muted small flex-shrink-0">Acceso al sistema (opcional)</span>
-            <hr class="flex-grow-1 m-0">
-          </div>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Usuario</label>
-          <input type="text" class="form-control" name="username" id="n-username" autocomplete="new-password">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Contraseña</label>
-          <input type="password" class="form-control" name="password" id="n-password" autocomplete="new-password">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Tipo de Usuario</label>
-          <select class="form-select" name="tipo_user" id="n-tipo-user">
-            <option value="">— Seleccionar —</option>
-            <option value="ESTUDIANTE">Estudiante</option>
-            <option value="PROFESOR">Profesor / Entrenador</option>
-            <option value="SECRETARIA">Secretaria</option>
-            <option value="CONTADOR">Contador</option>
-            <option value="MEDICO">Personal Médico</option>
-            <option value="ADMINISTRADOR">Administrador</option>
-            <option value="ASISTENTE">Asistente</option>
-            <option value="MANTENIMIENTO">Mantenimiento</option>
-          </select>
-        </div>
-      </div>
-      <div class="d-flex gap-2 justify-content-end mt-4">
-        <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-nueva-2">
-          <i class="bi bi-arrow-left me-1"></i>Cancelar
-        </button>
-        <button type="submit" class="btn btn-brand" id="btn-submit-nueva">
-          <i class="bi bi-check-lg me-1"></i>Registrar Persona
-        </button>
-      </div>
-    </form>
   </div>
 </div>
 
@@ -474,529 +328,419 @@
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
 
 {% endblock %}
-
 {% block scripts %}
 <script>
-/* ── Catálogos locales ── */
-var CATALOG = {
-  genero:      { '1': 'Masculino', '2': 'Femenino', '3': 'Otro' },
-  etnia:       { '1': 'Mestizo', '2': 'Indígena', '3': 'Afroecuatoriano', '4': 'Montubio', '5': 'Blanco', '6': 'Otro' },
-  tipo_persona:{ '1': 'Estudiante', '2': 'Profesor/Entrenador', '3': 'Secretaria', '4': 'Contador', '5': 'Personal Médico', '6': 'Administrativo', '7': 'Asistente', '8': 'Mantenimiento' },
-};
-
-/* ── Estado de la vista ── */
-var currentPersonaId = null;
-var currentSections  = null;
-
-/* ── Helpers de API ── */
-function apiGet(path, action, params) {
-  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
-  var url  = base + '/index.php?api=' + encodeURIComponent(action);
-  if (params) {
-    Object.keys(params).forEach(function(k) {
-      if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
-        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-      }
-    });
-  }
-  return Cuspide.api.request(url, { auth: true });
-}
-function apiPost(path, action, body) {
-  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
-  return Cuspide.api.request(base + '/index.php?api=' + encodeURIComponent(action), { method: 'POST', auth: true, body: body });
-}
-function apiPut(path, action, body, params) {
-  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
-  var url  = base + '/index.php?api=' + encodeURIComponent(action);
-  if (params) {
-    Object.keys(params).forEach(function(k) {
-      if (params[k] !== null && params[k] !== undefined) {
-        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-      }
-    });
-  }
-  return Cuspide.api.request(url, { method: 'PUT', auth: true, body: body });
+/* ══════════════════════════════════════════════════════════
+   UTILIDADES
+══════════════════════════════════════════════════════════ */
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
 }
 
-/* ── XSS escape ── */
 function esc(v) {
   return String(v === null || v === undefined ? '' : v)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
-function val(v, fallback) { return (v !== null && v !== undefined && v !== '') ? v : (fallback || '—'); }
 
-/* ── Toast ── */
-function showToast(msg, type) {
-  type = type || 'success';
-  var icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
-  var toast = document.createElement('div');
-  toast.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
-  toast.role = 'alert';
-  toast.innerHTML =
-    '<div class="d-flex"><div class="toast-body">' +
-    '<i class="bi bi-' + (icons[type] || 'info-circle-fill') + ' me-2"></i>' + esc(msg) +
-    '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
-  var c = document.getElementById('toast-container');
-  if (c) c.appendChild(toast);
-  setTimeout(function() { toast.remove(); }, 4000);
-}
-
-/* ── Debounce ── */
 function debounce(fn, ms) {
-  var t;
+  var timer;
   return function() {
-    var args = arguments;
-    clearTimeout(t);
-    t = setTimeout(function() { fn.apply(null, args); }, ms);
+    var a = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function() { fn.apply(null, a); }, ms);
   };
 }
 
-/* ── Búsqueda de personas ── */
-var doSearch = debounce(function(q) {
-  if (q.length < 2) {
-    renderTable([]);
-    document.getElementById('personas-info').textContent = 'Ingresa al menos 2 caracteres.';
-    return;
+/* ══════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════════════════════════ */
+var personasList      = [];
+var bsModal           = null;
+var catalogGeneros    = [];
+var catalogEtnias     = [];
+var catalogNacs       = [];
+var catalogCiudades   = [];
+var catalogTipos      = [];
+var institucionId     = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+
+/* ══════════════════════════════════════════════════════════
+   CATÁLOGOS
+══════════════════════════════════════════════════════════ */
+async function loadCatalogs() {
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'catalogs', null, null);
+    catalogGeneros  = data.generos        || [];
+    catalogEtnias   = data.etnias         || [];
+    catalogNacs     = data.nacionalidades || [];
+    catalogCiudades = data.ciudades       || [];
+    catalogTipos    = data.tipos_persona  || [];
+
+    populateSelect('p-genero',       catalogGeneros, 'Sin especificar');
+    populateSelect('p-etnia',        catalogEtnias,  'Sin especificar');
+    populateSelect('p-nacionalidad', catalogNacs,    'Sin especificar');
+    // Filtrar "Estudiante" (ID 1) del selector de tipo de persona
+    var employeeTypes = catalogTipos.filter(function(t) { return t.id != 1; });
+    populateSelect('p-tipo-persona', employeeTypes,   'Seleccionar rol');
+    populateCiudadSelect(catalogCiudades);
+  } catch (err) {
+    console.warn('Catálogos no disponibles:', err);
   }
-  document.getElementById('search-spinner-wrap').classList.remove('d-none');
-  apiGet(CONFIG.ENDPOINTS.personas, 'search', { q: q })
-    .then(function(data) {
-      renderTable(Array.isArray(data) ? data : []);
-    })
-    .catch(function(err) {
-      showToast(err.message || 'Error al buscar personas.', 'danger');
-      renderTable([]);
-    })
-    .finally(function() {
-      document.getElementById('search-spinner-wrap').classList.add('d-none');
+}
+
+function populateSelect(id, items, placeholder) {
+  var sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
+    items.map(function(i) { return '<option value="' + esc(i.id) + '">' + esc(i.nombre) + '</option>'; }).join('');
+}
+
+function populateCiudadSelect(ciudades) {
+  var sel = document.getElementById('p-ciudad');
+  if (!sel) return;
+  var groups = {};
+  ciudades.forEach(function(c) {
+    var p = c.provincia || 'Otras';
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(c);
+  });
+  var html = '<option value="">Sin especificar</option>';
+  Object.keys(groups).sort().forEach(function(prov) {
+    html += '<optgroup label="' + esc(prov) + '">';
+    groups[prov].forEach(function(c) {
+      html += '<option value="' + esc(c.id) + '">' + esc(c.nombre) + '</option>';
     });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TABLA DE PERSONAL
+══════════════════════════════════════════════════════════ */
+async function loadEmpleados(q) {
+  var tbody = document.getElementById('personas-tbody');
+  var infoEl = document.getElementById('personas-result-info');
+  var params = { limit: 50 };
+  if (q) {
+    params.q = q;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' +
+      '<span class="spinner-border spinner-border-sm me-2"></span>Buscando...</td></tr>';
+  } else {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' +
+      '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  }
+
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'employees', null, params);
+    personasList = data.items || [];
+    document.getElementById('personas-count').textContent = data.total !== undefined ? data.total : personasList.length;
+    renderTable(personasList, q);
+    if (q) {
+      infoEl.textContent = personasList.length + ' resultado(s) para "' + q + '"';
+    } else {
+      infoEl.textContent = 'Últimos ' + personasList.length + ' registros';
+    }
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">' +
+      '<i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar.') + '</td></tr>';
+  }
+}
+
+var doSearch = debounce(function(q) {
+  loadEmpleados(q);
 }, 350);
 
 function renderTable(items) {
   var tbody = document.getElementById('personas-tbody');
-  var info  = document.getElementById('personas-info');
   if (!items || items.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5">' +
       '<i class="bi bi-person-x fs-2 d-block mb-2 opacity-25"></i>Sin resultados.</td></tr>';
-    if (info) info.textContent = 'Sin coincidencias.';
     return;
   }
-  if (info) info.textContent = items.length + ' persona(s) encontrada(s).';
   tbody.innerHTML = items.map(function(p) {
+    var badge = parseInt(p.pi_estado) === 1
+      ? '<span class="badge rounded-pill bg-success">Activo</span>'
+      : '<span class="badge rounded-pill bg-secondary">Inactivo</span>';
     return '<tr>' +
       '<td><code>' + esc(p.identificacion) + '</code></td>' +
       '<td class="fw-semibold">' + esc(p.nombre_completo) + '</td>' +
-      '<td><span class="badge rounded-pill" style="background:var(--app-surface-soft);color:var(--app-text-soft);border:1px solid var(--app-border);">' + esc(p.tipo) + '</span></td>' +
-      '<td class="text-muted small">' + esc(p.institucion) + '</td>' +
+      '<td><span class="badge bg-primary bg-opacity-10 text-primary">' + esc(p.tipo || 'Empleado') + '</span></td>' +
+      '<td>' + badge + '</td>' +
       '<td class="text-end pe-3">' +
-        '<button type="button" class="btn btn-sm btn-outline-primary" onclick="loadPersonaDetail(' + p.id + ', \'' + esc(p.nombre_completo) + '\', \'' + esc(p.tipo) + '\', \'' + esc(p.identificacion) + '\', \'' + esc(p.institucion) + '\')">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="verPersona(' + p.id + ')">' +
           '<i class="bi bi-eye me-1"></i>Ver</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="editarPersona(' + p.id + ')">' +
+          '<i class="bi bi-pencil"></i></button>' +
       '</td>' +
     '</tr>';
   }).join('');
 }
 
-/* ── Cargar detalle de persona ── */
-function loadPersonaDetail(id, nombre, tipo, cedula, institucion) {
-  currentPersonaId = id;
-
-  document.getElementById('detail-nombre').textContent    = nombre;
-  document.getElementById('detail-tipo').textContent      = tipo;
-  document.getElementById('detail-cedula').textContent    = cedula;
-  document.getElementById('detail-institucion').textContent = institucion;
-  document.getElementById('detail-avatar').textContent    = (nombre.charAt(0) || '?').toUpperCase();
-
-  var card = document.getElementById('persona-detail-card');
-  card.classList.remove('d-none');
-  document.getElementById('detail-loading').classList.remove('d-none');
-  document.getElementById('detail-tabs-wrapper').classList.add('d-none');
-
-  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  apiGet(CONFIG.ENDPOINTS.personas, 'sections', { id: id })
-    .then(function(data) {
-      currentSections = data;
-      renderAllTabs(data);
-      document.getElementById('detail-loading').classList.add('d-none');
-      document.getElementById('detail-tabs-wrapper').classList.remove('d-none');
-    })
-    .catch(function(err) {
-      document.getElementById('detail-loading').innerHTML =
-        '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>' + esc(err.message) + '</div>';
-    });
+/* ══════════════════════════════════════════════════════════
+   FILAS DINÁMICAS (TELÉFONOS / CORREOS)
+══════════════════════════════════════════════════════════ */
+function addTelefonoRow(numero, disabled) {
+  document.getElementById('telefono-placeholder').classList.add('d-none');
+  var div = document.createElement('div');
+  div.className = 'dynamic-row';
+  div.innerHTML = '<input type="tel" class="form-control form-control-sm" placeholder="Número" ' +
+    'value="' + esc(numero || '') + '"' + (disabled ? ' disabled' : '') + '>' +
+    (disabled ? '' : '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+      'onclick="this.closest(\'.dynamic-row\').remove();syncPlaceholders()"><i class="bi bi-x-lg"></i></button>');
+  document.getElementById('telefonos-container').appendChild(div);
 }
 
-/* ── Renderizar todas las tabs con datos ── */
-function renderAllTabs(d) {
-  renderPersonalTab(d.datos_personales);
-  renderContactoTab(d.contacto);
-  renderMedicoTab(d.medico);
-  renderFisicoTab(d.fisico);
-  renderRolesTab(d.roles_instituciones);
-  renderMatriculasPTab(d.matriculas);
+function addCorreoRow(email, disabled) {
+  document.getElementById('correo-placeholder').classList.add('d-none');
+  var div = document.createElement('div');
+  div.className = 'dynamic-row';
+  div.innerHTML = '<input type="email" class="form-control form-control-sm" placeholder="correo@ejemplo.com" ' +
+    'value="' + esc(email || '') + '"' + (disabled ? ' disabled' : '') + '>' +
+    (disabled ? '' : '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+      'onclick="this.closest(\'.dynamic-row\').remove();syncPlaceholders()"><i class="bi bi-x-lg"></i></button>');
+  document.getElementById('correos-container').appendChild(div);
 }
 
-function infoRow(label, value) {
-  return '<div class="col-md-4 col-sm-6 mb-3">' +
-    '<div class="text-muted small mb-1">' + label + '</div>' +
-    '<div class="fw-semibold">' + esc(val(value)) + '</div>' +
-    '</div>';
+function syncPlaceholders() {
+  var tels   = document.querySelectorAll('#telefonos-container .dynamic-row');
+  var mails  = document.querySelectorAll('#correos-container .dynamic-row');
+  document.getElementById('telefono-placeholder').classList.toggle('d-none', tels.length > 0);
+  document.getElementById('correo-placeholder').classList.toggle('d-none',   mails.length > 0);
 }
 
-function renderPersonalTab(p) {
-  if (!p) { document.getElementById('tab-personal-view').innerHTML = '<p class="text-muted">Sin datos personales.</p>'; return; }
-  var generoText = CATALOG.genero[String(p.genero && p.genero.id)] || val(p.genero && p.genero.id);
-  var etniaText  = CATALOG.etnia[String(p.etnia && p.etnia.id)]   || val(p.etnia && p.etnia.id);
-  var html = '<div class="row">' +
-    infoRow('Identificación', p.identificacion) +
-    infoRow('Primer Nombre', p.primer_nombre) +
-    infoRow('Segundo Nombre', p.segundo_nombre) +
-    infoRow('Primer Apellido', p.primer_apellido) +
-    infoRow('Segundo Apellido', p.segundo_apellido) +
-    infoRow('Fecha Nacimiento', p.fecha_nacimiento) +
-    infoRow('Género', generoText) +
-    infoRow('Etnia', etniaText) +
-    infoRow('Dirección', p.direccion) +
-    '</div>' +
-    '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="editSection(\'personal\')"><i class="bi bi-pencil me-1"></i>Editar sección</button>';
-  document.getElementById('tab-personal-view').innerHTML = html;
-
-  var dp = p;
-  setVal('e-identificacion', dp.identificacion);
-  setVal('e-primer-nombre', dp.primer_nombre);
-  setVal('e-segundo-nombre', dp.segundo_nombre);
-  setVal('e-primer-apellido', dp.primer_apellido);
-  setVal('e-segundo-apellido', dp.segundo_apellido);
-  setVal('e-fecha-nacimiento', dp.fecha_nacimiento);
-  setSelectVal('e-genero', dp.genero && dp.genero.id);
-  setSelectVal('e-etnia', dp.etnia && dp.etnia.id);
-  setVal('e-direccion', dp.direccion);
+function clearDynamicRows() {
+  document.getElementById('telefonos-container').innerHTML = '';
+  document.getElementById('correos-container').innerHTML  = '';
+  document.getElementById('telefono-placeholder').classList.remove('d-none');
+  document.getElementById('correo-placeholder').classList.remove('d-none');
 }
 
-function renderContactoTab(c) {
-  if (!c) { document.getElementById('tab-contacto-view').innerHTML = '<p class="text-muted">Sin datos de contacto.</p>'; return; }
-  var tels = (c.telefonos || []).map(function(t) {
-    return '<div class="d-flex align-items-center gap-3 py-2 border-bottom" style="border-color:var(--table-border) !important;">' +
-      '<i class="bi bi-telephone-fill text-muted"></i>' +
-      '<span class="fw-semibold">' + esc(t.numero) + '</span>' +
-      '<span class="badge bg-secondary rounded-pill">' + esc(t.tipo) + '</span>' +
-      '<span class="text-muted small">' + esc(t.operadora) + '</span>' +
-      '</div>';
-  }).join('') || '<p class="text-muted small">Sin teléfonos registrados.</p>';
-  var mails = (c.correos || []).map(function(m) {
-    return '<div class="d-flex align-items-center gap-3 py-2 border-bottom" style="border-color:var(--table-border) !important;">' +
-      '<i class="bi bi-envelope-fill text-muted"></i>' +
-      '<span class="fw-semibold">' + esc(m.email) + '</span>' +
-      '<span class="badge bg-secondary rounded-pill">' + esc(m.tipo) + '</span>' +
-      '</div>';
-  }).join('') || '<p class="text-muted small">Sin correos registrados.</p>';
-  document.getElementById('tab-contacto-view').innerHTML =
-    '<h6 class="fw-semibold mb-2">Teléfonos</h6>' + tels +
-    '<h6 class="fw-semibold mt-3 mb-2">Correos</h6>' + mails +
-    '<div class="mt-3"><button type="button" class="btn btn-sm btn-outline-secondary" onclick="editSection(\'contacto\')"><i class="bi bi-pencil me-1"></i>Editar sección</button></div>';
+function getTelefonos() {
+  return Array.from(document.querySelectorAll('#telefonos-container .dynamic-row input'))
+    .map(function(i) { return { numero: i.value.trim() }; }).filter(function(t) { return t.numero; });
 }
 
-function renderMedicoTab(m) {
-  if (!m) { document.getElementById('tab-medico-view').innerHTML = '<p class="text-muted">Sin datos médicos.</p>'; return; }
-  var html = '<div class="row">' +
-    infoRow('Grupo Sanguíneo', m.grupo_sanguineo) +
-    infoRow('Alergias', m.alergias) +
-    infoRow('Enfermedades Preexistentes', m.enfermedades_preexistentes) +
-    infoRow('Medicamentos Actuales', m.medicamentos_actuales) +
-    infoRow('Contacto de Emergencia', m.contacto_emergencia_nombre) +
-    infoRow('Teléfono de Emergencia', m.contacto_emergencia_telefono) +
-    '</div>' +
-    '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="editSection(\'medico\')"><i class="bi bi-pencil me-1"></i>Editar sección</button>';
-  document.getElementById('tab-medico-view').innerHTML = html;
-
-  setSelectVal('e-grupo-sanguineo', m.grupo_sanguineo);
-  setVal('e-alergias', m.alergias);
-  setVal('e-enfermedades', m.enfermedades_preexistentes);
-  setVal('e-medicamentos', m.medicamentos_actuales);
-  setVal('e-emergencia-nombre', m.contacto_emergencia_nombre);
-  setVal('e-emergencia-tel', m.contacto_emergencia_telefono);
+function getCorreos() {
+  return Array.from(document.querySelectorAll('#correos-container .dynamic-row input'))
+    .map(function(i) { return { email: i.value.trim() }; }).filter(function(c) { return c.email; });
 }
 
-function renderFisicoTab(fisico) {
-  var rows = (fisico || []).map(function(f) {
-    return '<tr><td>' + esc(f.tipo_prenda) + '</td><td>' + esc(f.talla) + '</td><td>' +
-      (f.medida_cm ? f.medida_cm + ' cm' : '—') + '</td><td>' + esc(f.fecha_medicion) + '</td></tr>';
-  }).join('') || '<tr><td colspan="4" class="text-center text-muted py-3">Sin medidas registradas.</td></tr>';
-  document.getElementById('tab-fisico-view').innerHTML =
-    '<div class="table-responsive table-container"><table class="table table-hover align-middle mb-0">' +
-    '<thead class="table-light"><tr><th>Prenda</th><th>Talla</th><th>Medida</th><th>Fecha</th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table></div>';
+/* ══════════════════════════════════════════════════════════
+   HELPERS MODAL
+══════════════════════════════════════════════════════════ */
+function goToFirstTab() {
+  var first = document.querySelector('#persona-tabs .nav-link');
+  if (first) bootstrap.Tab.getOrCreateInstance(first).show();
 }
 
-function renderRolesTab(roles) {
-  var rows = (roles || []).map(function(r) {
-    var badge = r.estado ? '<span class="badge bg-success rounded-pill">Activo</span>' : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
-    return '<tr><td class="fw-semibold">' + esc(r.tipo) + '</td><td>' + esc(r.institucion) + '</td><td>' + badge + '</td></tr>';
-  }).join('') || '<tr><td colspan="3" class="text-center text-muted py-3">Sin roles registrados.</td></tr>';
-  document.getElementById('tab-roles-view').innerHTML =
-    '<div class="table-responsive table-container"><table class="table align-middle mb-0">' +
-    '<thead class="table-light"><tr><th>Tipo</th><th>Institución</th><th>Estado</th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table></div>';
+function setFormDisabled(disabled) {
+  var fields = document.querySelectorAll('#form-persona input, #form-persona select, #form-persona textarea');
+  fields.forEach(function(el) { el.disabled = disabled; });
+
+  ['btn-add-telefono','btn-add-correo'].forEach(function(bid) {
+    var b = document.getElementById(bid);
+    if (b) b.classList.toggle('d-none', disabled);
+  });
+  document.querySelectorAll('#telefonos-container .dynamic-row button, #correos-container .dynamic-row button')
+    .forEach(function(b) { b.classList.toggle('d-none', disabled); });
+  document.getElementById('btn-guardar-persona').classList.toggle('d-none', disabled);
 }
 
-function renderMatriculasPTab(mats) {
-  var rows = (mats || []).map(function(m) {
-    return '<tr><td><code>#' + esc(m.id) + '</code></td><td>' + esc(m.fecha_inicio) + '</td><td>' +
-      esc(m.fecha_fin) + '</td><td>' + esc(m.institucion) + '</td>' +
-      '<td><a href="/matriculas" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>Ver</a></td></tr>';
-  }).join('') || '<tr><td colspan="5" class="text-center text-muted py-3">Sin matrículas.</td></tr>';
-  document.getElementById('tab-matp-view').innerHTML =
-    '<div class="table-responsive table-container"><table class="table table-hover align-middle mb-0">' +
-    '<thead class="table-light"><tr><th>#</th><th>Inicio</th><th>Fin</th><th>Institución</th><th></th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table></div>';
+function showModalSpinner(show) {
+  document.getElementById('modal-spinner').classList.toggle('d-none', !show);
+  document.getElementById('form-persona').classList.toggle('d-none',   show);
 }
 
-/* ── Helpers de formulario ── */
-function setVal(id, v) {
-  var el = document.getElementById(id);
-  if (el) el.value = (v !== null && v !== undefined) ? v : '';
+function showModalError(msg) {
+  var el = document.getElementById('modal-error');
+  el.classList.remove('d-none');
+  document.getElementById('modal-error-msg').textContent = msg || 'Error al cargar el perfil.';
 }
-function setSelectVal(id, v) {
-  var el = document.getElementById(id);
-  if (!el) return;
-  var str = String(v === null || v === undefined ? '' : v);
-  for (var i = 0; i < el.options.length; i++) {
-    if (el.options[i].value === str) { el.selectedIndex = i; return; }
+
+function hideModalError() {
+  document.getElementById('modal-error').classList.add('d-none');
+}
+
+function resetForm() {
+  document.getElementById('form-persona').reset();
+  clearDynamicRows();
+  hideModalError();
+  goToFirstTab();
+  var selects = document.querySelectorAll('#form-persona select');
+  selects.forEach(function(sel) { sel.value = ''; });
+  document.getElementById('p-estado-pi').value = '1';
+}
+
+function fillFormFromProfile(profile, editMode) {
+  document.getElementById('p-identificacion').value   = profile.identificacion   || '';
+  document.getElementById('p-primer-nombre').value    = profile.primer_nombre    || '';
+  document.getElementById('p-segundo-nombre').value   = profile.segundo_nombre   || '';
+  document.getElementById('p-primer-apellido').value  = profile.primer_apellido  || '';
+  document.getElementById('p-segundo-apellido').value = profile.segundo_apellido || '';
+  document.getElementById('p-fecha-nac').value        = profile.fecha_nacimiento ? String(profile.fecha_nacimiento).substring(0, 10) : '';
+  document.getElementById('p-direccion').value        = profile.direccion        || '';
+  document.getElementById('p-genero').value           = profile.genero_id || '';
+  document.getElementById('p-etnia').value            = profile.etnia_id || '';
+  document.getElementById('p-nacionalidad').value     = profile.nacionalidad_id || '';
+  document.getElementById('p-ciudad').value           = profile.ciudad_id || '';
+  document.getElementById('p-tipo-persona').value     = profile.tipo_persona_id || '';
+  document.getElementById('p-estado-pi').value        = (profile.pi_estado !== undefined && profile.pi_estado !== null) ? profile.pi_estado : 1;
+  document.getElementById('p-grupo-sanguineo').value   = profile.grupo_sanguineo || '';
+  document.getElementById('p-contacto-nombre').value   = profile.contacto_emergencia_nombre || '';
+  document.getElementById('p-contacto-telefono').value = profile.contacto_emergencia_telefono || '';
+  document.getElementById('p-alergias').value          = profile.alergias || '';
+  document.getElementById('p-enfermedades').value      = profile.enfermedades_preexistentes || '';
+  document.getElementById('p-medicamentos').value      = profile.medicamentos_actuales || '';
+  document.getElementById('p-username').value          = profile.username || '';
+  document.getElementById('p-tipo-user').value         = profile.tipo_user || '';
+
+  clearDynamicRows();
+  var tels  = Array.isArray(profile.telefonos) ? profile.telefonos : [];
+  var mails = Array.isArray(profile.correos)   ? profile.correos   : [];
+  if (tels.length)  { tels.forEach(function(t) { addTelefonoRow(t.numero, !editMode); }); }
+  else if (editMode){ addTelefonoRow('', false); }
+  if (mails.length) { mails.forEach(function(c) { addCorreoRow(c.email, !editMode); }); }
+  else if (editMode){ addCorreoRow('', false); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   VER / EDITAR / NUEVO
+══════════════════════════════════════════════════════════ */
+function verPersona(id)    { abrirModal(id, false); }
+function editarPersona(id) { abrirModal(id, true);  }
+
+async function abrirModal(id, editMode) {
+  resetForm();
+  document.getElementById('modal-persona-label').innerHTML =
+    '<i class="bi bi-person-badge me-2"></i>' + (editMode ? 'Editar Empleado' : 'Ficha del Empleado');
+
+  if (!bsModal) bsModal = new bootstrap.Modal(document.getElementById('modal-persona'));
+  bsModal.show();
+  showModalSpinner(true);
+
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'profile', null, { id: id });
+    var profile = (data && data.persona) ? data.persona : (data || {});
+    document.getElementById('persona-id').value = id;
+    fillFormFromProfile(profile, editMode);
+    showModalSpinner(false);
+    setFormDisabled(!editMode);
+  } catch (err) {
+    showModalSpinner(false);
+    showModalError(err.message || 'No se pudo cargar la ficha del empleado.');
   }
 }
 
-/* ── Editar / Cancelar sección ── */
-function editSection(section) {
-  document.getElementById('tab-' + section + '-view').classList.add('d-none');
-  document.getElementById('tab-' + section + '-form').classList.remove('d-none');
-}
-function cancelEdit(section) {
-  document.getElementById('tab-' + section + '-form').classList.add('d-none');
-  document.getElementById('tab-' + section + '-view').classList.remove('d-none');
-}
-
-/* ── Guardar sección: Personal ── */
-document.getElementById('form-personal').addEventListener('submit', function(e) {
-  e.preventDefault();
-  var btn = this.querySelector('[type=submit]');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-  var body = {
-    identificacion:  document.getElementById('e-identificacion').value.trim(),
-    primer_nombre:   document.getElementById('e-primer-nombre').value.trim(),
-    segundo_nombre:  document.getElementById('e-segundo-nombre').value.trim() || null,
-    primer_apellido: document.getElementById('e-primer-apellido').value.trim(),
-    segundo_apellido:document.getElementById('e-segundo-apellido').value.trim() || null,
-    fecha_nacimiento:document.getElementById('e-fecha-nacimiento').value || null,
-    genero:          parseInt(document.getElementById('e-genero').value) || null,
-    etnia:           parseInt(document.getElementById('e-etnia').value) || null,
-    direccion:       document.getElementById('e-direccion').value.trim() || null,
-  };
-  apiPut(CONFIG.ENDPOINTS.personas, 'save', body, { id: currentPersonaId })
-    .then(function() {
-      showToast('Datos personales actualizados.', 'success');
-      cancelEdit('personal');
-      reloadSections();
-    })
-    .catch(function(err) { showToast(err.message, 'danger'); })
-    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar'; });
-});
-
-/* ── Guardar sección: Médico ── */
-document.getElementById('form-medico').addEventListener('submit', function(e) {
-  e.preventDefault();
-  var btn = this.querySelector('[type=submit]');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-  var body = {
-    grupo_sanguineo:              document.getElementById('e-grupo-sanguineo').value || null,
-    alergias:                     document.getElementById('e-alergias').value.trim() || null,
-    enfermedades_preexistentes:   document.getElementById('e-enfermedades').value.trim() || null,
-    medicamentos_actuales:        document.getElementById('e-medicamentos').value.trim() || null,
-    contacto_emergencia_nombre:   document.getElementById('e-emergencia-nombre').value.trim() || null,
-    contacto_emergencia_telefono: document.getElementById('e-emergencia-tel').value.trim() || null,
-  };
-  apiPut(CONFIG.ENDPOINTS.personas, 'save', body, { id: currentPersonaId })
-    .then(function() {
-      showToast('Datos médicos actualizados.', 'success');
-      cancelEdit('medico');
-      reloadSections();
-    })
-    .catch(function(err) { showToast(err.message, 'danger'); })
-    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar'; });
-});
-
-/* ── Guardar sección: Contacto ── */
-document.getElementById('form-contacto').addEventListener('submit', function(e) {
-  e.preventDefault();
-  showToast('Contacto: la edición de teléfonos y correos se implementa con los endpoints de contactos individuales.', 'info');
-  cancelEdit('contacto');
-});
-
-/* ── Agregar campos dinámicos de teléfono/correo ── */
-document.getElementById('btn-add-tel').addEventListener('click', function() {
-  var list = document.getElementById('edit-telefonos-list');
-  var idx  = list.children.length;
-  var div  = document.createElement('div');
-  div.className = 'row g-2 mb-2 align-items-center tel-row';
-  div.innerHTML =
-    '<div class="col-md-5"><input type="text" class="form-control" placeholder="0991234567" name="tel_numero_' + idx + '"></div>' +
-    '<div class="col-md-3"><select class="form-select" name="tel_tipo_' + idx + '"><option value="MOVIL">Móvil</option><option value="FIJO">Fijo</option><option value="TRABAJO">Trabajo</option></select></div>' +
-    '<div class="col-md-3"><select class="form-select" name="tel_op_' + idx + '"><option value="CLARO">Claro</option><option value="MOVISTAR">Movistar</option><option value="CNT">CNT</option><option value="OTRO">Otro</option></select></div>' +
-    '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.tel-row\').remove()"><i class="bi bi-trash"></i></button></div>';
-  list.appendChild(div);
-});
-document.getElementById('btn-add-email').addEventListener('click', function() {
-  var list = document.getElementById('edit-correos-list');
-  var idx  = list.children.length;
-  var div  = document.createElement('div');
-  div.className = 'row g-2 mb-2 align-items-center email-row';
-  div.innerHTML =
-    '<div class="col-md-8"><input type="email" class="form-control" placeholder="correo@ejemplo.com" name="email_' + idx + '"></div>' +
-    '<div class="col-md-3"><select class="form-select" name="email_tipo_' + idx + '"><option value="PERSONAL">Personal</option><option value="TRABAJO">Trabajo</option><option value="OTRO">Otro</option></select></div>' +
-    '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.email-row\').remove()"><i class="bi bi-trash"></i></button></div>';
-  list.appendChild(div);
-});
-
-/* ── Recargar secciones después de guardar ── */
-function reloadSections() {
-  if (!currentPersonaId) return;
-  apiGet(CONFIG.ENDPOINTS.personas, 'sections', { id: currentPersonaId })
-    .then(function(data) {
-      currentSections = data;
-      renderAllTabs(data);
-    })
-    .catch(function() {});
+function abrirNuevo() {
+  resetForm();
+  document.getElementById('persona-id').value = '';
+  document.getElementById('modal-persona-label').innerHTML =
+    '<i class="bi bi-person-plus-fill me-2"></i>Nuevo Empleado';
+  addTelefonoRow('', false);
+  addCorreoRow('', false);
+  setFormDisabled(false);
+  if (!bsModal) bsModal = new bootstrap.Modal(document.getElementById('modal-persona'));
+  bsModal.show();
 }
 
-/* ── Cerrar detalle ── */
-document.getElementById('btn-cerrar-detalle').addEventListener('click', function() {
-  document.getElementById('persona-detail-card').classList.add('d-none');
-  currentPersonaId = null;
-  currentSections  = null;
-});
+/* ══════════════════════════════════════════════════════════
+   GUARDAR
+══════════════════════════════════════════════════════════ */
+document.getElementById('btn-guardar-persona').addEventListener('click', async function() {
+  var id = document.getElementById('persona-id').value;
 
-/* ── Nueva persona: mostrar / ocultar ── */
-function showNuevaPersona() {
-  document.getElementById('nueva-persona-card').classList.remove('d-none');
-  document.getElementById('nueva-persona-card').scrollIntoView({ behavior: 'smooth' });
-  loadInstitucionesSelect('n-institucion');
-}
-function hideNuevaPersona() {
-  document.getElementById('nueva-persona-card').classList.add('d-none');
-  document.getElementById('form-nueva-persona').reset();
-}
-document.getElementById('btn-nueva-persona').addEventListener('click', showNuevaPersona);
-document.getElementById('btn-cancelar-nueva').addEventListener('click', hideNuevaPersona);
-document.getElementById('btn-cancelar-nueva-2').addEventListener('click', hideNuevaPersona);
-
-/* ── Cargar select de instituciones ── */
-function loadInstitucionesSelect(selectId) {
-  var sel = document.getElementById(selectId);
-  if (!sel) return;
-  if (window.CUSPIDE_STATE && window.CUSPIDE_STATE.instituciones && window.CUSPIDE_STATE.instituciones.length > 0) {
-    populateInstSelect(sel, window.CUSPIDE_STATE.instituciones);
+  if (!document.getElementById('p-identificacion').value.trim() || !document.getElementById('p-primer-nombre').value.trim() || !document.getElementById('p-primer-apellido').value.trim() || !document.getElementById('p-tipo-persona').value) {
+    goToFirstTab();
+    showToast('Identificación, nombres, apellidos y rol son obligatorios.', 'warning');
     return;
   }
-  apiGet(CONFIG.ENDPOINTS.instituciones, 'list')
-    .then(function(data) {
-      if (Array.isArray(data)) populateInstSelect(sel, data);
-    })
-    .catch(function() { sel.innerHTML = '<option value="">Error al cargar</option>'; });
-}
-function populateInstSelect(sel, items) {
-  sel.innerHTML = '<option value="">— Seleccionar institución —</option>' +
-    items.map(function(i) { return '<option value="' + i.id + '">' + esc(i.nombre) + '</option>'; }).join('');
-}
-
-/* ── Registrar nueva persona ── */
-document.getElementById('form-nueva-persona').addEventListener('submit', function(e) {
-  e.preventDefault();
-  var btn = document.getElementById('btn-submit-nueva');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Registrando...';
-
-  var username  = document.getElementById('n-username').value.trim();
-  var password  = document.getElementById('n-password').value;
-  var tipo_user = document.getElementById('n-tipo-user').value;
 
   var body = {
-    identificacion:  document.getElementById('n-identificacion').value.trim(),
-    primer_nombre:   document.getElementById('n-primer-nombre').value.trim(),
-    segundo_nombre:  document.getElementById('n-segundo-nombre').value.trim() || null,
-    primer_apellido: document.getElementById('n-primer-apellido').value.trim(),
-    segundo_apellido:document.getElementById('n-segundo-apellido').value.trim() || null,
-    fecha_nacimiento:document.getElementById('n-fecha-nacimiento').value || null,
-    genero:          parseInt(document.getElementById('n-genero').value) || null,
-    etnia:           parseInt(document.getElementById('n-etnia').value) || null,
-    institucion:     parseInt(document.getElementById('n-institucion').value) || null,
-    tipo_persona:    parseInt(document.getElementById('n-tipo-persona').value) || null,
-    direccion:       document.getElementById('n-direccion').value.trim() || null,
-    grupo_sanguineo: document.getElementById('n-grupo-sanguineo').value || null,
+    identificacion:   document.getElementById('p-identificacion').value.trim(),
+    primer_nombre:    document.getElementById('p-primer-nombre').value.trim(),
+    segundo_nombre:   document.getElementById('p-segundo-nombre').value.trim(),
+    primer_apellido:  document.getElementById('p-primer-apellido').value.trim(),
+    segundo_apellido: document.getElementById('p-segundo-apellido').value.trim(),
+    fecha_nacimiento: document.getElementById('p-fecha-nac').value || null,
+    genero:           document.getElementById('p-genero').value || null,
+    etnia:            document.getElementById('p-etnia').value || null,
+    nacionalidad:     document.getElementById('p-nacionalidad').value || null,
+    ciudad:           document.getElementById('p-ciudad').value || null,
+    direccion:        document.getElementById('p-direccion').value.trim(),
+    institucion:      institucionId,
+    tipo_persona_id:  document.getElementById('p-tipo-persona').value,
+    pi_estado:        parseInt(document.getElementById('p-estado-pi').value || '1'),
+    grupo_sanguineo:  document.getElementById('p-grupo-sanguineo').value || null,
+    contacto_emergencia_nombre:   document.getElementById('p-contacto-nombre').value.trim(),
+    contacto_emergencia_telefono: document.getElementById('p-contacto-telefono').value.trim(),
+    alergias:         document.getElementById('p-alergias').value.trim(),
+    enfermedades_preexistentes: document.getElementById('p-enfermedades').value.trim(),
+    medicamentos_actuales: document.getElementById('p-medicamentos').value.trim(),
+    telefonos:        getTelefonos(),
+    correos:          getCorreos(),
+    username:         document.getElementById('p-username').value.trim(),
+    password:         document.getElementById('p-password').value,
+    tipo_user:        document.getElementById('p-tipo-user').value,
   };
-  if (username) { body.username = username; }
-  if (password) { body.password = password; }
-  if (tipo_user) { body.tipo_user = tipo_user; }
 
-  apiPost(CONFIG.ENDPOINTS.personas, 'saveemployee', body)
-    .then(function(data) {
-      showToast('Empleado registrado: ' + (data.nombre_completo || data.identificacion), 'success');
-      hideNuevaPersona();
-      loadEmpleados();
-      document.getElementById('persona-search').value = body.identificacion;
-      doSearch(body.identificacion);
-    })
-    .catch(function(err) { showToast(err.message || 'Error al registrar empleado.', 'danger'); })
-    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Registrar Persona'; });
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  try {
+    var method = id ? 'PUT' : 'POST';
+    var params = id ? { id: id } : null;
+    await Cuspide.api.call(method, CONFIG.ENDPOINTS.personas, 'saveemployee', body, params);
+    showToast(id ? 'Empleado actualizado.' : 'Empleado registrado.', 'success');
+    if (bsModal) bsModal.hide();
+    loadEmpleados();
+  } catch (err) {
+    showToast(err.message || 'Error al guardar.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Cambios';
+  }
 });
 
-/* ── Cargar empleados recientes ── */
-async function loadEmpleados() {
-  var tbody = document.getElementById('empleados-tbody');
-  if (!tbody) return;
-  try {
-    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'employees', null, { limit: 20 });
-    var resp  = data && data.items ? data : { total: Array.isArray(data) ? data.length : 0, items: Array.isArray(data) ? data : [] };
-    var items = resp.items || [];
-    document.getElementById('stat-empleados').textContent  = resp.total !== undefined ? resp.total : items.length;
-    document.getElementById('empleados-list-info').textContent = items.length + ' registro(s)';
-    if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-person-dash me-2"></i>Sin empleados registrados.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = items.map(function(e) {
-      var badge = parseInt(e.pi_estado) === 1
-        ? '<span class="badge rounded-pill bg-success">Activo</span>'
-        : '<span class="badge rounded-pill bg-secondary">Inactivo</span>';
-      return '<tr>' +
-        '<td><code>' + esc(e.identificacion) + '</code></td>' +
-        '<td class="fw-semibold">' + esc(e.nombre_completo) + '</td>' +
-        '<td><span class="badge rounded-pill" style="background:var(--app-surface-soft);color:var(--app-text-soft);border:1px solid var(--app-border);">' + esc(e.tipo || '—') + '</span></td>' +
-        '<td>' + badge + '</td>' +
-        '<td class="text-end">' +
-          '<button type="button" class="btn btn-sm btn-outline-primary" onclick="loadPersonaDetail(' + e.id + ',\'' + esc(e.nombre_completo) + '\',\'' + esc(e.tipo || '') + '\',\'' + esc(e.identificacion) + '\',\'\')">' +
-            '<i class="bi bi-eye me-1"></i>Ver</button>' +
-        '</td>' +
-      '</tr>';
-    }).join('');
-  } catch (err) {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar.') + '</td></tr>';
-  }
-}
-
-/* ── Inicialización ── */
+/* ══════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
   checkAuth();
+  loadCatalogs();
   loadEmpleados();
 
-  var searchInput = document.getElementById('persona-search');
-  var clearBtn    = document.getElementById('btn-limpiar-personas');
+  /* Evita "Blocked aria-hidden on focused element" al cerrar el modal */
+  document.getElementById('modal-persona').addEventListener('hide.bs.modal', function() {
+    if (document.activeElement && this.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  });
 
-  searchInput.addEventListener('input', function() { doSearch(this.value.trim()); });
-  clearBtn.addEventListener('click', function() {
-    searchInput.value = '';
-    renderTable([]);
-    document.getElementById('personas-info').textContent = 'Ingresa al menos 2 caracteres.';
-    document.getElementById('persona-detail-card').classList.add('d-none');
-    searchInput.focus();
+  document.getElementById('persona-search').addEventListener('input', function() {
+    doSearch(this.value.trim() || null);
+  });
+
+  document.getElementById('btn-limpiar-busqueda').addEventListener('click', function() {
+    document.getElementById('persona-search').value = '';
+    loadEmpleados();
+  });
+
+  document.getElementById('btn-nuevo-empleado').addEventListener('click', abrirNuevo);
+
+  document.getElementById('btn-add-telefono').addEventListener('click', function() {
+    addTelefonoRow('', false);
+  });
+
+  document.getElementById('btn-add-correo').addEventListener('click', function() {
+    addCorreoRow('', false);
   });
 });
 </script>

@@ -8,53 +8,77 @@ use RuntimeException;
 
 class PersonaRequest
 {
-    private string $identificacion;
-    private string $primer_nombre;
-    private ?string $segundo_nombre;
-    private string $primer_apellido;
-    private ?string $segundo_apellido;
-    private int $nacionalidad;
-    private int $genero;
-    private int $etnia;
-    private string $fecha_nacimiento;
-    private int $ciudad;
-    private string $direccion;
-    private ?string $username;
-    private ?string $password;
-    private ?string $tipo_user;
-    private int $tipo_persona;
-    private int $institucion;
-    private ?string $grupo_sanguineo;
-    private ?string $alergias;
-    private ?string $enfermedades;
-    private ?string $medicamentos;
-    private ?string $contacto_emergencia_nombre;
-    private ?string $contacto_emergencia_telefono;
+    // Datos Personales
+    public string $identificacion;
+    public string $primer_nombre;
+    public ?string $segundo_nombre;
+    public string $primer_apellido;
+    public ?string $segundo_apellido;
+    public ?string $fecha_nacimiento;
+    public ?int $genero;
+    public ?int $etnia;
+    public ?int $nacionalidad;
+    public ?int $ciudad;
+    public ?string $direccion;
+
+    // Datos Institucionales
+    public int $institucion;
+    public int $tipo_persona_id;
+    public int $pi_estado;
+
+    // Ficha Médica
+    public ?string $grupo_sanguineo;
+    public ?string $contacto_emergencia_nombre;
+    public ?string $contacto_emergencia_telefono;
+    public ?string $alergias;
+    public ?string $enfermedades_preexistentes;
+    public ?string $medicamentos_actuales;
+
+    // Contacto
+    public array $telefonos;
+    public array $correos;
+
+    // Acceso al sistema
+    public ?string $username;
+    public ?string $password;
+    public ?string $tipo_user;
 
     public function __construct(array $data)
     {
-        $this->identificacion         = trim((string) ($data['identificacion'] ?? ''));
-        $this->primer_nombre          = trim((string) ($data['primer_nombre'] ?? ''));
-        $this->segundo_nombre         = isset($data['segundo_nombre']) ? trim((string) $data['segundo_nombre']) : null;
-        $this->primer_apellido        = trim((string) ($data['primer_apellido'] ?? ''));
-        $this->segundo_apellido       = isset($data['segundo_apellido']) ? trim((string) $data['segundo_apellido']) : null;
-        $this->nacionalidad           = (int) ($data['nacionalidad'] ?? 0);
-        $this->genero                 = (int) ($data['genero'] ?? 0);
-        $this->etnia                  = (int) ($data['etnia'] ?? 0);
-        $this->fecha_nacimiento       = trim((string) ($data['fecha_nacimiento'] ?? ''));
-        $this->ciudad                 = (int) ($data['ciudad'] ?? 0);
-        $this->direccion              = trim((string) ($data['direccion'] ?? ''));
-        $this->username               = isset($data['username']) ? trim((string) $data['username']) : null;
-        $this->password               = isset($data['password']) ? trim((string) $data['password']) : null;
-        $this->tipo_user              = isset($data['tipo_user']) ? trim((string) $data['tipo_user']) : null;
-        $this->tipo_persona           = (int) ($data['tipo_persona'] ?? 0);
-        $this->institucion            = (int) ($data['institucion'] ?? 0);
-        $this->grupo_sanguineo        = isset($data['grupo_sanguineo']) ? trim((string) $data['grupo_sanguineo']) : null;
-        $this->alergias               = isset($data['alergias']) ? trim((string) $data['alergias']) : null;
-        $this->enfermedades           = isset($data['enfermedades']) ? trim((string) $data['enfermedades']) : null;
-        $this->medicamentos           = isset($data['medicamentos']) ? trim((string) $data['medicamentos']) : null;
-        $this->contacto_emergencia_nombre   = isset($data['contacto_emergencia_nombre']) ? trim((string) $data['contacto_emergencia_nombre']) : null;
-        $this->contacto_emergencia_telefono = isset($data['contacto_emergencia_telefono']) ? trim((string) $data['contacto_emergencia_telefono']) : null;
+        // Datos Personales
+        $this->identificacion   = trim((string) ($data['identificacion'] ?? ''));
+        $this->primer_nombre    = trim((string) ($data['primer_nombre'] ?? ''));
+        $this->segundo_nombre   = isset($data['segundo_nombre']) && $data['segundo_nombre'] !== '' ? trim((string) $data['segundo_nombre']) : null;
+        $this->primer_apellido  = trim((string) ($data['primer_apellido'] ?? ''));
+        $this->segundo_apellido = isset($data['segundo_apellido']) && $data['segundo_apellido'] !== '' ? trim((string) $data['segundo_apellido']) : null;
+        $this->fecha_nacimiento = isset($data['fecha_nacimiento']) && $data['fecha_nacimiento'] !== '' ? (string) $data['fecha_nacimiento'] : null;
+        $this->genero           = isset($data['genero']) && $data['genero'] !== '' ? (int) $data['genero'] : null;
+        $this->etnia            = isset($data['etnia']) && $data['etnia'] !== '' ? (int) $data['etnia'] : null;
+        $this->nacionalidad     = isset($data['nacionalidad']) && $data['nacionalidad'] !== '' ? (int) $data['nacionalidad'] : null;
+        $this->ciudad           = isset($data['ciudad']) && $data['ciudad'] !== '' ? (int) $data['ciudad'] : null;
+        $this->direccion        = isset($data['direccion']) && $data['direccion'] !== '' ? trim((string) $data['direccion']) : null;
+
+        // Datos Institucionales
+        $this->institucion     = (int) ($data['institucion'] ?? 0);
+        $this->tipo_persona_id = (int) ($data['tipo_persona_id'] ?? 0);
+        $this->pi_estado       = (int) ($data['pi_estado'] ?? 1);
+
+        // Ficha Médica
+        $this->grupo_sanguineo              = isset($data['grupo_sanguineo']) && $data['grupo_sanguineo'] !== '' ? (string) $data['grupo_sanguineo'] : null;
+        $this->contacto_emergencia_nombre   = isset($data['contacto_emergencia_nombre']) && $data['contacto_emergencia_nombre'] !== '' ? trim((string) $data['contacto_emergencia_nombre']) : null;
+        $this->contacto_emergencia_telefono = isset($data['contacto_emergencia_telefono']) && $data['contacto_emergencia_telefono'] !== '' ? trim((string) $data['contacto_emergencia_telefono']) : null;
+        $this->alergias                     = isset($data['alergias']) && $data['alergias'] !== '' ? trim((string) $data['alergias']) : null;
+        $this->enfermedades_preexistentes   = isset($data['enfermedades_preexistentes']) && $data['enfermedades_preexistentes'] !== '' ? trim((string) $data['enfermedades_preexistentes']) : null;
+        $this->medicamentos_actuales        = isset($data['medicamentos_actuales']) && $data['medicamentos_actuales'] !== '' ? trim((string) $data['medicamentos_actuales']) : null;
+
+        // Contacto
+        $this->telefonos = is_array($data['telefonos'] ?? null) ? $data['telefonos'] : [];
+        $this->correos   = is_array($data['correos'] ?? null) ? $data['correos'] : [];
+
+        // Acceso al sistema
+        $this->username  = isset($data['username']) && $data['username'] !== '' ? trim((string) $data['username']) : null;
+        $this->password  = isset($data['password']) && $data['password'] !== '' ? (string) $data['password'] : null;
+        $this->tipo_user = isset($data['tipo_user']) && $data['tipo_user'] !== '' ? (string) $data['tipo_user'] : null;
 
         $this->validate();
     }
@@ -64,9 +88,8 @@ class PersonaRequest
         if ($this->identificacion === '') throw new RuntimeException('La identificación es obligatoria.', 400);
         if ($this->primer_nombre === '') throw new RuntimeException('El primer nombre es obligatorio.', 400);
         if ($this->primer_apellido === '') throw new RuntimeException('El primer apellido es obligatorio.', 400);
-        if ($this->fecha_nacimiento === '') throw new RuntimeException('La fecha de nacimiento es obligatoria.', 400);
         if ($this->institucion <= 0) throw new RuntimeException('La institución es obligatoria.', 400);
-        if ($this->tipo_persona <= 0) throw new RuntimeException('El tipo de persona es obligatorio.', 400);
+        if ($this->tipo_persona_id <= 0) throw new RuntimeException('El tipo de persona es obligatorio.', 400);
     }
 
     public static function fromJson(): self
@@ -76,27 +99,4 @@ class PersonaRequest
         if (!is_array($data)) throw new RuntimeException('El body JSON es inválido o está vacío.', 400);
         return new self($data);
     }
-
-    public function getIdentificacion(): string { return $this->identificacion; }
-    public function getPrimerNombre(): string { return $this->primer_nombre; }
-    public function getSegundoNombre(): ?string { return $this->segundo_nombre; }
-    public function getPrimerApellido(): string { return $this->primer_apellido; }
-    public function getSegundoApellido(): ?string { return $this->segundo_apellido; }
-    public function getNacionalidad(): int { return $this->nacionalidad; }
-    public function getGenero(): int { return $this->genero; }
-    public function getEtnia(): int { return $this->etnia; }
-    public function getFechaNacimiento(): string { return $this->fecha_nacimiento; }
-    public function getCiudad(): int { return $this->ciudad; }
-    public function getDireccion(): string { return $this->direccion; }
-    public function getUsername(): ?string { return $this->username; }
-    public function getPassword(): ?string { return $this->password; }
-    public function getTipoUser(): ?string { return $this->tipo_user; }
-    public function getTipoPersona(): int { return $this->tipo_persona; }
-    public function getInstitucion(): int { return $this->institucion; }
-    public function getGrupoSanguineo(): ?string { return $this->grupo_sanguineo; }
-    public function getAlergias(): ?string { return $this->alergias; }
-    public function getEnfermedades(): ?string { return $this->enfermedades; }
-    public function getMedicamentos(): ?string { return $this->medicamentos; }
-    public function getContactoEmergenciaNombre(): ?string { return $this->contacto_emergencia_nombre; }
-    public function getContactoEmergenciaTelefono(): ?string { return $this->contacto_emergencia_telefono; }
 }
