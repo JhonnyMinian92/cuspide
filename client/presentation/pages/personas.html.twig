@@ -1,9 +1,52 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'personas' %}
-{% block title %}Personas — CUSPIDE{% endblock %}
-{% block page_title %}Personas{% endblock %}
+{% block title %}Empleados — SportAdmin{% endblock %}
+{% block page_title %}Empleados{% endblock %}
 
 {% block content %}
+
+<!-- Resumen Empleados -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card stat-card text-white" style="background:#1a2235;">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Total Empleados</div>
+          <div class="stat-value" id="stat-empleados">—</div>
+        </div>
+        <div class="stat-icon"><i class="bi bi-person-badge-fill"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Últimos empleados -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Últimos Empleados Registrados</h6>
+      <small class="text-muted" id="empleados-list-info">Últimos 20</small>
+    </div>
+    <div class="table-responsive table-container">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Identificación</th>
+            <th>Nombre Completo</th>
+            <th>Cargo</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="empleados-tbody">
+          <tr><td colspan="5" class="text-center text-muted py-4">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- Buscador + acción nueva -->
 <div class="card chart-card mb-4">
@@ -893,19 +936,57 @@ document.getElementById('form-nueva-persona').addEventListener('submit', functio
   if (password) { body.password = password; }
   if (tipo_user) { body.tipo_user = tipo_user; }
 
-  apiPost(CONFIG.ENDPOINTS.personas, 'save', body)
+  apiPost(CONFIG.ENDPOINTS.personas, 'saveemployee', body)
     .then(function(data) {
-      showToast('Persona registrada: ' + (data.nombre_completo || data.identificacion), 'success');
+      showToast('Empleado registrado: ' + (data.nombre_completo || data.identificacion), 'success');
       hideNuevaPersona();
+      loadEmpleados();
       document.getElementById('persona-search').value = body.identificacion;
       doSearch(body.identificacion);
     })
-    .catch(function(err) { showToast(err.message || 'Error al registrar persona.', 'danger'); })
+    .catch(function(err) { showToast(err.message || 'Error al registrar empleado.', 'danger'); })
     .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Registrar Persona'; });
 });
 
+/* ── Cargar empleados recientes ── */
+async function loadEmpleados() {
+  var tbody = document.getElementById('empleados-tbody');
+  if (!tbody) return;
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'employees', null, { limit: 20 });
+    var resp  = data && data.items ? data : { total: Array.isArray(data) ? data.length : 0, items: Array.isArray(data) ? data : [] };
+    var items = resp.items || [];
+    document.getElementById('stat-empleados').textContent  = resp.total !== undefined ? resp.total : items.length;
+    document.getElementById('empleados-list-info').textContent = items.length + ' registro(s)';
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-person-dash me-2"></i>Sin empleados registrados.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(function(e) {
+      var badge = parseInt(e.pi_estado) === 1
+        ? '<span class="badge rounded-pill bg-success">Activo</span>'
+        : '<span class="badge rounded-pill bg-secondary">Inactivo</span>';
+      return '<tr>' +
+        '<td><code>' + esc(e.identificacion) + '</code></td>' +
+        '<td class="fw-semibold">' + esc(e.nombre_completo) + '</td>' +
+        '<td><span class="badge rounded-pill" style="background:var(--app-surface-soft);color:var(--app-text-soft);border:1px solid var(--app-border);">' + esc(e.tipo || '—') + '</span></td>' +
+        '<td>' + badge + '</td>' +
+        '<td class="text-end">' +
+          '<button type="button" class="btn btn-sm btn-outline-primary" onclick="loadPersonaDetail(' + e.id + ',\'' + esc(e.nombre_completo) + '\',\'' + esc(e.tipo || '') + '\',\'' + esc(e.identificacion) + '\',\'\')">' +
+            '<i class="bi bi-eye me-1"></i>Ver</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  } catch (err) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar.') + '</td></tr>';
+  }
+}
+
 /* ── Inicialización ── */
 document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadEmpleados();
+
   var searchInput = document.getElementById('persona-search');
   var clearBtn    = document.getElementById('btn-limpiar-personas');
 

@@ -78,7 +78,9 @@ class PersonaInstitucionRepository
   public function findByPersonaIdWithDetails(int $personaId): ?array
   {
     $stmt = $this->db->prepare(
-      "SELECT pi.id, pi.estado,
+      "SELECT pi.id,
+              pi.tipo   AS tipo_id,
+              pi.estado AS pi_estado,
               tp.nombre AS tipo,
               i.nombre  AS institucion,
               i.id      AS institucion_id

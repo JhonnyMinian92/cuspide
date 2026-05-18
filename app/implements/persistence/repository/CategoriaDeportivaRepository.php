@@ -47,6 +47,26 @@ class CategoriaDeportivaRepository
     return array_map(fn($row) => $this->map($row), $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
   }
 
+  public function findAllByInstitucion(int $institucionId): array
+  {
+    $stmt = $this->db->prepare(
+      'SELECT cd.*, d.nombre as deporte_nombre
+         FROM categorias_deportivas cd
+         LEFT JOIN deportes d ON cd.deporte = d.id
+         WHERE cd.institucion = :institucion AND cd.estado != 2
+         ORDER BY cd.nombre ASC'
+    );
+    $stmt->execute([':institucion' => $institucionId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  }
+
+  public function softDelete(int $id): bool
+  {
+    $stmt = $this->db->prepare("UPDATE categorias_deportivas SET estado = 0 WHERE id = :id");
+    $stmt->execute([':id' => $id]);
+    return $stmt->rowCount() > 0;
+  }
+
   private function params(CategoriaDeportiva $categoria): array
   {
     return [

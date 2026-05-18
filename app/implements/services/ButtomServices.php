@@ -87,6 +87,9 @@ final class ButtomServices implements ButtomServiceInterface
     $menu = [];
     foreach ($botonesUser as $botonUser) {
       $boton = $botonUser->getBoton();
+      if ($boton === null) {
+        continue;
+      }
       $menu[] = [
         'orden' => (int) $boton->getOrden(),
         'nombre' => (string) $boton->getNombre(),

@@ -52,4 +52,11 @@ class NacionalidadRepository
 
     return null;
   }
+
+  public function findAll(): array
+  {
+    $stmt = $this->db->query('SELECT * FROM nacionalidades ORDER BY id ASC');
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return array_map(fn($row) => new Nacionalidad((int)$row['id'], $row['nombre'], $row['nemonico']), $rows ?: []);
+  }
 }

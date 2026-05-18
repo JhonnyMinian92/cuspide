@@ -105,6 +105,21 @@ $routes = [
 
     '/usuarios'        => 'pages/usuarios.html.twig',
     '/usuario'         => 'pages/usuarios.html.twig',
+
+    '/gastos'          => 'pages/gastos.html.twig',
+    '/gasto'           => 'pages/gastos.html.twig',
+    '/egresos'         => 'pages/gastos.html.twig',
+    '/egreso'          => 'pages/gastos.html.twig',
+
+    '/contratos'       => 'pages/contratos.html.twig',
+    '/contrato'        => 'pages/contratos.html.twig',
+    '/empleados'       => 'pages/personas.html.twig',
+    '/empleado'        => 'pages/personas.html.twig',
+
+    '/reportes'        => 'pages/reportes.html.twig',
+    '/reporte'         => 'pages/reportes.html.twig',
+    '/informes'        => 'pages/reportes.html.twig',
+    '/estadisticas'    => 'pages/reportes.html.twig',
 ];
 
 if (isset($routes[$uri])) {

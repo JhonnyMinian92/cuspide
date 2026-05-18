@@ -6,11 +6,15 @@ namespace Services;
 
 require_once __DIR__ . '/../interfaces/MembresiaServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/MembresiaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Membresia.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\MembresiaServiceInterface;
 use Repositories\MembresiaRepository;
+use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Entitys\Membresia;
 use RuntimeException;
 use Utils\Token;
@@ -30,15 +34,29 @@ final class MembresiaServices implements MembresiaServiceInterface
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
     {
-        $payload = Token::validateBearerToken($authHeader, $this->jwtSecret);
+        $userId  = (int) (Token::validateBearerToken($authHeader, $this->jwtSecret)['sub'] ?? 0);
+        $instId  = $this->getInstitucionByUserId($userId);
 
         $resource = $this->resolveResource($requestUri, $queryParams, 'membresias');
 
         return match (true) {
-            $method === 'GET'                          && $resource === 'list' => $this->fetchMembresias(),
-            in_array($method, ['POST', 'PUT'], true)  && $resource === 'save' => $this->saveMembresia(isset($queryParams['id']) ? (int) $queryParams['id'] : null),
+            $method === 'GET'                          && $resource === 'list' => $this->fetchMembresias($instId),
+            in_array($method, ['POST', 'PUT'], true)  && $resource === 'save' => $this->saveMembresia(isset($queryParams['id']) ? (int) $queryParams['id'] : null, $instId),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
         };
+    }
+
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = (new PersonaRepository())->findByUserId($userId);
+        if ($persona === null) {
+            throw new RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 
     // -------------------------------------------------------------------------
@@ -77,10 +95,10 @@ final class MembresiaServices implements MembresiaServiceInterface
     // fetchMembresias
     // -------------------------------------------------------------------------
 
-    private function fetchMembresias(): array
+    private function fetchMembresias(int $instId): array
     {
         $repo      = new MembresiaRepository();
-        $entities  = $repo->findAll();
+        $entities  = $repo->findByInstitucion($instId);
 
         $result = [];
         foreach ($entities as $m) {
@@ -93,6 +111,7 @@ final class MembresiaServices implements MembresiaServiceInterface
                 'url_boton'   => $m->getUrlBoton(),
                 'fecha_inicio'=> $m->getFechaInicio(),
                 'fecha_fin'   => $m->getFechaFin(),
+                'periodo'     => $m->getPeriodo(),
                 'estado'      => $m->getEstado() !== null ? $m->getEstado()->getId() : null,
             ];
         }
@@ -104,34 +123,39 @@ final class MembresiaServices implements MembresiaServiceInterface
     // saveMembresia
     // -------------------------------------------------------------------------
 
-    private function saveMembresia(?int $id): array
+    private function saveMembresia(?int $id, int $instId): array
     {
         $body = json_decode((string) file_get_contents('php://input'), true);
         if (!is_array($body)) {
             throw new RuntimeException('Cuerpo de la solicitud inválido o vacío.', 400);
         }
 
-        $titulo      = (string) ($body['titulo']       ?? '');
-        $precio      = (float)  ($body['precio']       ?? 0);
-        $porcentaje  = (float)  ($body['porcentaje']   ?? 0);
-        $descripcion = (string) ($body['descripcion']  ?? '');
-        $urlBoton    = (string) ($body['url_boton']    ?? '');
-        $fechaInicio = (string) ($body['fecha_inicio'] ?? '');
-        $fechaFin    = (string) ($body['fecha_fin']    ?? '');
-        $estado      = (int)    ($body['estado']       ?? 1);
+        $titulo      = (string) ($body['titulo']      ?? '');
+        $precio      = number_format((float) ($body['precio'] ?? 0), 2, '.', '');
+        $porcentaje  = (float)  ($body['porcentaje']  ?? 0);
+        $descripcion = (string) ($body['descripcion'] ?? '');
+        $urlBoton    = (string) ($body['url_boton']   ?? '');
+        $fechaFin    = (string) ($body['fecha_fin']   ?? '');
+        $estado      = (int)    ($body['estado']      ?? 1);
 
-        if ($titulo === '' || $fechaInicio === '' || $fechaFin === '') {
-            throw new RuntimeException('Faltan campos obligatorios: titulo, fecha_inicio, fecha_fin.', 400);
+        $periodosValidos = ['semanal', 'mensual', 'trimestral', 'anual'];
+        $periodo = (string) ($body['periodo'] ?? 'mensual');
+        if (!in_array($periodo, $periodosValidos, true)) {
+            $periodo = 'mensual';
+        }
+
+        if ($titulo === '' || $fechaFin === '') {
+            throw new RuntimeException('Faltan campos obligatorios: titulo, fecha_fin.', 400);
         }
 
         $repo = new MembresiaRepository();
 
         if ($id !== null && $id > 0) {
-            // Update: load existing and replace scalar fields via a fresh entity with the same id
-            $entity = new Membresia($id, $titulo, $precio, $porcentaje, $descripcion, $urlBoton, $fechaInicio, $fechaFin, $estado);
+            $existing    = $repo->findById($id);
+            $fechaInicio = $existing ? $existing->getFechaInicio() : date('Y-m-d');
+            $entity      = new Membresia($id, $titulo, $precio, $porcentaje, $descripcion, $urlBoton, $fechaInicio, $fechaFin, $estado, $instId, $periodo);
         } else {
-            // Insert
-            $entity = new Membresia(null, $titulo, $precio, $porcentaje, $descripcion, $urlBoton, $fechaInicio, $fechaFin, $estado);
+            $entity = new Membresia(null, $titulo, $precio, $porcentaje, $descripcion, $urlBoton, date('Y-m-d'), $fechaFin, $estado, $instId, $periodo);
         }
 
         $saved = $repo->save($entity);
@@ -145,6 +169,7 @@ final class MembresiaServices implements MembresiaServiceInterface
             'url_boton'   => $saved->getUrlBoton(),
             'fecha_inicio'=> $saved->getFechaInicio(),
             'fecha_fin'   => $saved->getFechaFin(),
+            'periodo'     => $saved->getPeriodo(),
             'estado'      => $saved->getEstado() !== null ? $saved->getEstado()->getId() : $estado,
         ];
     }

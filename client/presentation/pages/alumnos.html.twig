@@ -1,192 +1,302 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'alumnos' %}
 
-{% block title %}Alumnos — Huaquillas F.C.{% endblock %}
+{% block title %}Alumnos — SportAdmin{% endblock %}
 {% block page_title %}Alumnos{% endblock %}
 
 {% block content %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+.dynamic-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem;}
+.dynamic-row input{flex:1;}
+#alumno-tabs{border-bottom:1px solid var(--card-border,#dee2e6);}
+#alumno-tabs .nav-link{color:var(--app-text,#495057);opacity:.65;border:none;border-bottom:2px solid transparent;border-radius:0;padding:.65rem 1.1rem;font-size:.88rem;transition:opacity .15s,border-color .15s;}
+#alumno-tabs .nav-link:hover:not(.active){opacity:1;}
+#alumno-tabs .nav-link.active{color:var(--brand-color,#e8b84b);opacity:1;border-bottom-color:var(--brand-color,#e8b84b);background:transparent;font-weight:600;}
+.tab-content>.tab-pane{padding:1.25rem 0 .25rem;}
+</style>
 
+<!-- Barra superior -->
 <div class="card chart-card mb-4">
   <div class="card-body p-4">
-
-    <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-center gap-3 mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mb-4">
       <div>
-        <h6 class="fw-bold mb-1">Buscar Alumno</h6>
-        <p class="text-muted small mb-0">
-          Busca por nombre, apellido o identificación. Si no existe, podrás registrarlo aquí mismo.
-        </p>
+        <h6 class="fw-bold mb-1">Estudiantes Registrados</h6>
+        <p class="text-muted small mb-0">Total: <strong id="alumnos-count">—</strong> estudiantes activos en tu institución.</p>
+      </div>
+      <div class="d-flex gap-2 flex-shrink-0">
+        <a href="/matriculas" class="btn btn-sm btn-outline-secondary align-self-center">
+          <i class="bi bi-arrow-left me-1"></i>Matrículas
+        </a>
+        <button type="button" class="btn btn-brand" id="btn-nuevo-alumno">
+          <i class="bi bi-person-plus-fill me-1"></i>Nuevo Estudiante
+        </button>
       </div>
     </div>
-
-    <!-- Buscador -->
     <div class="row g-3 align-items-end">
-      <div class="col-12 col-lg-9">
-        <label for="alumno-search" class="form-label fw-semibold">Buscar estudiante</label>
+      <div class="col-12 col-lg-10">
         <div class="input-group">
-          <span class="input-group-text">
-            <i class="bi bi-search"></i>
-          </span>
-          <input
-            type="search"
-            class="form-control"
-            id="alumno-search"
-            placeholder="Ej: Lionel, Messi, 1798736542"
-            autocomplete="off"
-          >
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="alumno-search"
+            placeholder="Buscar por nombre, apellido o identificación..." autocomplete="off">
         </div>
       </div>
-
-      <div class="col-12 col-lg-3">
+      <div class="col-12 col-lg-2">
         <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-busqueda">
           <i class="bi bi-x-circle me-1"></i>Limpiar
         </button>
       </div>
     </div>
-
   </div>
 </div>
 
 <!-- Tabla de resultados -->
-<div class="card chart-card mb-4" id="alumnos-list-card">
+<div class="card chart-card mb-4">
   <div class="card-body p-4">
-
-    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
-      <div>
-        <h6 class="fw-bold mb-1">Lista de Alumnos</h6>
-        <p class="text-muted small mb-0" id="alumnos-result-info">
-          Ingresa un criterio de búsqueda para filtrar los estudiantes.
-        </p>
-      </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Lista de Alumnos</h6>
+      <small class="text-muted" id="alumnos-result-info">Últimos 20 registros</small>
     </div>
-
     <div class="table-responsive table-container">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th>ID</th>
-            <th>Nombre</th>
-            <th>Apellido</th>
             <th>Identificación</th>
+            <th>Nombre Completo</th>
             <th>Tipo</th>
             <th>Estado</th>
-            <th>Acciones</th>
+            <th class="text-end">Acciones</th>
           </tr>
         </thead>
         <tbody id="alumnos-tbody">
-          <tr>
-            <td colspan="7" class="text-center text-muted py-4">
-              <i class="bi bi-people me-2"></i>
-              Los datos de alumnos se cargarán vía API próximamente.
-            </td>
-          </tr>
+          <tr><td colspan="5" class="text-center text-muted py-4">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+          </td></tr>
         </tbody>
       </table>
     </div>
-
   </div>
 </div>
 
-<!-- Formulario nuevo estudiante -->
-<div class="card chart-card d-none" id="nuevo-alumno-card">
-  <div class="card-body p-4">
+<!-- Modal Estudiante (tab-based) -->
+<div class="modal fade" id="modal-alumno" tabindex="-1" aria-labelledby="modal-alumno-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
 
-    <div class="alert alert-warning d-flex align-items-center" role="alert" id="nuevo-alumno-alert">
-      <i class="bi bi-exclamation-triangle-fill me-2"></i>
-      <div>
-        No se encontraron coincidencias. Puedes registrar un nuevo estudiante.
+      <div class="modal-header border-bottom-0 pb-1">
+        <h5 class="modal-title" id="modal-alumno-label">
+          <i class="bi bi-person-badge me-2"></i>Ficha del Estudiante
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body pt-0">
+
+        <!-- Spinner -->
+        <div id="modal-spinner" class="text-center py-5 d-none">
+          <span class="spinner-border text-primary mb-2"></span>
+          <p class="text-muted small mb-0">Cargando ficha...</p>
+        </div>
+
+        <!-- Error -->
+        <div id="modal-error" class="alert alert-danger mt-2 d-none" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <span id="modal-error-msg"></span>
+        </div>
+
+        <form id="form-alumno" novalidate>
+          <input type="hidden" id="alumno-id">
+
+          <!-- ── Nav Tabs ── -->
+          <ul class="nav nav-tabs" id="alumno-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab">
+                <i class="bi bi-person me-1"></i>Personal
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-contacto" type="button" role="tab">
+                <i class="bi bi-telephone me-1"></i>Contacto
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-institucion" type="button" role="tab">
+                <i class="bi bi-building me-1"></i>Institución
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-medica" type="button" role="tab">
+                <i class="bi bi-heart-pulse me-1"></i>Ficha Médica
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="alumno-tabs-content">
+
+            <!-- ══ TAB 1: DATOS PERSONALES ══ -->
+            <div class="tab-pane fade show active" id="tab-personal" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Identificación <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="a-identificacion" placeholder="Ej: 0701234567" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Fecha de Nacimiento</label>
+                  <input type="date" class="form-control" id="a-fecha-nac">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Dirección</label>
+                  <input type="text" class="form-control" id="a-direccion" placeholder="Dirección de domicilio">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Primer Nombre <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="a-primer-nombre" placeholder="Ej: Juan" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Segundo Nombre</label>
+                  <input type="text" class="form-control" id="a-segundo-nombre">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Primer Apellido <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="a-primer-apellido" placeholder="Ej: Pérez" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Segundo Apellido</label>
+                  <input type="text" class="form-control" id="a-segundo-apellido">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Género</label>
+                  <select class="form-select" id="a-genero">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Etnia</label>
+                  <select class="form-select" id="a-etnia">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Nacionalidad</label>
+                  <select class="form-select" id="a-nacionalidad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Ciudad</label>
+                  <select class="form-select" id="a-ciudad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+              </div>
+            </div><!-- /tab-personal -->
+
+            <!-- ══ TAB 2: CONTACTO ══ -->
+            <div class="tab-pane fade" id="tab-contacto" role="tabpanel">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-phone me-1"></i>Teléfonos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-telefono">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="telefonos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="telefono-placeholder">Sin teléfonos registrados.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-envelope me-1"></i>Correos Electrónicos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-correo">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="correos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="correo-placeholder">Sin correos registrados.</p>
+                </div>
+              </div>
+            </div><!-- /tab-contacto -->
+
+            <!-- ══ TAB 3: INSTITUCIÓN ══ -->
+            <div class="tab-pane fade" id="tab-institucion" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Tipo de Persona</label>
+                  <select class="form-select" id="a-tipo-persona">
+                    <option value="">Seleccionar tipo</option>
+                  </select>
+                  <div class="form-text">Determina el rol del estudiante en la institución.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Estado en la Institución</label>
+                  <select class="form-select" id="a-estado-pi">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+            </div><!-- /tab-institucion -->
+
+            <!-- ══ TAB 4: FICHA MÉDICA ══ -->
+            <div class="tab-pane fade" id="tab-medica" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Grupo Sanguíneo</label>
+                  <select class="form-select" id="a-grupo-sanguineo">
+                    <option value="">Sin especificar</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Nombre — Contacto de Emergencia</label>
+                  <input type="text" class="form-control" id="a-contacto-nombre" placeholder="Ej: María García">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Teléfono — Contacto de Emergencia</label>
+                  <input type="text" class="form-control" id="a-contacto-telefono" placeholder="Ej: 0987654321">
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Alergias</label>
+                  <textarea class="form-control" id="a-alergias" rows="3"
+                    placeholder="Describa las alergias conocidas (alimentos, medicamentos, etc.)..."></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Enfermedades Preexistentes</label>
+                  <textarea class="form-control" id="a-enfermedades" rows="3"
+                    placeholder="Enfermedades crónicas o condiciones previas..."></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Medicamentos Actuales</label>
+                  <textarea class="form-control" id="a-medicamentos" rows="3"
+                    placeholder="Medicamentos que toma actualmente y dosis..."></textarea>
+                </div>
+              </div>
+            </div><!-- /tab-medica -->
+
+          </div><!-- /tab-content -->
+        </form>
+      </div><!-- /modal-body -->
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-brand" id="btn-guardar-alumno">
+          <i class="bi bi-check-lg me-1"></i>Guardar Cambios
+        </button>
       </div>
     </div>
-
-    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
-      <div>
-        <h6 class="fw-bold mb-1">
-          <i class="bi bi-person-plus-fill me-2"></i>Nuevo Estudiante
-        </h6>
-        <p class="text-muted small mb-0">
-          Completa los datos del estudiante para registrarlo.
-        </p>
-      </div>
-    </div>
-
-    <form id="form-nuevo-alumno">
-      <div class="row g-3">
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="alumno-nombre">Primer Nombre</label>
-          <input
-            type="text"
-            class="form-control"
-            id="alumno-nombre"
-            name="primer_nombre"
-            placeholder="Ej: Juan"
-            required
-          >
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="alumno-apellido">Primer Apellido</label>
-          <input
-            type="text"
-            class="form-control"
-            id="alumno-apellido"
-            name="primer_apellido"
-            placeholder="Ej: Pérez"
-            required
-          >
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="alumno-identificacion">Identificación</label>
-          <input
-            type="text"
-            class="form-control"
-            id="alumno-identificacion"
-            name="identificacion"
-            placeholder="Ej: 0701234567"
-            required
-          >
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="alumno-tipo">Tipo</label>
-          <select class="form-select" id="alumno-tipo" name="tipo" required>
-            <option value="">Seleccionar...</option>
-            <option value="Alumno Regular">Alumno Regular</option>
-            <option value="Socio">Socio</option>
-          </select>
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="alumno-fecha">Fecha de nacimiento</label>
-          <input
-            type="date"
-            class="form-control"
-            id="alumno-fecha"
-            name="fecha_nacimiento"
-          >
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label fw-semibold" for="alumno-estado">Estado</label>
-          <select class="form-select" id="alumno-estado" name="estado">
-            <option value="Activo">Activo</option>
-            <option value="Inactivo">Inactivo</option>
-          </select>
-        </div>
-
-      </div>
-
-      <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
-        <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-nuevo-alumno">
-          <i class="bi bi-arrow-left me-1"></i>Cancelar
-        </button>
-
-        <button type="submit" class="btn btn-brand">
-          <i class="bi bi-check-lg me-1"></i>Guardar Estudiante
-        </button>
-      </div>
-    </form>
-
   </div>
 </div>
 
@@ -194,286 +304,445 @@
 
 {% block scripts %}
 <script>
-  /**
-   * Datos temporales.
-   * Cuando tengas API real, reemplaza este arreglo por la respuesta del backend.
-   */
-  var alumnos = [
-    // Ejemplo:
-     {
-       id: 1,
-       primer_nombre: 'Jhony',
-       primer_apellido: 'Miñan',
-       identificacion: '0987654321',
-       tipo: 'Alumno Regular',
-       estado: 'Activo'
-     },
-     {
-       id: 2,
-       primer_nombre: 'Pepito',
-       primer_apellido: 'Andrade',
-       identificacion: '0123459876',
-       tipo: 'Alumno Regular',
-       estado: 'Activo'
-     },
-     {
-       id: 3,
-       primer_nombre: 'Lionel',
-       primer_apellido: 'Messi',
-       identificacion: '0123456789',
-       tipo: 'Alumno Regular',
-       estado: 'Caducado'
-     },
-  ];
+/* ══════════════════════════════════════════════════════════
+   UTILIDADES
+══════════════════════════════════════════════════════════ */
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
+}
 
-  document.addEventListener('DOMContentLoaded', function () {
-    var searchInput = document.getElementById('alumno-search');
-    var clearButton = document.getElementById('btn-limpiar-busqueda');
-    var cancelButton = document.getElementById('btn-cancelar-nuevo-alumno');
-    var form = document.getElementById('form-nuevo-alumno');
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
 
-    renderAlumnos(alumnos, '');
+function debounce(fn, ms) {
+  var timer;
+  return function() { var a = arguments; clearTimeout(timer); timer = setTimeout(function() { fn.apply(null, a); }, ms); };
+}
 
-    if (searchInput) {
-      searchInput.addEventListener('input', function () {
-        var query = searchInput.value.trim();
-        var results = filterAlumnos(query);
+/* ══════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════════════════════════ */
+var alumnosList       = [];
+var bsModal           = null;
+var catalogGeneros    = [];
+var catalogEtnias     = [];
+var catalogNacs       = [];
+var catalogCiudades   = [];
+var catalogTipos      = [];
 
-        renderAlumnos(results, query);
+/* ══════════════════════════════════════════════════════════
+   CATÁLOGOS
+══════════════════════════════════════════════════════════ */
+async function loadCatalogs() {
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'catalogs', null, null);
+    catalogGeneros  = data.generos        || [];
+    catalogEtnias   = data.etnias         || [];
+    catalogNacs     = data.nacionalidades || [];
+    catalogCiudades = data.ciudades       || [];
+    catalogTipos    = data.tipos_persona  || [];
 
-        if (query.length > 0 && results.length === 0) {
-          showNuevoAlumnoForm(query);
-        } else if (alumnos.length === 0) {
-          showNuevoAlumnoForm(query);
-        } else {
-          hideNuevoAlumnoForm();
-        }
-      });
+    populateSelect('a-genero',       catalogGeneros, 'Sin especificar');
+    populateSelect('a-etnia',        catalogEtnias,  'Sin especificar');
+    populateSelect('a-nacionalidad', catalogNacs,    'Sin especificar');
+    populateSelect('a-tipo-persona', catalogTipos,   'Seleccionar tipo');
+    populateCiudadSelect(catalogCiudades);
+  } catch (err) {
+    console.warn('Catálogos no disponibles:', err);
+  }
+}
+
+function populateSelect(id, items, placeholder) {
+  var sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
+    items.map(function(i) { return '<option value="' + esc(i.id) + '">' + esc(i.nombre) + '</option>'; }).join('');
+}
+
+function populateCiudadSelect(ciudades) {
+  var sel = document.getElementById('a-ciudad');
+  if (!sel) return;
+  var groups = {};
+  ciudades.forEach(function(c) {
+    var p = c.provincia || 'Otras';
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(c);
+  });
+  var html = '<option value="">Sin especificar</option>';
+  Object.keys(groups).sort().forEach(function(prov) {
+    html += '<optgroup label="' + esc(prov) + '">';
+    groups[prov].forEach(function(c) {
+      html += '<option value="' + esc(c.id) + '">' + esc(c.nombre) + '</option>';
+    });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TABLA DE ALUMNOS
+══════════════════════════════════════════════════════════ */
+async function loadAlumnos() {
+  var tbody = document.getElementById('alumnos-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' +
+    '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'students', null, { limit: 20 });
+    var resp = data && data.items ? data : { total: (Array.isArray(data) ? data.length : 0), items: (Array.isArray(data) ? data : []) };
+    alumnosList = resp.items || [];
+    document.getElementById('alumnos-count').textContent = resp.total !== undefined ? resp.total : alumnosList.length;
+    renderTable(alumnosList, '');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">' +
+      '<i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar.') + '</td></tr>';
+  }
+}
+
+var doSearch = debounce(async function(q) {
+  if (!q) {
+    renderTable(alumnosList, '');
+    document.getElementById('alumnos-result-info').textContent = 'Últimos 20 registros';
+    return;
+  }
+  var tbody = document.getElementById('alumnos-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' +
+    '<span class="spinner-border spinner-border-sm me-2"></span>Buscando...</td></tr>';
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'students', null, { q: q, limit: 50 });
+    var resp  = data && data.items ? data : { items: Array.isArray(data) ? data : [] };
+    renderTable(resp.items || [], q);
+    document.getElementById('alumnos-result-info').textContent = (resp.items || []).length + ' resultado(s) para "' + q + '"';
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">' +
+      '<i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error.') + '</td></tr>';
+  }
+}, 400);
+
+function renderTable(items, q) {
+  var tbody = document.getElementById('alumnos-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-person-x me-2"></i>' +
+      (q ? 'Sin resultados para "' + esc(q) + '".' : 'No hay alumnos registrados.') + '</td></tr>';
+    if (!q) document.getElementById('alumnos-result-info').textContent = 'Sin registros';
+    return;
+  }
+  tbody.innerHTML = items.map(function(a) {
+    var badge = parseInt(a.pi_estado) === 1
+      ? '<span class="badge rounded-pill bg-success">Activo</span>'
+      : '<span class="badge rounded-pill bg-secondary">Inactivo</span>';
+    return '<tr>' +
+      '<td><code>' + esc(a.identificacion || '') + '</code></td>' +
+      '<td>' + esc(a.nombre_completo || '') + '</td>' +
+      '<td><span class="badge bg-primary bg-opacity-10 text-primary">' + esc(a.tipo || 'Estudiante') + '</span></td>' +
+      '<td>' + badge + '</td>' +
+      '<td class="text-end">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="verAlumno(' + a.id + ')">' +
+          '<i class="bi bi-eye me-1"></i>Ver</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="editarAlumno(' + a.id + ')">' +
+          '<i class="bi bi-pencil"></i></button>' +
+      '</td></tr>';
+  }).join('');
+  if (!q) document.getElementById('alumnos-result-info').textContent = items.length + ' registro(s)';
+}
+
+/* ══════════════════════════════════════════════════════════
+   FILAS DINÁMICAS (TELÉFONOS / CORREOS)
+══════════════════════════════════════════════════════════ */
+function addTelefonoRow(numero, disabled) {
+  document.getElementById('telefono-placeholder').classList.add('d-none');
+  var div = document.createElement('div');
+  div.className = 'dynamic-row';
+  div.innerHTML = '<input type="tel" class="form-control form-control-sm" placeholder="Número" ' +
+    'value="' + esc(numero || '') + '"' + (disabled ? ' disabled' : '') + '>' +
+    (disabled ? '' : '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+      'onclick="this.closest(\'.dynamic-row\').remove();syncPlaceholders()"><i class="bi bi-x-lg"></i></button>');
+  document.getElementById('telefonos-container').appendChild(div);
+}
+
+function addCorreoRow(email, disabled) {
+  document.getElementById('correo-placeholder').classList.add('d-none');
+  var div = document.createElement('div');
+  div.className = 'dynamic-row';
+  div.innerHTML = '<input type="email" class="form-control form-control-sm" placeholder="correo@ejemplo.com" ' +
+    'value="' + esc(email || '') + '"' + (disabled ? ' disabled' : '') + '>' +
+    (disabled ? '' : '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+      'onclick="this.closest(\'.dynamic-row\').remove();syncPlaceholders()"><i class="bi bi-x-lg"></i></button>');
+  document.getElementById('correos-container').appendChild(div);
+}
+
+function syncPlaceholders() {
+  var tels   = document.querySelectorAll('#telefonos-container .dynamic-row');
+  var mails  = document.querySelectorAll('#correos-container .dynamic-row');
+  document.getElementById('telefono-placeholder').classList.toggle('d-none', tels.length > 0);
+  document.getElementById('correo-placeholder').classList.toggle('d-none',   mails.length > 0);
+}
+
+function clearDynamicRows() {
+  document.getElementById('telefonos-container').innerHTML = '';
+  document.getElementById('correos-container').innerHTML  = '';
+  document.getElementById('telefono-placeholder').classList.remove('d-none');
+  document.getElementById('correo-placeholder').classList.remove('d-none');
+}
+
+function getTelefonos() {
+  return Array.from(document.querySelectorAll('#telefonos-container .dynamic-row input'))
+    .map(function(i) { return { numero: i.value.trim() }; }).filter(function(t) { return t.numero; });
+}
+
+function getCorreos() {
+  return Array.from(document.querySelectorAll('#correos-container .dynamic-row input'))
+    .map(function(i) { return { email: i.value.trim() }; }).filter(function(c) { return c.email; });
+}
+
+/* ══════════════════════════════════════════════════════════
+   HELPERS MODAL
+══════════════════════════════════════════════════════════ */
+function goToFirstTab() {
+  var first = document.querySelector('#alumno-tabs .nav-link');
+  if (first) bootstrap.Tab.getOrCreateInstance(first).show();
+}
+
+function setFormDisabled(disabled) {
+  [
+    'a-identificacion','a-primer-nombre','a-segundo-nombre','a-primer-apellido','a-segundo-apellido',
+    'a-fecha-nac','a-direccion','a-genero','a-etnia','a-nacionalidad','a-ciudad',
+    'a-tipo-persona','a-estado-pi',
+    'a-grupo-sanguineo','a-contacto-nombre','a-contacto-telefono',
+    'a-alergias','a-enfermedades','a-medicamentos'
+  ].forEach(function(fid) {
+    var el = document.getElementById(fid);
+    if (el) el.disabled = disabled;
+  });
+  ['btn-add-telefono','btn-add-correo'].forEach(function(bid) {
+    var b = document.getElementById(bid);
+    if (b) b.classList.toggle('d-none', disabled);
+  });
+  /* hide/show remove buttons in dynamic rows when toggling view/edit */
+  document.querySelectorAll('#telefonos-container .dynamic-row button, #correos-container .dynamic-row button')
+    .forEach(function(b) { b.classList.toggle('d-none', disabled); });
+  document.getElementById('btn-guardar-alumno').classList.toggle('d-none', disabled);
+}
+
+function showModalSpinner(show) {
+  document.getElementById('modal-spinner').classList.toggle('d-none', !show);
+  document.getElementById('form-alumno').classList.toggle('d-none',   show);
+}
+
+function showModalError(msg) {
+  var el = document.getElementById('modal-error');
+  el.classList.remove('d-none');
+  document.getElementById('modal-error-msg').textContent = msg || 'Error al cargar el perfil.';
+}
+
+function hideModalError() {
+  document.getElementById('modal-error').classList.add('d-none');
+}
+
+function resetForm() {
+  document.getElementById('form-alumno').reset();
+  clearDynamicRows();
+  hideModalError();
+  goToFirstTab();
+  /* reset selects explícitamente (form.reset() puede no vaciar option value) */
+  ['a-genero','a-etnia','a-nacionalidad','a-ciudad','a-tipo-persona','a-grupo-sanguineo'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('a-estado-pi').value = '1';
+}
+
+function fillFormFromProfile(profile, editMode) {
+  /* Identidad */
+  document.getElementById('a-identificacion').value   = profile.identificacion   || '';
+  document.getElementById('a-primer-nombre').value    = profile.primer_nombre    || '';
+  document.getElementById('a-segundo-nombre').value   = profile.segundo_nombre   || '';
+  document.getElementById('a-primer-apellido').value  = profile.primer_apellido  || '';
+  document.getElementById('a-segundo-apellido').value = profile.segundo_apellido || '';
+  document.getElementById('a-fecha-nac').value        = profile.fecha_nacimiento ? String(profile.fecha_nacimiento).substring(0, 10) : '';
+  document.getElementById('a-direccion').value        = profile.direccion        || '';
+
+  /* Clasificación por ID */
+  if (profile.genero_id)       document.getElementById('a-genero').value       = profile.genero_id;
+  if (profile.etnia_id)        document.getElementById('a-etnia').value        = profile.etnia_id;
+  if (profile.nacionalidad_id) document.getElementById('a-nacionalidad').value = profile.nacionalidad_id;
+  if (profile.ciudad_id)       document.getElementById('a-ciudad').value       = profile.ciudad_id;
+
+  /* Institución */
+  if (profile.tipo_persona_id) document.getElementById('a-tipo-persona').value = profile.tipo_persona_id;
+  document.getElementById('a-estado-pi').value = (profile.pi_estado !== undefined && profile.pi_estado !== null)
+    ? profile.pi_estado : 1;
+
+  /* Ficha médica */
+  document.getElementById('a-grupo-sanguineo').value   = profile.grupo_sanguineo                || '';
+  document.getElementById('a-contacto-nombre').value   = profile.contacto_emergencia_nombre     || '';
+  document.getElementById('a-contacto-telefono').value = profile.contacto_emergencia_telefono   || '';
+  document.getElementById('a-alergias').value          = profile.alergias                       || '';
+  document.getElementById('a-enfermedades').value      = profile.enfermedades_preexistentes     || '';
+  document.getElementById('a-medicamentos').value      = profile.medicamentos_actuales          || '';
+
+  /* Contacto dinámico */
+  clearDynamicRows();
+  var tels  = Array.isArray(profile.telefonos) ? profile.telefonos : [];
+  var mails = Array.isArray(profile.correos)   ? profile.correos   : [];
+  if (tels.length)  { tels.forEach(function(t) { addTelefonoRow(t.numero, !editMode); }); }
+  else if (editMode){ addTelefonoRow('', false); }
+  if (mails.length) { mails.forEach(function(c) { addCorreoRow(c.email, !editMode); }); }
+  else if (editMode){ addCorreoRow('', false); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   VER / EDITAR / NUEVO
+══════════════════════════════════════════════════════════ */
+function verAlumno(id)    { abrirModal(id, false); }
+function editarAlumno(id) { abrirModal(id, true);  }
+
+async function abrirModal(id, editMode) {
+  resetForm();
+  document.getElementById('modal-alumno-label').innerHTML =
+    '<i class="bi bi-person-badge me-2"></i>' + (editMode ? 'Editar Estudiante' : 'Ficha del Estudiante');
+
+  if (!bsModal) bsModal = new bootstrap.Modal(document.getElementById('modal-alumno'));
+  bsModal.show();
+  showModalSpinner(true);
+
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'profile', null, { id: id });
+    var profile = (data && data.persona) ? data.persona : (data || {});
+    document.getElementById('alumno-id').value = id;
+    fillFormFromProfile(profile, editMode);
+    showModalSpinner(false);
+    setFormDisabled(!editMode);
+  } catch (err) {
+    showModalSpinner(false);
+    showModalError(err.message || 'No se pudo cargar la ficha del estudiante.');
+    var item = alumnosList.find(function(a) { return a.id == id; });
+    if (item) {
+      document.getElementById('alumno-id').value = id;
+      fillFormFromProfile(item, editMode);
+      setFormDisabled(!editMode);
     }
+  }
+}
 
-    if (clearButton) {
-      clearButton.addEventListener('click', function () {
-        searchInput.value = '';
-        renderAlumnos(alumnos, '');
-        if (alumnos.length === 0) {
-          showNuevoAlumnoForm('');
-        } else {
-          hideNuevoAlumnoForm();
-        }
-        searchInput.focus();
-      });
-    }
+function abrirNuevo() {
+  resetForm();
+  document.getElementById('alumno-id').value = '';
+  document.getElementById('modal-alumno-label').innerHTML =
+    '<i class="bi bi-person-plus-fill me-2"></i>Nuevo Estudiante';
+  addTelefonoRow('', false);
+  addCorreoRow('', false);
+  setFormDisabled(false);
+  if (!bsModal) bsModal = new bootstrap.Modal(document.getElementById('modal-alumno'));
+  bsModal.show();
+}
 
-    if (cancelButton) {
-      cancelButton.addEventListener('click', function () {
-        hideNuevoAlumnoForm();
+/* ══════════════════════════════════════════════════════════
+   GUARDAR
+══════════════════════════════════════════════════════════ */
+document.getElementById('btn-guardar-alumno').addEventListener('click', async function() {
+  var id             = document.getElementById('alumno-id').value;
+  var identificacion = document.getElementById('a-identificacion').value.trim();
+  var primerNombre   = document.getElementById('a-primer-nombre').value.trim();
+  var primerApellido = document.getElementById('a-primer-apellido').value.trim();
 
-        if (searchInput) {
-          searchInput.value = '';
-          searchInput.focus();
-        }
+  if (!identificacion || !primerNombre || !primerApellido) {
+    goToFirstTab();
+    showToast('Identificación, primer nombre y primer apellido son obligatorios.', 'warning');
+    return;
+  }
 
-        renderAlumnos(alumnos, '');
-      });
-    }
+  var generoVal  = document.getElementById('a-genero').value;
+  var etniaVal   = document.getElementById('a-etnia').value;
+  var nacVal     = document.getElementById('a-nacionalidad').value;
+  var ciudadVal  = document.getElementById('a-ciudad').value;
+  var tipoVal    = document.getElementById('a-tipo-persona').value;
 
-    if (form) {
-      form.addEventListener('submit', function (event) {
-        event.preventDefault();
+  var body = {
+    identificacion:               identificacion,
+    primer_nombre:                primerNombre,
+    segundo_nombre:               document.getElementById('a-segundo-nombre').value.trim(),
+    primer_apellido:              primerApellido,
+    segundo_apellido:             document.getElementById('a-segundo-apellido').value.trim(),
+    fecha_nacimiento:             document.getElementById('a-fecha-nac').value         || null,
+    genero:                       generoVal ? parseInt(generoVal)   : null,
+    etnia:                        etniaVal  ? parseInt(etniaVal)    : null,
+    nacionalidad:                 nacVal    ? parseInt(nacVal)      : null,
+    ciudad:                       ciudadVal ? parseInt(ciudadVal)   : null,
+    direccion:                    document.getElementById('a-direccion').value.trim()  || null,
+    tipo_persona_id:              tipoVal   ? parseInt(tipoVal)     : null,
+    pi_estado:                    parseInt(document.getElementById('a-estado-pi').value || '1'),
+    grupo_sanguineo:              document.getElementById('a-grupo-sanguineo').value             || null,
+    contacto_emergencia_nombre:   document.getElementById('a-contacto-nombre').value.trim()     || null,
+    contacto_emergencia_telefono: document.getElementById('a-contacto-telefono').value.trim()   || null,
+    alergias:                     document.getElementById('a-alergias').value.trim()            || null,
+    enfermedades_preexistentes:   document.getElementById('a-enfermedades').value.trim()        || null,
+    medicamentos_actuales:        document.getElementById('a-medicamentos').value.trim()        || null,
+    telefonos:                    getTelefonos(),
+    correos:                      getCorreos()
+  };
 
-        var nuevoAlumno = {
-          id: alumnos.length + 1,
-          primer_nombre: document.getElementById('alumno-nombre').value.trim(),
-          primer_apellido: document.getElementById('alumno-apellido').value.trim(),
-          identificacion: document.getElementById('alumno-identificacion').value.trim(),
-          tipo: document.getElementById('alumno-tipo').value,
-          estado: document.getElementById('alumno-estado').value
-        };
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 
-        /**
-         * Aquí luego deberías llamar tu API, por ejemplo:
-         *
-         * await window.Cuspide.api.request('/app/controllers/api/alumnos/', {
-         *   method: 'POST',
-         *   auth: true,
-         *   body: nuevoAlumno
-         * });
-         */
+  try {
+    var method = id ? 'PUT' : 'POST';
+    var params = id ? { id: id } : null;
+    await Cuspide.api.call(method, CONFIG.ENDPOINTS.personas, 'savestudent', body, params);
+    showToast(id ? 'Estudiante actualizado correctamente.' : 'Estudiante registrado correctamente.', 'success');
+    if (bsModal) bsModal.hide();
+    loadAlumnos();
+  } catch (err) {
+    showToast(err.message || 'Error al guardar.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Cambios';
+  }
+});
 
-        alumnos.push(nuevoAlumno);
+/* ══════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadCatalogs();
+  loadAlumnos();
 
-        form.reset();
-        hideNuevoAlumnoForm();
-
-        var searchInput = document.getElementById('alumno-search');
-        if (searchInput) {
-          searchInput.value = '';
-        }
-
-        renderAlumnos(alumnos, '');
-
-        mostrarMensajeTemporal('Estudiante registrado correctamente.', 'success');
-      });
+  /* Evita "Blocked aria-hidden on focused element" al cerrar el modal */
+  document.getElementById('modal-alumno').addEventListener('hide.bs.modal', function() {
+    if (document.activeElement && this.contains(document.activeElement)) {
+      document.activeElement.blur();
     }
   });
 
-  function filterAlumnos(query) {
-    if (!query) {
-      return alumnos;
-    }
+  document.getElementById('alumno-search').addEventListener('input', function() {
+    doSearch(this.value.trim());
+  });
 
-    var normalizedQuery = normalizeText(query);
+  document.getElementById('btn-limpiar-busqueda').addEventListener('click', function() {
+    document.getElementById('alumno-search').value = '';
+    renderTable(alumnosList, '');
+    document.getElementById('alumnos-result-info').textContent = 'Últimos 20 registros';
+  });
 
-    return alumnos.filter(function (alumno) {
-      var searchable = [
-        alumno.id,
-        alumno.primer_nombre,
-        alumno.primer_apellido,
-        alumno.identificacion,
-        alumno.tipo,
-        alumno.estado
-      ]
-        .filter(Boolean)
-        .join(' ');
+  document.getElementById('btn-nuevo-alumno').addEventListener('click', abrirNuevo);
 
-      return normalizeText(searchable).includes(normalizedQuery);
-    });
-  }
+  document.getElementById('btn-add-telefono').addEventListener('click', function() {
+    addTelefonoRow('', false);
+  });
 
-  function renderAlumnos(items, query) {
-    var tbody = document.getElementById('alumnos-tbody');
-    var info = document.getElementById('alumnos-result-info');
-
-    if (!tbody) return;
-
-    if (!items || items.length === 0) {
-      var message = query
-        ? 'No se encontraron alumnos con "' + escapeHtml(query) + '".'
-        : 'No hay alumnos registrados todavía.';
-
-      tbody.innerHTML =
-        '<tr>' +
-          '<td colspan="7" class="text-center text-muted py-4">' +
-            '<i class="bi bi-search me-2"></i>' +
-            message +
-          '</td>' +
-        '</tr>';
-
-      if (info) {
-        info.textContent = query
-          ? 'Sin coincidencias para la búsqueda actual.'
-          : 'No hay alumnos registrados.';
-      }
-
-      showNuevoAlumnoForm(query || '');
-      return;
-    }
-
-    tbody.innerHTML = items.map(function (alumno) {
-      return (
-        '<tr>' +
-          '<td>' + escapeHtml(alumno.id || '') + '</td>' +
-          '<td>' + escapeHtml(alumno.primer_nombre || '') + '</td>' +
-          '<td>' + escapeHtml(alumno.primer_apellido || '') + '</td>' +
-          '<td>' + escapeHtml(alumno.identificacion || '') + '</td>' +
-          '<td>' + escapeHtml(alumno.tipo || '') + '</td>' +
-          '<td>' +
-            '<span class="badge rounded-pill ' + getEstadoBadgeClass(alumno.estado) + '">' +
-              escapeHtml(alumno.estado || '—') +
-            '</span>' +
-          '</td>' +
-          '<td>' +
-            '<button type="button" class="btn btn-sm btn-outline-primary">' +
-              '<i class="bi bi-eye me-1"></i>Ver' +
-            '</button>' +
-          '</td>' +
-        '</tr>'
-      );
-    }).join('');
-
-    if (info) {
-      info.textContent = query
-        ? items.length + ' coincidencia(s) encontrada(s).'
-        : items.length + ' alumno(s) registrado(s).';
-    }
-  }
-
-  function showNuevoAlumnoForm(query) {
-    var card = document.getElementById('nuevo-alumno-card');
-    var identificacionInput = document.getElementById('alumno-identificacion');
-
-    if (card) {
-      card.classList.remove('d-none');
-    }
-
-    /**
-     * Si el usuario busca una identificación numérica,
-     * se precarga en el formulario.
-     */
-    if (query && /^\d+$/.test(query) && identificacionInput && !identificacionInput.value) {
-      identificacionInput.value = query;
-    }
-  }
-
-  function hideNuevoAlumnoForm() {
-    var card = document.getElementById('nuevo-alumno-card');
-
-    if (card) {
-      card.classList.add('d-none');
-    }
-  }
-
-  function normalizeText(value) {
-    return String(value || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-  }
-
-  function escapeHtml(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function getEstadoBadgeClass(estado) {
-    var normalized = normalizeText(estado);
-
-    if (normalized === 'activo') {
-      return 'bg-success';
-    }
-
-    if (normalized === 'inactivo') {
-      return 'bg-secondary';
-    }
-
-    return 'bg-light text-dark';
-  }
-
-  function mostrarMensajeTemporal(message, type) {
-    var alert = document.createElement('div');
-
-    alert.className = 'alert alert-' + (type || 'info') + ' alert-dismissible fade show mt-3';
-    alert.role = 'alert';
-    alert.innerHTML =
-      '<i class="bi bi-check-circle-fill me-2"></i>' +
-      escapeHtml(message) +
-      '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>';
-
-    var cardBody = document.querySelector('.card.chart-card .card-body');
-    if (cardBody) {
-      cardBody.appendChild(alert);
-
-      setTimeout(function () {
-        alert.classList.remove('show');
-        setTimeout(function () {
-          alert.remove();
-        }, 200);
-      }, 3000);
-    }
-  }
+  document.getElementById('btn-add-correo').addEventListener('click', function() {
+    addCorreoRow('', false);
+  });
+});
 </script>
 {% endblock %}

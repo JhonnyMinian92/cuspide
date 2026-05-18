@@ -10,11 +10,25 @@ require_once __DIR__ . '/../persistence/repository/MatriculaRepository.php';
 require_once __DIR__ . '/../persistence/repository/ClaseMatriculaRepository.php';
 require_once __DIR__ . '/../persistence/repository/ActividadMatriculaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
+require_once __DIR__ . '/../persistence/repository/MembresiaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PlanPagoMatriculaRepository.php';
+require_once __DIR__ . '/../persistence/repository/CuotaMatriculaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PagoRepository.php';
+require_once __DIR__ . '/../persistence/repository/PagoDetalleRepository.php';
+require_once __DIR__ . '/../persistence/repository/CalendarioRepository.php';
+require_once __DIR__ . '/../persistence/repository/ClaseRepository.php';
+require_once __DIR__ . '/../persistence/repository/ActividadRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Matricula.php';
 require_once __DIR__ . '/../persistence/entitys/ClaseMatricula.php';
 require_once __DIR__ . '/../persistence/entitys/ActividadMatricula.php';
 require_once __DIR__ . '/../persistence/entitys/Venta.php';
+require_once __DIR__ . '/../persistence/entitys/PlanPagoMatricula.php';
+require_once __DIR__ . '/../persistence/entitys/CuotaMatricula.php';
+require_once __DIR__ . '/../persistence/entitys/Pago.php';
+require_once __DIR__ . '/../persistence/entitys/PagoDetalle.php';
+require_once __DIR__ . '/../persistence/entitys/Calendario.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\MatriculaServiceInterface;
@@ -22,11 +36,25 @@ use Repositories\MatriculaRepository;
 use Repositories\ClaseMatriculaRepository;
 use Repositories\ActividadMatriculaRepository;
 use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Repositories\VentaRepository;
+use Repositories\MembresiaRepository;
+use Repositories\PlanPagoMatriculaRepository;
+use Repositories\CuotaMatriculaRepository;
+use Repositories\PagoRepository;
+use Repositories\PagoDetalleRepository;
+use Repositories\CalendarioRepository;
+use Repositories\ClaseRepository;
+use Repositories\ActividadRepository;
 use Entitys\Matricula;
 use Entitys\ClaseMatricula;
 use Entitys\ActividadMatricula;
 use Entitys\Venta;
+use Entitys\PlanPagoMatricula;
+use Entitys\CuotaMatricula;
+use Entitys\Pago;
+use Entitys\PagoDetalle;
+use Entitys\Calendario;
 use RuntimeException;
 use Utils\Token;
 
@@ -53,13 +81,19 @@ final class MatriculaServices implements MatriculaServiceInterface
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
     {
-        $payload = Token::validateBearerToken($authHeader, $this->jwtSecret);
+        $userId  = (int) (Token::validateBearerToken($authHeader, $this->jwtSecret)['sub'] ?? 0);
+        $instId  = $this->getInstitucionByUserId($userId);
 
-        $resource = $this->resolveResource($requestUri, $queryParams, 'matriculas');
+        $resource = $this->resolveResource($requestUri, $queryParams, 'matricula');
 
         return match (true) {
-            $method === 'GET'  && $resource === 'list'       => $this->fetchMatriculas($queryParams),
-            $method === 'POST' && $resource === 'create'     => $this->createMatricula(),
+            $method === 'GET'  && $resource === 'students'    => $this->fetchStudents($instId, $queryParams),
+            $method === 'GET'  && $resource === 'membresias'  => $this->fetchMembresiasForInst($instId),
+            $method === 'GET'  && $resource === 'clases'      => $this->fetchClasesForInst($instId),
+            $method === 'GET'  && $resource === 'actividades' => $this->fetchActividadesForInst($instId),
+            $method === 'GET'  && $resource === 'list'        => $this->fetchMatriculas($queryParams),
+            $method === 'POST' && $resource === 'create'     => $this->createMatricula($instId),
+            $method === 'PUT'  && $resource === 'update'     => $this->updateMatricula($instId, (int) ($queryParams['id'] ?? 0)),
             $method === 'PUT'  && $resource === 'cancel'     => $this->cancelMatricula((int) ($queryParams['id'] ?? 0)),
             $method === 'PUT'  && $resource === 'removeitem' => $this->removeItem((int) ($queryParams['id'] ?? 0), (string) ($queryParams['tipo'] ?? '')),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
@@ -70,12 +104,23 @@ final class MatriculaServices implements MatriculaServiceInterface
     // Private helpers
     // -------------------------------------------------------------------------
 
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
+    }
+
     private function resolveResource(string $requestUri, array $queryParams, string $controllerSegment): string
     {
         $tipo = strtolower(trim((string) ($queryParams['api'] ?? '')));
-        if ($tipo !== '') {
-            return $tipo;
-        }
+        if ($tipo !== '') return $tipo;
 
         $path     = parse_url($requestUri, PHP_URL_PATH) ?? '';
         $segments = array_values(array_filter(explode('/', trim($path, '/'))));
@@ -83,19 +128,64 @@ final class MatriculaServices implements MatriculaServiceInterface
         $idx = array_search($controllerSegment, $segments, true);
         if ($idx !== false) {
             $candidate = $segments[$idx + 1] ?? null;
-            if ($candidate !== null && strtolower($candidate) !== 'index.php') {
-                return strtolower($candidate);
-            }
+            if ($candidate !== null && strtolower($candidate) !== 'index.php') return strtolower($candidate);
         }
 
         if ($segments !== []) {
             $last = strtolower((string) $segments[array_key_last($segments)]);
-            if ($last !== 'index.php') {
-                return $last;
-            }
+            if ($last !== 'index.php') return $last;
         }
 
         return '';
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchStudents — institution-filtered, TIPO_EST only
+    // -------------------------------------------------------------------------
+
+    private function fetchStudents(int $instId, array $queryParams): array
+    {
+        $q = trim((string) ($queryParams['q'] ?? ''));
+        if ($q !== '' && mb_strlen($q) >= 2) {
+            return $this->personaRepo->findByQueryAndInstitucion($q, $instId, 'TIPO_EST', 50);
+        }
+        return $this->personaRepo->findStudentsByInstitucion($instId, 50);
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchMembresiasForInst
+    // -------------------------------------------------------------------------
+
+    private function fetchMembresiasForInst(int $instId): array
+    {
+        $entities = (new MembresiaRepository())->findByInstitucion($instId);
+        return array_map(fn($m) => [
+            'id'          => $m->getId(),
+            'titulo'      => $m->getTitulo(),
+            'precio'      => (float) $m->getPrecio(),
+            'porcentaje'  => (float) $m->getPorcentaje(),
+            'descripcion' => $m->getDescripcion(),
+            'periodo'     => $m->getPeriodo(),
+            'fecha_fin'   => $m->getFechaFin(),
+        ], $entities);
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchClasesForInst
+    // -------------------------------------------------------------------------
+
+    private function fetchClasesForInst(int $instId): array
+    {
+        return (new ClaseRepository())->findByInstitucionWithStats($instId);
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchActividadesForInst
+    // -------------------------------------------------------------------------
+
+    private function fetchActividadesForInst(int $instId): array
+    {
+        return (new ActividadRepository())->findByInstitucionWithStats($instId);
     }
 
     // -------------------------------------------------------------------------
@@ -120,46 +210,87 @@ final class MatriculaServices implements MatriculaServiceInterface
             throw new RuntimeException('Debe proporcionar persona_id o identificacion.', 400);
         }
 
+        $db         = \Core\Database::getInstance();
         $matriculas = $this->matriculaRepo->findByPersonaId($personaId);
+        $planRepo   = new PlanPagoMatriculaRepository();
+        $cuotaRepo  = new CuotaMatriculaRepository();
 
         $result = [];
         foreach ($matriculas as $mat) {
             $matriculaId = (int) $mat['id'];
 
-            $claseEntities    = $this->claseMatRepo->findByMatriculaId($matriculaId);
-            $actividadEntities = $this->actMatRepo->findByMatriculaId($matriculaId);
+            // Clases con nombres (JOIN directo para evitar N+1 de entidades)
+            $stmtC = $db->prepare(
+                'SELECT cm.id, cm.clase, c.nombre AS clase_nombre, cm.horario, cm.fecha_inicio, cm.fecha_fin, cm.estado
+                 FROM clases_matricula cm
+                 LEFT JOIN clases c ON c.id = cm.clase
+                 WHERE cm.matricula = :mid ORDER BY cm.id ASC'
+            );
+            $stmtC->execute([':mid' => $matriculaId]);
+            $clases = array_map(fn($row) => [
+                'id'           => (int) $row['id'],
+                'clase'        => (int) $row['clase'],
+                'clase_nombre' => $row['clase_nombre'] ?? '',
+                'horario'      => $row['horario'] !== null ? (int) $row['horario'] : null,
+                'fecha_inicio' => $row['fecha_inicio'],
+                'fecha_fin'    => $row['fecha_fin'],
+                'estado'       => (int) $row['estado'],
+            ], $stmtC->fetchAll(\PDO::FETCH_ASSOC) ?: []);
 
-            $clases = array_map(fn(ClaseMatricula $c) => [
-                'id'           => (int) $c->getId(),
-                'clase'        => (int) $c->getClase()->getId(),
-                'modalidad'    => (int) $c->getModalidad()?->getId(),
-                'horario'      => $c->getHorario() ? (int) $c->getHorario()->getId() : null,
-                'fecha_inicio' => $c->getFechaInicio(),
-                'fecha_fin'    => $c->getFechaFin(),
-                'estado'       => (int) $c->getEstado()?->getId(),
-            ], $claseEntities);
+            // Actividades con nombres
+            $stmtA = $db->prepare(
+                'SELECT am.id, am.actividad, a.nombre AS actividad_nombre, am.horario, am.fecha_inicio, am.fecha_fin, am.estado
+                 FROM actividades_matricula am
+                 LEFT JOIN actividades a ON a.id = am.actividad
+                 WHERE am.matricula = :mid ORDER BY am.id ASC'
+            );
+            $stmtA->execute([':mid' => $matriculaId]);
+            $actividades = array_map(fn($row) => [
+                'id'               => (int) $row['id'],
+                'actividad'        => (int) $row['actividad'],
+                'actividad_nombre' => $row['actividad_nombre'] ?? '',
+                'horario'          => $row['horario'] !== null ? (int) $row['horario'] : null,
+                'fecha_inicio'     => $row['fecha_inicio'],
+                'fecha_fin'        => $row['fecha_fin'],
+                'estado'           => (int) $row['estado'],
+            ], $stmtA->fetchAll(\PDO::FETCH_ASSOC) ?: []);
 
-            $actividades = array_map(fn(ActividadMatricula $a) => [
-                'id'                  => (int) $a->getId(),
-                'actividad'           => (int) $a->getActividad()->getId(),
-                'modalidad'           => (int) $a->getModalidad()?->getId(),
-                'categoria_deportiva' => $a->getCategoriaDeportiva() ? (int) $a->getCategoriaDeportiva()->getId() : null,
-                'horario'             => $a->getHorario() ? (int) $a->getHorario()->getId() : null,
-                'fecha_inicio'        => $a->getFechaInicio(),
-                'fecha_fin'           => $a->getFechaFin(),
-                'estado'              => (int) $a->getEstado()?->getId(),
-            ], $actividadEntities);
+            // Plan de pago
+            $planPago = null;
+            $planes   = $planRepo->findByMatricula($matriculaId);
+            if (!empty($planes)) {
+                $plan     = $planes[0];
+                $cuotas   = $cuotaRepo->findByPlanPago((int) $plan->getId());
+                $planPago = [
+                    'id'               => $plan->getId(),
+                    'subtotal'         => $plan->getSubtotal(),
+                    'descuento'        => $plan->getDescuento(),
+                    'total'            => $plan->getTotal(),
+                    'saldo'            => $plan->getSaldo(),
+                    'fecha_generacion' => $plan->getFechaGeneracion(),
+                    'cuotas'           => array_map(fn($c) => [
+                        'id'                => $c->getId(),
+                        'numero'            => $c->getNumero(),
+                        'fecha_vencimiento' => $c->getFechaVencimiento(),
+                        'valor'             => $c->getValor(),
+                        'saldo'             => $c->getSaldo(),
+                        'pagada'            => $c->getSaldo() <= 0,
+                    ], $cuotas),
+                ];
+            }
 
             $result[] = [
                 'id'             => $matriculaId,
                 'fecha_registro' => $mat['fecha_registro'],
                 'fecha_inicio'   => $mat['fecha_inicio'],
                 'fecha_fin'      => $mat['fecha_fin'],
-                'membresia'      => $mat['membresia'],
+                'membresia'      => $mat['membresia'] ?? '—',
+                'membresia_id'   => $mat['membresia_id'] ?? null,
                 'institucion'    => $mat['institucion'],
                 'estado'         => $mat['estado'],
                 'clases'         => $clases,
                 'actividades'    => $actividades,
+                'plan_pago'      => $planPago,
             ];
         }
 
@@ -167,27 +298,26 @@ final class MatriculaServices implements MatriculaServiceInterface
     }
 
     // -------------------------------------------------------------------------
-    // createMatricula
+    // createMatricula — creates all related financial/scheduling records
     // -------------------------------------------------------------------------
 
-    private function createMatricula(): array
+    private function createMatricula(int $instId): array
     {
         $body = json_decode((string) file_get_contents('php://input'), true);
         if (!is_array($body)) {
             throw new RuntimeException('Cuerpo de la solicitud inválido o vacío.', 400);
         }
 
-        $persona     = (int) ($body['persona']     ?? 0);
+        $persona     = (int) ($body['persona']      ?? 0);
         $fechaInicio = (string) ($body['fecha_inicio'] ?? '');
         $fechaFin    = (string) ($body['fecha_fin']    ?? '');
-        $membresia   = isset($body['membresia']) ? (int) $body['membresia'] : null;
-        $institucion = (int) ($body['institucion'] ?? 0);
-        $clases      = is_array($body['clases'] ?? null)     ? $body['clases']      : [];
+        $membresiaId = (isset($body['membresia']) && $body['membresia'] !== '' && $body['membresia'] !== null)
+            ? (int) $body['membresia'] : null;
+        $clases      = is_array($body['clases']      ?? null) ? $body['clases']      : [];
         $actividades = is_array($body['actividades'] ?? null) ? $body['actividades'] : [];
-        $descuento   = (float) ($body['descuento'] ?? 0);
 
-        if ($persona <= 0 || $fechaInicio === '' || $fechaFin === '' || $institucion <= 0) {
-            throw new RuntimeException('Faltan campos obligatorios: persona, fecha_inicio, fecha_fin, institucion.', 400);
+        if ($persona <= 0 || $fechaInicio === '' || $fechaFin === '') {
+            throw new RuntimeException('Faltan campos obligatorios: persona, fecha_inicio, fecha_fin.', 400);
         }
 
         $db = \Core\Database::getInstance();
@@ -195,91 +325,270 @@ final class MatriculaServices implements MatriculaServiceInterface
         try {
             $db->beginTransaction();
 
-            // 1. Insert Matricula
-            $fechaRegistro = date('Y-m-d H:i:s');
-            $matriculaEntity = new Matricula(null, $fechaRegistro, $persona, $fechaInicio, $fechaFin, $membresia, $institucion, 1);
+            // 1. Matricula
+            $fechaRegistro   = date('Y-m-d H:i:s');
+            $matriculaEntity = new Matricula(null, $fechaRegistro, $persona, $fechaInicio, $fechaFin, $membresiaId, $instId, 1);
             $matriculaEntity = $this->matriculaRepo->save($matriculaEntity);
             $matriculaId     = (int) $matriculaEntity->getId();
 
             $subtotal   = 0.0;
+            $calendRepo = new CalendarioRepository();
 
-            // 2. Insert ClaseMatricula for each clase
+            // 2. Clases + Calendarios
             foreach ($clases as $claseItem) {
                 $claseId      = (int) ($claseItem['clase_id']    ?? 0);
-                $modalidad    = (int) ($claseItem['modalidad']   ?? 0);
+                $modalidad    = (int) ($claseItem['modalidad']   ?? 1);
                 $horario      = isset($claseItem['horario'])     ? (int) $claseItem['horario'] : null;
                 $cFechaInicio = (string) ($claseItem['fecha_inicio'] ?? $fechaInicio);
                 $cFechaFin    = (string) ($claseItem['fecha_fin']    ?? $fechaFin);
-
-                if ($claseId <= 0) {
-                    continue;
-                }
+                if ($claseId <= 0) continue;
 
                 $claseMatEntity = new ClaseMatricula(null, $claseId, $matriculaId, $modalidad, $cFechaInicio, $cFechaFin, 1, $horario);
                 $this->claseMatRepo->save($claseMatEntity);
 
-                // Fetch clase price
-                $stmtPrice = $db->prepare('SELECT nombre FROM clases WHERE id = :id LIMIT 1');
-                $stmtPrice->execute([':id' => $claseId]);
-                $claseRow = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
-                $precio   = $claseRow ? (float) ($claseRow['precio'] ?? 0) : 0.0;
+                $stmtC = $db->prepare('SELECT nombre, precio, cupo_maximo FROM clases WHERE id = :id LIMIT 1');
+                $stmtC->execute([':id' => $claseId]);
+                $claseRow  = $stmtC->fetch(\PDO::FETCH_ASSOC);
+                $subtotal += $claseRow ? (float) ($claseRow['precio'] ?? 0) : 0.0;
+                $cupoMax   = $claseRow ? (int) ($claseRow['cupo_maximo'] ?? 0) : 0;
+                $nombreC   = $claseRow ? (string) ($claseRow['nombre'] ?? 'Clase') : 'Clase';
 
-                $subtotal += $precio;
+                $cal = new Calendario(null, 'Clase: ' . $nombreC, 'CLASE', $instId, $horario, $claseId, null, null, null, $cFechaInicio, $cFechaFin, '', $cupoMax, 'Matrícula #' . $matriculaId, 1);
+                $calendRepo->save($cal);
             }
 
-            // 3. Insert ActividadMatricula for each actividad
+            // 3. Actividades + Calendarios
             foreach ($actividades as $actItem) {
                 $actividadId  = (int) ($actItem['actividad_id']       ?? 0);
-                $modalidad    = (int) ($actItem['modalidad']           ?? 0);
+                $modalidad    = (int) ($actItem['modalidad']           ?? 1);
                 $horario      = isset($actItem['horario'])             ? (int) $actItem['horario'] : null;
                 $catDeportiva = isset($actItem['categoria_deportiva']) ? (int) $actItem['categoria_deportiva'] : null;
                 $aFechaInicio = (string) ($actItem['fecha_inicio']     ?? $fechaInicio);
                 $aFechaFin    = (string) ($actItem['fecha_fin']        ?? $fechaFin);
-
-                if ($actividadId <= 0) {
-                    continue;
-                }
+                if ($actividadId <= 0) continue;
 
                 $actMatEntity = new ActividadMatricula(null, $actividadId, $matriculaId, $modalidad, $aFechaInicio, $aFechaFin, 1, $catDeportiva, $horario);
                 $this->actMatRepo->save($actMatEntity);
 
-                // Fetch actividad price
-                $stmtPrice = $db->prepare('SELECT nombre, precio FROM actividades WHERE id = :id LIMIT 1');
-                $stmtPrice->execute([':id' => $actividadId]);
-                $actRow = $stmtPrice->fetch(\PDO::FETCH_ASSOC);
-                $precio = $actRow ? (float) ($actRow['precio'] ?? 0) : 0.0;
+                $stmtA = $db->prepare('SELECT nombre, precio FROM actividades WHERE id = :id LIMIT 1');
+                $stmtA->execute([':id' => $actividadId]);
+                $actRow    = $stmtA->fetch(\PDO::FETCH_ASSOC);
+                $subtotal += $actRow ? (float) ($actRow['precio'] ?? 0) : 0.0;
+                $nombreA   = $actRow ? (string) ($actRow['nombre'] ?? 'Actividad') : 'Actividad';
 
-                $subtotal += $precio;
+                $cal = new Calendario(null, 'Actividad: ' . $nombreA, 'ACTIVIDAD', $instId, $horario, null, $actividadId, null, null, $aFechaInicio, $aFechaFin, '', 0, 'Matrícula #' . $matriculaId, 1);
+                $calendRepo->save($cal);
             }
 
-            // 4. Calculate totals
-            $impuesto = 0.0;
-            $total    = max(0.0, $subtotal - $descuento + $impuesto);
-            $saldo    = $total;
+            // 4. Descuento automático desde membresía
+            $descuento = 0.0;
+            $periodo   = 'mensual';
+            if ($membresiaId !== null) {
+                $mem = (new MembresiaRepository())->findById($membresiaId);
+                if ($mem) {
+                    $descuento = round((float) $mem->getPrecio() * ((float) $mem->getPorcentaje() / 100), 2);
+                    $periodo   = $mem->getPeriodo();
+                }
+            }
 
-            // 5. Generate numero_factura
+            // 5. Totals y Venta
+            $impuesto      = 0.0;
+            $total         = max(0.0, $subtotal - $descuento + $impuesto);
             $numeroFactura = 'FAC-' . date('Ymd') . '-' . str_pad((string) $matriculaId, 6, '0', STR_PAD_LEFT);
-
-            // 6. Insert Venta
-            $fechaVenta  = date('Y-m-d H:i:s');
-            $ventaEntity = new Venta(null, $numeroFactura, $fechaVenta, $persona, $matriculaId, $institucion, 'MATRICULA', $subtotal, $descuento, $impuesto, $total, $saldo, 1);
-            $ventaRepo   = new VentaRepository();
+            $ventaEntity   = new Venta(null, $numeroFactura, date('Y-m-d H:i:s'), $persona, $matriculaId, $instId, 'MATRICULA', $subtotal, $descuento, $impuesto, $total, $total, 1);
+            $ventaRepo     = new VentaRepository();
             $ventaRepo->save($ventaEntity);
+            $ventaId = (int) $ventaEntity->getId();
+
+            // 6. Plan de pago + cuotas (solo si hay membresía)
+            $cuotasData = [];
+            if ($membresiaId !== null) {
+                $periodicidadId = $this->resolvePeriodicidadId($db, $periodo);
+                $plan = new PlanPagoMatricula(null, $matriculaId, $periodicidadId, $subtotal, $descuento, $total, $total, date('Y-m-d'), 1);
+                $planRepo = new PlanPagoMatriculaRepository();
+                $planRepo->save($plan);
+                $planId = (int) $plan->getId();
+
+                // Generar cuotas según periodo
+                $startDt    = new \DateTime($fechaInicio);
+                $endDt      = new \DateTime($fechaFin);
+                $totalDays  = max(1, (int) $startDt->diff($endDt)->days);
+                $periodDays = $this->periodoToDays($periodo);
+                $numCuotas  = max(1, (int) ceil($totalDays / $periodDays));
+                $valorBase  = round($total / $numCuotas, 2);
+                $cuotaRepo  = new CuotaMatriculaRepository();
+
+                for ($i = 0; $i < $numCuotas; $i++) {
+                    $isLast = ($i === $numCuotas - 1);
+                    $valorC = $isLast ? round($total - $valorBase * ($numCuotas - 1), 2) : $valorBase;
+                    $dueDate = (clone $startDt)->modify('+' . (($i + 1) * $periodDays) . ' days')->format('Y-m-d');
+                    $cuota  = new CuotaMatricula(null, $planId, $i + 1, $dueDate, $valorC, $valorC, 1);
+                    $cuotaRepo->save($cuota);
+                    $cuotasData[] = ['id' => (int) $cuota->getId(), 'numero' => $i + 1, 'fecha_vencimiento' => $dueDate, 'valor' => $valorC];
+                }
+
+                // 7. Registro de pago pendiente (cuota 1)
+                if (!empty($cuotasData)) {
+                    $formaDefault = $this->getDefaultFormaPago($db);
+                    $numeroPago   = 'PAG-' . date('Ymd') . '-' . str_pad((string) $matriculaId, 6, '0', STR_PAD_LEFT);
+                    $pagoEntity   = new Pago(null, $numeroPago, date('Y-m-d'), $persona, $matriculaId, $ventaId, $formaDefault, $instId, 0.0, null, 'Pendiente cuota 1 — matrícula #' . $matriculaId, 1);
+                    $pagoRepo     = new PagoRepository();
+                    $pagoRepo->save($pagoEntity);
+                    $pagoId       = (int) $pagoEntity->getId();
+
+                    $detalleRepo  = new PagoDetalleRepository();
+                    $detalle      = new PagoDetalle(null, $pagoId, $cuotasData[0]['id'], $ventaId, (float) $cuotasData[0]['valor']);
+                    $detalleRepo->save($detalle);
+                }
+            }
 
             $db->commit();
 
             return [
-                'matricula_id'   => $matriculaId,
-                'numero_factura' => $numeroFactura,
-                'subtotal'       => $subtotal,
-                'descuento'      => $descuento,
-                'impuesto'       => $impuesto,
-                'total'          => $total,
+                'matricula_id'    => $matriculaId,
+                'numero_factura'  => $numeroFactura,
+                'subtotal'        => $subtotal,
+                'descuento'       => $descuento,
+                'impuesto'        => $impuesto,
+                'total'           => $total,
+                'num_clases'      => count(array_filter($clases, fn($c) => (int)($c['clase_id'] ?? 0) > 0)),
+                'num_actividades' => count(array_filter($actividades, fn($a) => (int)($a['actividad_id'] ?? 0) > 0)),
+                'cuotas'          => $cuotasData,
             ];
-
         } catch (\Throwable $e) {
             $db->rollBack();
             throw new RuntimeException('Error al crear matrícula: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers para createMatricula
+    // -------------------------------------------------------------------------
+
+    private function resolvePeriodicidadId(\PDO $db, string $periodo): int
+    {
+        $like = '%' . strtolower($periodo) . '%';
+        $stmt = $db->prepare('SELECT id FROM periodicidad_pago WHERE LOWER(nemonico) LIKE :q OR LOWER(nombre) LIKE :q2 ORDER BY id ASC LIMIT 1');
+        $stmt->execute([':q' => $like, ':q2' => $like]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($row) return (int) $row['id'];
+
+        $stmt2 = $db->query('SELECT id FROM periodicidad_pago ORDER BY id ASC LIMIT 1');
+        $row2  = $stmt2 ? $stmt2->fetch(\PDO::FETCH_ASSOC) : null;
+        return $row2 ? (int) $row2['id'] : 1;
+    }
+
+    private function periodoToDays(string $periodo): int
+    {
+        return match ($periodo) {
+            'semanal'    => 7,
+            'trimestral' => 90,
+            'anual'      => 365,
+            default      => 30,
+        };
+    }
+
+    private function getDefaultFormaPago(\PDO $db): int
+    {
+        $stmt = $db->query('SELECT id FROM formas_pago ORDER BY id ASC LIMIT 1');
+        $row  = $stmt ? $stmt->fetch(\PDO::FETCH_ASSOC) : null;
+        return $row ? (int) $row['id'] : 1;
+    }
+
+    // -------------------------------------------------------------------------
+    // updateMatricula — edita membresía/fecha_fin y agrega ítems nuevos
+    // -------------------------------------------------------------------------
+
+    private function updateMatricula(int $instId, int $id): array
+    {
+        if ($id <= 0) {
+            throw new RuntimeException('ID de matrícula inválido.', 400);
+        }
+
+        $existing = $this->matriculaRepo->findById($id);
+        if ($existing === null) {
+            throw new RuntimeException('Matrícula no encontrada.', 404);
+        }
+
+        $body = json_decode((string) file_get_contents('php://input'), true);
+        if (!is_array($body)) {
+            throw new RuntimeException('Cuerpo de la solicitud inválido o vacío.', 400);
+        }
+
+        $fechaFin    = (string) ($body['fecha_fin']  ?? $existing->getFechaFin());
+        $membresiaId = (isset($body['membresia']) && $body['membresia'] !== '' && $body['membresia'] !== null)
+            ? (int) $body['membresia'] : null;
+        $clases      = is_array($body['clases']      ?? null) ? $body['clases']      : [];
+        $actividades = is_array($body['actividades'] ?? null) ? $body['actividades'] : [];
+
+        $fechaInicio = $existing->getFechaInicio();
+
+        $db = \Core\Database::getInstance();
+
+        try {
+            $db->beginTransaction();
+
+            // Actualizar matricula
+            $stmtU = $db->prepare('UPDATE matricula SET membresia = :mem, fecha_fin = :fin WHERE id = :id');
+            $stmtU->execute([':mem' => $membresiaId, ':fin' => $fechaFin, ':id' => $id]);
+
+            $calendRepo   = new CalendarioRepository();
+            $clasesAdded  = 0;
+            $actsAdded    = 0;
+
+            // Agregar clases nuevas (omite si ya existe activa)
+            foreach ($clases as $claseItem) {
+                $claseId = (int) ($claseItem['clase_id'] ?? 0);
+                if ($claseId <= 0) continue;
+
+                $chk = $db->prepare('SELECT id FROM clases_matricula WHERE clase = :c AND matricula = :m AND estado = 1 LIMIT 1');
+                $chk->execute([':c' => $claseId, ':m' => $id]);
+                if ($chk->fetch()) continue;
+
+                $claseMatEntity = new ClaseMatricula(null, $claseId, $id, 1, $fechaInicio, $fechaFin, 1, null);
+                $this->claseMatRepo->save($claseMatEntity);
+
+                $stmtC = $db->prepare('SELECT nombre, cupo_maximo FROM clases WHERE id = :id LIMIT 1');
+                $stmtC->execute([':id' => $claseId]);
+                $claseRow = $stmtC->fetch(\PDO::FETCH_ASSOC);
+                $nombreC  = $claseRow ? (string) ($claseRow['nombre'] ?? 'Clase') : 'Clase';
+                $cupoMax  = $claseRow ? (int) ($claseRow['cupo_maximo'] ?? 0) : 0;
+
+                $calendRepo->save(new Calendario(null, 'Clase: ' . $nombreC, 'CLASE', $instId, null, $claseId, null, null, null, $fechaInicio, $fechaFin, '', $cupoMax, 'Matrícula #' . $id . ' (edición)', 1));
+                $clasesAdded++;
+            }
+
+            // Agregar actividades nuevas
+            foreach ($actividades as $actItem) {
+                $actividadId = (int) ($actItem['actividad_id'] ?? 0);
+                if ($actividadId <= 0) continue;
+
+                $chk = $db->prepare('SELECT id FROM actividades_matricula WHERE actividad = :a AND matricula = :m AND estado = 1 LIMIT 1');
+                $chk->execute([':a' => $actividadId, ':m' => $id]);
+                if ($chk->fetch()) continue;
+
+                $actMatEntity = new ActividadMatricula(null, $actividadId, $id, 1, $fechaInicio, $fechaFin, 1, null, null);
+                $this->actMatRepo->save($actMatEntity);
+
+                $stmtA = $db->prepare('SELECT nombre FROM actividades WHERE id = :id LIMIT 1');
+                $stmtA->execute([':id' => $actividadId]);
+                $actRow  = $stmtA->fetch(\PDO::FETCH_ASSOC);
+                $nombreA = $actRow ? (string) ($actRow['nombre'] ?? 'Actividad') : 'Actividad';
+
+                $calendRepo->save(new Calendario(null, 'Actividad: ' . $nombreA, 'ACTIVIDAD', $instId, null, null, $actividadId, null, null, $fechaInicio, $fechaFin, '', 0, 'Matrícula #' . $id . ' (edición)', 1));
+                $actsAdded++;
+            }
+
+            $db->commit();
+
+            return [
+                'id'                   => $id,
+                'clases_agregadas'     => $clasesAdded,
+                'actividades_agregadas'=> $actsAdded,
+            ];
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw new RuntimeException('Error al actualizar matrícula: ' . $e->getMessage(), 500);
         }
     }
 
@@ -297,10 +606,7 @@ final class MatriculaServices implements MatriculaServiceInterface
         $this->claseMatRepo->cancelByMatriculaId($id);
         $this->actMatRepo->cancelByMatriculaId($id);
 
-        return [
-            'id'     => $id,
-            'estado' => 'ANULADO',
-        ];
+        return ['id' => $id, 'estado' => 'ANULADO'];
     }
 
     // -------------------------------------------------------------------------
@@ -323,10 +629,6 @@ final class MatriculaServices implements MatriculaServiceInterface
             throw new RuntimeException('Tipo de ítem no soportado. Use "clase" o "actividad".', 400);
         }
 
-        return [
-            'id'     => $id,
-            'tipo'   => $tipo,
-            'estado' => 'ANULADO',
-        ];
+        return ['id' => $id, 'tipo' => $tipo, 'estado' => 'ANULADO'];
     }
 }

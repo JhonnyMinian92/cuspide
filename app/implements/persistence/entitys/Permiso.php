@@ -2,123 +2,61 @@
 
 namespace Entitys;
 
-require_once __DIR__ . '/../repository/PermisoRepository.php';
-require_once __DIR__ . '/TipoPermiso.php';
-require_once __DIR__ . '/Persona.php';
-require_once __DIR__ . '/EstadoPermiso.php';
-
 class Permiso
 {
-  private ?int $id;
-  private int $tipo;
-  private int $persona;
-  private int $estado;
-  private string $fechaInicio;
-  private string $fechaFin;
-  private string $descripcion;
+    private ?int $id;
+    private int $persona;
+    private ?int $matricula;
+    private ?int $clase;
+    private ?int $actividad;
+    private string $fecha_inicio;
+    private string $fecha_fin;
+    private ?float $horas_por_dia;
+    private string $motivo;
+    private ?string $observacion;
+    private int $estado;
+    private ?string $fecha_registro;
 
-  public function __construct(?int $id, mixed $tipo, mixed $persona, mixed $estado, string $fechaInicio, string $fechaFin, string $descripcion)
-  {
-    $this->id = $id;
-    $this->tipo = $this->extractId($tipo);
-    $this->persona = $this->extractId($persona);
-    $this->estado = $this->extractId($estado);
-    $this->fechaInicio = $fechaInicio;
-    $this->fechaFin = $fechaFin;
-    $this->descripcion = $descripcion;
-  }
-
-  public function getId(): ?int
-  {
-    return $this->id;
-  }
-
-  public function getTipo(): ?TipoPermiso
-  {
-    return $this->tipo === null ? null : TipoPermiso::from($this->tipo);
-  }
-
-  public function getPersona(): ?Persona
-  {
-    return $this->persona === null ? null : Persona::from($this->persona);
-  }
-
-  public function getEstado(): ?EstadoPermiso
-  {
-    return $this->estado === null ? null : EstadoPermiso::from($this->estado);
-  }
-
-  public function getFechaInicio(): string
-  {
-    return $this->fechaInicio;
-  }
-
-  public function getFechaFin(): string
-  {
-    return $this->fechaFin;
-  }
-
-  public function getDescripcion(): string
-  {
-    return $this->descripcion;
-  }
-
-  public function setId(?int $id): void
-  {
-    $this->id = $id;
-  }
-
-  public function setTipo(mixed $tipo): void
-  {
-    $this->tipo = $this->extractId($tipo);
-  }
-
-  public function setPersona(mixed $persona): void
-  {
-    $this->persona = $this->extractId($persona);
-  }
-
-  public function setEstado(mixed $estado): void
-  {
-    $this->estado = $this->extractId($estado);
-  }
-
-  public function setFechaInicio(string $fechaInicio): void
-  {
-    $this->fechaInicio = $fechaInicio;
-  }
-
-  public function setFechaFin(string $fechaFin): void
-  {
-    $this->fechaFin = $fechaFin;
-  }
-
-  public function setDescripcion(string $descripcion): void
-  {
-    $this->descripcion = $descripcion;
-  }
-
-  private function extractId(mixed $value): ?int
-  {
-    if ($value === null) {
-      return null;
+    public function __construct(
+        ?int $id,
+        int $persona,
+        ?int $matricula,
+        ?int $clase,
+        ?int $actividad,
+        string $fecha_inicio,
+        string $fecha_fin,
+        ?float $horas_por_dia,
+        string $motivo,
+        ?string $observacion,
+        int $estado = 1,
+        ?string $fecha_registro = null
+    ) {
+        $this->id             = $id;
+        $this->persona        = $persona;
+        $this->matricula      = $matricula;
+        $this->clase          = $clase;
+        $this->actividad      = $actividad;
+        $this->fecha_inicio   = $fecha_inicio;
+        $this->fecha_fin      = $fecha_fin;
+        $this->horas_por_dia  = $horas_por_dia;
+        $this->motivo         = $motivo;
+        $this->observacion    = $observacion;
+        $this->estado         = $estado;
+        $this->fecha_registro = $fecha_registro;
     }
-    if (is_object($value) && method_exists($value, 'getId')) {
-      return $value->getId();
-    }
-    return (int) $value;
-  }
 
-  public static function from(int $id): ?self
-  {
-    try {
-      $repositorio = new \Repositories\PermisoRepository();
-      $entity = $repositorio->findById($id);
-      if ($entity) {
-        return $entity;
-      }
-    } catch (\Exception $e) {
-    }
-    return new self($id, 0, 0, 0, '', '', '');
-  }
+    public function getId(): ?int { return $this->id; }
+    public function getPersona(): int { return $this->persona; }
+    public function getMatricula(): ?int { return $this->matricula; }
+    public function getClase(): ?int { return $this->clase; }
+    public function getActividad(): ?int { return $this->actividad; }
+    public function getFechaInicio(): string { return $this->fecha_inicio; }
+    public function getFechaFin(): string { return $this->fecha_fin; }
+    public function getHorasPorDia(): ?float { return $this->horas_por_dia; }
+    public function getMotivo(): string { return $this->motivo; }
+    public function getObservacion(): ?string { return $this->observacion; }
+    public function getEstado(): int { return $this->estado; }
+    public function getFechaRegistro(): ?string { return $this->fecha_registro; }
+
+    public function setId(?int $id): void { $this->id = $id; }
 }

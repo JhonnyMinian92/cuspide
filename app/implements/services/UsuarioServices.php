@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../interfaces/UsuarioServiceInterface.php';
+require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/UserRepository.php';
 require_once __DIR__ . '/../persistence/entitys/User.php';
 require_once __DIR__ . '/../persistence/repository/BotonRepository.php';
@@ -15,6 +16,7 @@ require_once __DIR__ . '/../utils/Token.php';
 use Repositories\UserRepository;
 use Repositories\BotonRepository;
 use Repositories\BotonUserRepository;
+use Core\Database;
 use Entitys\User;
 use Entitys\Boton;
 use Entitys\BotonUser;

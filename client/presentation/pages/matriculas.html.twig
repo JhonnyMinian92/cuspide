@@ -1,17 +1,58 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'matriculas' %}
-{% block title %}Matrículas — CUSPIDE{% endblock %}
+{% block title %}Matrículas — SportAdmin{% endblock %}
 {% block page_title %}Matrículas{% endblock %}
 
 {% block content %}
 
-<!-- Buscar persona -->
+<!-- Acceso rápido -->
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="/alumnos" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-people me-1"></i>Alumnos
+  </a>
+  <a href="/membresias" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-card-list me-1"></i>Membresías
+  </a>
+  <a href="/asignaturas" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-journal-bookmark me-1"></i>Clases
+  </a>
+  <a href="/actividades" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-trophy me-1"></i>Actividades
+  </a>
+</div>
+
+<!-- Últimas Matrículas -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-0">
+    <div class="px-4 pt-4 pb-2">
+      <h6 class="fw-bold mb-0">Últimas 20 Matrículas</h6>
+      <p class="text-muted small mb-0">Listado de las matrículas más recientes en la institución.</p>
+    </div>
+    <div class="table-responsive table-container" style="border-radius:0 0 12px 12px;border-top:1px solid var(--table-border);border-left:none;border-right:none;border-bottom:none;">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Fecha Reg.</th><th>Estudiante</th><th>Período</th>
+            <th>Membresía</th><th class="text-center">Ítems</th><th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="recent-mat-tbody">
+          <tr><td colspan="6" class="text-center text-muted py-4">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando matrículas recientes...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Buscar estudiante -->
 <div class="card chart-card mb-4">
   <div class="card-body p-4">
     <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
       <div>
-        <h6 class="fw-bold mb-1">Buscar Persona</h6>
-        <p class="text-muted small mb-0">Busca al estudiante o profesor por cédula, nombre o apellido para ver y gestionar sus matrículas.</p>
+        <h6 class="fw-bold mb-1">Buscar Estudiante</h6>
+        <p class="text-muted small mb-0">Busca por cédula, nombre o apellido para ver y gestionar sus matrículas.</p>
       </div>
     </div>
     <div class="row g-3 align-items-center">
@@ -33,17 +74,12 @@
         </button>
       </div>
     </div>
-    <!-- Resultados de búsqueda (dropdown-style) -->
     <div id="mat-search-results" class="d-none mt-3">
       <div class="table-responsive table-container">
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th>Identificación</th>
-              <th>Nombre</th>
-              <th>Tipo</th>
-              <th>Institución</th>
-              <th></th>
+              <th>Identificación</th><th>Nombre</th><th>Tipo</th><th></th>
             </tr>
           </thead>
           <tbody id="mat-search-tbody"></tbody>
@@ -55,8 +91,6 @@
 
 <!-- Persona seleccionada + matrículas -->
 <div class="d-none" id="mat-persona-section">
-
-  <!-- Info de la persona -->
   <div class="card chart-card mb-4" style="border-left:4px solid var(--brand-color);">
     <div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-center">
@@ -89,102 +123,88 @@
         <h6 class="fw-bold mb-0">Matrículas</h6>
         <p class="text-muted small mb-0" id="mat-list-info">Cargando...</p>
       </div>
-      <div class="table-responsive table-container" style="border-radius:0 0 12px 12px; border-top:1px solid var(--table-border); border-left:none; border-right:none; border-bottom:none;">
+      <div class="table-responsive table-container" style="border-radius:0 0 12px 12px;border-top:1px solid var(--table-border);border-left:none;border-right:none;border-bottom:none;">
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th>#</th>
-              <th>Período</th>
-              <th>Membresía</th>
-              <th>Institución</th>
-              <th>Estado</th>
-              <th>Ítems</th>
+              <th>#</th><th>Período</th><th>Membresía</th>
+              <th>Estado</th><th>Ítems</th><th>Cuotas</th>
               <th class="text-end pe-4">Acciones</th>
             </tr>
           </thead>
           <tbody id="mat-list-tbody">
-            <tr><td colspan="7" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando matrículas...</td></tr>
+            <tr><td colspan="7" class="text-center text-muted py-4">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando matrículas...
+            </td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
+</div>
 
-</div><!-- /mat-persona-section -->
-
-<!-- Formulario nueva matrícula -->
+<!-- Formulario nueva/editar matrícula -->
 <div class="card chart-card d-none" id="form-mat-card">
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h6 class="fw-bold mb-1"><i class="bi bi-journal-plus me-2"></i>Nueva Matrícula</h6>
-        <p class="text-muted small mb-0">Asigna membresía, período y selecciona las clases o actividades a incluir.</p>
+        <h6 class="fw-bold mb-1" id="form-mat-title"><i class="bi bi-journal-plus me-2"></i>Nueva Matrícula</h6>
+        <p class="text-muted small mb-0">Selecciona membresía, período y agrega las clases o actividades.</p>
       </div>
       <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cancelar-mat">
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
+    <input type="hidden" id="mat-edit-id" value="">
+
     <form id="form-nueva-mat">
+      <!-- Membresía + Fechas -->
       <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
           <label class="form-label fw-semibold">Membresía</label>
           <select class="form-select" id="mat-membresia" name="membresia">
             <option value="">Sin membresía</option>
           </select>
-          <div class="form-text" id="mat-membresia-info"></div>
+          <div id="mat-membresia-info" class="form-text mt-1"></div>
         </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Fecha de Inicio *</label>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Fecha de Inicio</label>
           <input type="date" class="form-control" id="mat-fecha-inicio" name="fecha_inicio" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label fw-semibold">Fecha de Fin *</label>
           <input type="date" class="form-control" id="mat-fecha-fin" name="fecha_fin" required>
         </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Institución *</label>
-          <select class="form-select" id="mat-institucion" name="institucion" required>
-            <option value="">Cargando...</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Descuento ($)</label>
-          <input type="number" class="form-control" id="mat-descuento" name="descuento" value="0" min="0" step="0.01">
-        </div>
       </div>
 
-      <!-- Selección de clases -->
+      <!-- Ítems actuales (solo en modo edición) -->
+      <div id="mat-items-actuales" class="d-none mb-4">
+        <h6 class="fw-semibold mb-2"><i class="bi bi-list-check me-2"></i>Ítems actuales</h6>
+        <div class="row g-2" id="mat-items-actuales-body"></div>
+      </div>
+
+      <!-- Clases disponibles -->
       <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h6 class="fw-semibold mb-0"><i class="bi bi-book me-2"></i>Clases</h6>
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-load-clases">
-            <i class="bi bi-arrow-repeat me-1"></i>Cargar clases
-          </button>
-        </div>
+        <h6 class="fw-semibold mb-2"><i class="bi bi-book me-2"></i>Clases disponibles</h6>
         <div id="clases-available" class="row g-2">
-          <div class="col-12 text-muted small">Presiona "Cargar clases" para ver las disponibles.</div>
+          <div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</div>
         </div>
-        <div class="mt-3" id="clases-seleccionadas-wrap">
-          <div class="fw-semibold small mb-2">Clases seleccionadas:</div>
+        <div class="mt-3">
+          <div class="fw-semibold small mb-2">Clases a agregar:</div>
           <div id="clases-seleccionadas" class="d-flex flex-wrap gap-2">
             <span class="text-muted small">Ninguna aún.</span>
           </div>
         </div>
       </div>
 
-      <!-- Selección de actividades -->
+      <!-- Actividades disponibles -->
       <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h6 class="fw-semibold mb-0"><i class="bi bi-trophy me-2"></i>Actividades Deportivas</h6>
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-load-actividades">
-            <i class="bi bi-arrow-repeat me-1"></i>Cargar actividades
-          </button>
-        </div>
+        <h6 class="fw-semibold mb-2"><i class="bi bi-trophy me-2"></i>Actividades disponibles</h6>
         <div id="actividades-available" class="row g-2">
-          <div class="col-12 text-muted small">Presiona "Cargar actividades" para ver las disponibles.</div>
+          <div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</div>
         </div>
-        <div class="mt-3" id="actividades-seleccionadas-wrap">
-          <div class="fw-semibold small mb-2">Actividades seleccionadas:</div>
+        <div class="mt-3">
+          <div class="fw-semibold small mb-2">Actividades a agregar:</div>
           <div id="actividades-seleccionadas" class="d-flex flex-wrap gap-2">
             <span class="text-muted small">Ninguna aún.</span>
           </div>
@@ -196,9 +216,8 @@
         <span id="mat-form-warn-msg"></span>
       </div>
 
-      <!-- Resumen de factura (tras crear) -->
       <div class="alert alert-success d-none" id="mat-resultado">
-        <h6 class="fw-bold mb-2"><i class="bi bi-check-circle-fill me-2"></i>Matrícula creada</h6>
+        <h6 class="fw-bold mb-2"><i class="bi bi-check-circle-fill me-2"></i><span id="mat-resultado-titulo">Matrícula registrada</span></h6>
         <div id="mat-resultado-body"></div>
       </div>
 
@@ -214,79 +233,128 @@
   </div>
 </div>
 
-<!-- Toast container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-/* ── Estado ── */
-var matPersona       = null;
-var clasesSeleccionadas     = [];
+/* ── Estado global ── */
+var matPersona               = null;
+var clasesSeleccionadas      = [];
 var actividadesSeleccionadas = [];
+var membresiasList           = [];
+var editMatriculaData        = null;   // null = modo crear, objeto = modo editar
 
-/* ── Helpers API ── */
-function apiGet(path, action, params) {
-  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
-  var url  = base + '/index.php?api=' + encodeURIComponent(action);
-  if (params) {
-    Object.keys(params).forEach(function(k) {
-      if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
-        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-      }
-    });
-  }
-  return Cuspide.api.request(url, { auth: true });
-}
-function apiPost(path, action, body) {
-  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
-  return Cuspide.api.request(base + '/index.php?api=' + encodeURIComponent(action), { method: 'POST', auth: true, body: body });
-}
-function apiPut(path, action, body, params) {
-  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
-  var url  = base + '/index.php?api=' + encodeURIComponent(action);
-  if (params) {
-    Object.keys(params).forEach(function(k) {
-      if (params[k] !== null && params[k] !== undefined) {
-        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-      }
-    });
-  }
-  return Cuspide.api.request(url, { method: 'PUT', auth: true, body: body });
-}
-
+/* ── Helpers ── */
 function esc(v) {
   return String(v === null || v === undefined ? '' : v)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
+function jsStr(v) {
+  return esc(JSON.stringify(String(v === null || v === undefined ? '' : v)));
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  var s = String(d).substring(0, 10), p = s.split('-');
+  return p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : s;
+}
+function fmtMoney(v) { return '$' + parseFloat(v || 0).toFixed(2); }
 
 function showToast(msg, type) {
   type = type || 'success';
-  var icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
-  var toast = document.createElement('div');
-  toast.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
-  toast.role = 'alert';
-  toast.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type]||'info-circle-fill') + ' me-2"></i>' + esc(msg) + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  var icons = {success:'check-circle-fill',danger:'x-circle-fill',warning:'exclamation-triangle-fill',info:'info-circle-fill'};
+  var t = document.createElement('div');
+  t.className = 'toast align-items-center border-0 text-white bg-'+type+' show';
+  t.role = 'alert';
+  t.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-'+(icons[type]||'info-circle-fill')+' me-2"></i>'+esc(msg)+'</div>'
+    +'<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
   var c = document.getElementById('toast-container');
-  if (c) c.appendChild(toast);
-  setTimeout(function() { toast.remove(); }, 5000);
+  if (c) c.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 5000);
 }
 
 function debounce(fn, ms) {
   var t;
-  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null,a); }, ms); };
+  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function(){ fn.apply(null,a); }, ms); };
 }
 
-/* ── Búsqueda de personas ── */
+/* ── Auth ── */
+function requireAuth() {
+  if (window.Cuspide && Cuspide.auth && typeof Cuspide.auth.requireAuth === 'function') return Cuspide.auth.requireAuth();
+  if (!localStorage.getItem(CONFIG.STORAGE_KEYS.token)) { window.location.href = CONFIG.ROUTES.login; return false; }
+  return true;
+}
+
+/* ── API helpers ── */
+function apiGet(path, action, params) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  var url  = base + '/index.php?api=' + encodeURIComponent(action);
+  if (params) Object.keys(params).forEach(function(k) {
+    if (params[k] !== null && params[k] !== undefined && params[k] !== '')
+      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  });
+  return Cuspide.api.request(url, { auth: true });
+}
+function apiPost(path, action, body) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  return Cuspide.api.request(base+'/index.php?api='+encodeURIComponent(action), {method:'POST', auth:true, body:body});
+}
+function apiPut(path, action, body, params) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  var url  = base + '/index.php?api=' + encodeURIComponent(action);
+  if (params) Object.keys(params).forEach(function(k) {
+    if (params[k] !== null && params[k] !== undefined)
+      url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  });
+  return Cuspide.api.request(url, {method:'PUT', auth:true, body:body});
+}
+
+/* ── Cargar matrículas recientes ── */
+function loadRecentMatriculas() {
+  var tbody = document.getElementById('recent-mat-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  // Usamos el endpoint del dashboard que ya obtiene las últimas matrículas
+  apiGet('/app/controllers/api/dashboard', 'ultimas_matriculas', {})
+    .then(function(data) {
+      renderRecentMatriculas(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar matrículas recientes.') + '</td></tr>';
+    });
+}
+
+function renderRecentMatriculas(items) {
+  var tbody = document.getElementById('recent-mat-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5"><i class="bi bi-journal-x fs-2 d-block mb-2 opacity-25"></i>No hay matrículas recientes.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(function(m) {
+    var itemsBadge = '<span class="text-muted small">'
+      +'<i class="bi bi-book me-1"></i>'+(m.clases_count||0)
+      +' · <i class="bi bi-trophy me-1"></i>'+(m.actividades_count||0)
+      +'</span>';
+    
+    return '<tr>'
+      +'<td class="small">'+fmtDate(m.fecha_registro)+'</td>'
+      +'<td><div class="fw-semibold">'+esc(m.nombre)+'</div><code class="small">'+esc(m.identificacion)+'</code></td>'
+      +'<td class="small">'+fmtDate(m.fecha_inicio)+' – '+fmtDate(m.fecha_fin)+'</td>'
+      +'<td>'+esc(m.membresia||'—')+'</td>'
+      +'<td class="text-center">'+itemsBadge+'</td>'
+      +'<td class="text-end pe-3">'
+        +'<button type="button" class="btn btn-sm btn-outline-primary" onclick="selectPersona('+m.persona_id+','+jsStr(m.nombre)+','+jsStr(m.tipo)+','+jsStr(m.identificacion)+')" title="Ver detalle de '+esc(m.nombre)+'">'
+          +'<i class="bi bi-person-check me-1"></i>Ver Estudiante</button>'
+      +'</td></tr>';
+  }).join('');
+}
+
+/* ── Búsqueda de estudiantes ── */
 var doSearch = debounce(function(q) {
   if (q.length < 2) { document.getElementById('mat-search-results').classList.add('d-none'); return; }
   document.getElementById('mat-search-spinner').classList.remove('d-none');
-  apiGet(CONFIG.ENDPOINTS.personas, 'search', { q: q })
-    .then(function(data) {
-      renderSearchResults(Array.isArray(data) ? data : []);
-    })
+  apiGet(CONFIG.ENDPOINTS.matriculas, 'students', { q: q })
+    .then(function(data) { renderSearchResults(Array.isArray(data) ? data : []); })
     .catch(function() { document.getElementById('mat-search-results').classList.add('d-none'); })
     .finally(function() { document.getElementById('mat-search-spinner').classList.add('d-none'); });
 }, 350);
@@ -297,52 +365,44 @@ function renderSearchResults(items) {
   if (!items.length) { wrap.classList.add('d-none'); return; }
   wrap.classList.remove('d-none');
   tbody.innerHTML = items.map(function(p) {
-    return '<tr>' +
-      '<td><code>' + esc(p.identificacion) + '</code></td>' +
-      '<td class="fw-semibold">' + esc(p.nombre_completo) + '</td>' +
-      '<td>' + esc(p.tipo) + '</td>' +
-      '<td class="text-muted small">' + esc(p.institucion) + '</td>' +
-      '<td><button type="button" class="btn btn-sm btn-brand" onclick="selectPersona(' + p.id + ',\'' + esc(p.nombre_completo) + '\',\'' + esc(p.tipo) + '\',\'' + esc(p.identificacion) + '\')">' +
-        '<i class="bi bi-check-lg me-1"></i>Seleccionar</button></td>' +
-    '</tr>';
+    return '<tr>'
+      +'<td><code>'+esc(p.identificacion)+'</code></td>'
+      +'<td class="fw-semibold">'+esc(p.nombre_completo)+'</td>'
+      +'<td><span class="badge rounded-pill bg-secondary">'+esc(p.tipo||'Estudiante')+'</span></td>'
+      +'<td><button type="button" class="btn btn-sm btn-brand" onclick="selectPersona('+p.id+','+jsStr(p.nombre_completo)+','+jsStr(p.tipo)+','+jsStr(p.identificacion)+')">'
+        +'<i class="bi bi-check-lg me-1"></i>Seleccionar</button></td>'
+      +'</tr>';
   }).join('');
 }
 
-/* ── Seleccionar persona ── */
 function selectPersona(id, nombre, tipo, cedula) {
   matPersona = { id: id, nombre: nombre, tipo: tipo, cedula: cedula };
   document.getElementById('mat-search-results').classList.add('d-none');
   document.getElementById('mat-search').value = '';
-
-  document.getElementById('mat-persona-avatar').textContent = (nombre.charAt(0) || '?').toUpperCase();
+  document.getElementById('mat-persona-avatar').textContent = (nombre.charAt(0)||'?').toUpperCase();
   document.getElementById('mat-persona-nombre').textContent = nombre;
-  document.getElementById('mat-persona-tipo').textContent   = tipo;
+  document.getElementById('mat-persona-tipo').textContent   = tipo || 'Estudiante';
   document.getElementById('mat-persona-cedula').textContent = cedula;
-
   document.getElementById('mat-persona-section').classList.remove('d-none');
   document.getElementById('form-mat-card').classList.add('d-none');
   loadMatriculas();
 }
 
-/* ── Cargar matrículas de la persona ── */
+/* ── Cargar matrículas ── */
 function loadMatriculas() {
   if (!matPersona) return;
   document.getElementById('mat-list-info').textContent = 'Cargando...';
   apiGet(CONFIG.ENDPOINTS.matriculas, 'list', { persona_id: matPersona.id })
-    .then(function(data) {
-      renderMatriculas(Array.isArray(data) ? data : []);
-    })
-    .catch(function(err) {
-      showToast(err.message || 'Error al cargar matrículas.', 'danger');
-      renderMatriculas([]);
-    });
+    .then(function(data) { renderMatriculas(Array.isArray(data) ? data : []); })
+    .catch(function(err) { showToast(err.message || 'Error al cargar matrículas.', 'danger'); renderMatriculas([]); });
 }
 
 function renderMatriculas(items) {
   var tbody = document.getElementById('mat-list-tbody');
   var info  = document.getElementById('mat-list-info');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5"><i class="bi bi-journal-x fs-2 d-block mb-2 opacity-25"></i>Sin matrículas registradas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5">'
+      +'<i class="bi bi-journal-x fs-2 d-block mb-2 opacity-25"></i>Sin matrículas registradas.</td></tr>';
     if (info) info.textContent = 'Sin matrículas.';
     return;
   }
@@ -352,62 +412,127 @@ function renderMatriculas(items) {
       ? '<span class="badge bg-success rounded-pill">Activo</span>'
       : m.estado === 'ANULADO'
         ? '<span class="badge bg-danger rounded-pill">Anulado</span>'
-        : '<span class="badge bg-secondary rounded-pill">' + esc(m.estado) + '</span>';
+        : '<span class="badge bg-secondary rounded-pill">'+esc(m.estado)+'</span>';
 
-    var clases     = (m.clases || []).length;
-    var actividades= (m.actividades || []).length;
-    var itemsBadge = '<span class="text-muted small"><i class="bi bi-book me-1"></i>' + clases + ' clase(s) · <i class="bi bi-trophy me-1"></i>' + actividades + ' act.</span>';
+    var itemsBadge = '<span class="text-muted small">'
+      +'<i class="bi bi-book me-1"></i>'+(m.clases||[]).filter(function(c){ return c.estado===1; }).length
+      +' · <i class="bi bi-trophy me-1"></i>'+(m.actividades||[]).filter(function(a){ return a.estado===1; }).length
+      +'</span>';
 
-    var acciones = '';
-    if (m.estado === 'ACTIVO') {
-      acciones = '<button type="button" class="btn btn-sm btn-outline-danger" onclick="anularMatricula(' + m.id + ')" title="Anular matrícula">' +
-        '<i class="bi bi-x-circle"></i></button>';
+    var cuotasBadge = '—';
+    if (m.plan_pago) {
+      var total   = (m.plan_pago.cuotas||[]).length;
+      var pagadas = (m.plan_pago.cuotas||[]).filter(function(c){ return c.pagada; }).length;
+      cuotasBadge = '<span class="text-muted small">'+pagadas+'/'+total+' pagas</span>'
+        +'<br><span class="small fw-semibold">'+fmtMoney(m.plan_pago.saldo)+' saldo</span>';
     }
 
-    return '<tr>' +
-      '<td><code>#' + esc(m.id) + '</code></td>' +
-      '<td class="small">' + esc(m.fecha_inicio) + ' – ' + esc(m.fecha_fin) + '</td>' +
-      '<td>' + esc(m.membresia || '—') + '</td>' +
-      '<td class="text-muted small">' + esc(m.institucion) + '</td>' +
-      '<td>' + estadoBadge + '</td>' +
-      '<td>' + itemsBadge + '</td>' +
-      '<td class="text-end pe-3">' +
-        '<button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="toggleItemsRow(this,' + m.id + ')" title="Ver ítems">' +
-          '<i class="bi bi-list-ul"></i></button>' +
-        acciones +
-      '</td>' +
-    '</tr>' +
-    '<tr class="items-row d-none" id="items-row-' + m.id + '">' +
-      '<td colspan="7" class="p-3" style="background:var(--app-bg-soft);">' +
-        renderItemsInline(m.clases, m.actividades, m.id, m.estado) +
-      '</td>' +
-    '</tr>';
+    var btnEdit = m.estado === 'ACTIVO'
+      ? '<button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="editMatricula(window._matCache['+m.id+'])" title="Editar matrícula"><i class="bi bi-pencil"></i></button>'
+      : '';
+    var btnAnular = m.estado === 'ACTIVO'
+      ? '<button type="button" class="btn btn-sm btn-outline-danger" onclick="anularMatricula('+m.id+')" title="Anular"><i class="bi bi-x-circle"></i></button>'
+      : '';
+
+    window._matCache = window._matCache || {};
+    window._matCache[m.id] = m;
+
+    return '<tr>'
+      +'<td><code>#'+esc(m.id)+'</code></td>'
+      +'<td class="small">'+fmtDate(m.fecha_inicio)+' – '+fmtDate(m.fecha_fin)+'</td>'
+      +'<td>'+esc(m.membresia||'—')+'</td>'
+      +'<td>'+estadoBadge+'</td>'
+      +'<td>'+itemsBadge+'</td>'
+      +'<td>'+cuotasBadge+'</td>'
+      +'<td class="text-end pe-3">'
+        +'<button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="toggleItemsRow(this,'+m.id+')" title="Ver detalle"><i class="bi bi-list-ul"></i></button>'
+        +btnEdit+btnAnular
+      +'</td>'
+      +'</tr>'
+      +'<tr class="items-row d-none" id="items-row-'+m.id+'">'
+        +'<td colspan="7" class="p-3" style="background:var(--app-bg-soft);">'+renderItemsInline(m)+'</td>'
+      +'</tr>';
   }).join('');
 }
 
-function renderItemsInline(clases, actividades, matriculaId, estado) {
-  var canRemove = estado === 'ACTIVO';
-  var claseRows = (clases || []).map(function(c) {
-    var estadoC = c.estado ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Anulado</span>';
-    var remove  = canRemove && c.estado
-      ? '<button type="button" class="btn btn-xs btn-outline-danger btn-sm ms-2" onclick="anularItem(' + c.id + ',\'clase\')" title="Anular ítem"><i class="bi bi-x"></i></button>'
-      : '';
-    return '<li class="list-group-item list-group-item-action py-1 px-3" style="background:transparent;border-color:var(--table-border);">' +
-      '<i class="bi bi-book me-2 text-muted"></i>Clase #' + esc(c.clase) + ' — Horario #' + esc(c.horario) + ' ' + estadoC + remove + '</li>';
-  }).join('');
-  var actRows = (actividades || []).map(function(a) {
-    var estadoA = a.estado ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Anulado</span>';
-    var remove  = canRemove && a.estado
-      ? '<button type="button" class="btn btn-xs btn-outline-danger btn-sm ms-2" onclick="anularItem(' + a.id + ',\'actividad\')" title="Anular ítem"><i class="bi bi-x"></i></button>'
-      : '';
-    return '<li class="list-group-item list-group-item-action py-1 px-3" style="background:transparent;border-color:var(--table-border);">' +
-      '<i class="bi bi-trophy me-2 text-muted"></i>Actividad #' + esc(a.actividad) + ' — Horario #' + esc(a.horario) + ' ' + estadoA + remove + '</li>';
-  }).join('');
-  return '<ul class="list-group list-group-flush">' + (claseRows + actRows || '<li class="list-group-item text-muted py-1 px-3" style="background:transparent;">Sin ítems.</li>') + '</ul>';
+/* ── Detalle expandido ── */
+function renderItemsInline(m) {
+  var canRemove = m.estado === 'ACTIVO';
+  var html = '<div class="row g-3">';
+
+  // Clases
+  html += '<div class="col-md-6">'
+    +'<div class="fw-semibold small mb-2"><i class="bi bi-book me-1 text-primary"></i>Clases</div>'
+    +'<ul class="list-group list-group-flush">';
+  if (!(m.clases||[]).length) {
+    html += '<li class="list-group-item py-2 px-0 text-muted small" style="background:transparent;">Sin clases.</li>';
+  } else {
+    (m.clases||[]).forEach(function(c) {
+      var isActive = c.estado === 1;
+      var badge  = isActive ? '<span class="badge bg-success ms-2">Activa</span>' : '<span class="badge bg-secondary ms-2">Anulada</span>';
+      var btn    = canRemove && isActive
+        ? '<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" onclick="anularItem('+c.id+',\'clase\')" title="Anular"><i class="bi bi-x"></i></button>'
+        : '';
+      html += '<li class="list-group-item d-flex align-items-center justify-content-between py-2 px-0" style="background:transparent;border-color:var(--table-border);">'
+        +'<span><i class="bi bi-book text-muted me-2"></i><strong>'+esc(c.clase_nombre || 'Clase #'+c.clase)+'</strong></span>'
+        +'<span>'+badge+btn+'</span>'
+        +'</li>';
+    });
+  }
+  html += '</ul></div>';
+
+  // Actividades
+  html += '<div class="col-md-6">'
+    +'<div class="fw-semibold small mb-2"><i class="bi bi-trophy me-1 text-warning"></i>Actividades</div>'
+    +'<ul class="list-group list-group-flush">';
+  if (!(m.actividades||[]).length) {
+    html += '<li class="list-group-item py-2 px-0 text-muted small" style="background:transparent;">Sin actividades.</li>';
+  } else {
+    (m.actividades||[]).forEach(function(a) {
+      var isActive = a.estado === 1;
+      var badge  = isActive ? '<span class="badge bg-success ms-2">Activa</span>' : '<span class="badge bg-secondary ms-2">Anulada</span>';
+      var btn    = canRemove && isActive
+        ? '<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" onclick="anularItem('+a.id+',\'actividad\')" title="Anular"><i class="bi bi-x"></i></button>'
+        : '';
+      html += '<li class="list-group-item d-flex align-items-center justify-content-between py-2 px-0" style="background:transparent;border-color:var(--table-border);">'
+        +'<span><i class="bi bi-trophy text-muted me-2"></i><strong>'+esc(a.actividad_nombre || 'Actividad #'+a.actividad)+'</strong></span>'
+        +'<span>'+badge+btn+'</span>'
+        +'</li>';
+    });
+  }
+  html += '</ul></div>';
+
+  // Plan de pago
+  if (m.plan_pago) {
+    html += '<div class="col-12">'
+      +'<div class="fw-semibold small mb-2"><i class="bi bi-calendar2-check me-1 text-info"></i>Plan de Pago</div>'
+      +'<div class="row g-2 small mb-2">'
+        +'<div class="col-6 col-sm-3"><span class="text-muted d-block">Subtotal</span><strong>'+fmtMoney(m.plan_pago.subtotal)+'</strong></div>'
+        +'<div class="col-6 col-sm-3"><span class="text-muted d-block">Descuento</span><strong>'+fmtMoney(m.plan_pago.descuento)+'</strong></div>'
+        +'<div class="col-6 col-sm-3"><span class="text-muted d-block">Total</span><strong>'+fmtMoney(m.plan_pago.total)+'</strong></div>'
+        +'<div class="col-6 col-sm-3"><span class="text-muted d-block">Saldo pendiente</span><strong class="text-danger">'+fmtMoney(m.plan_pago.saldo)+'</strong></div>'
+      +'</div>';
+    if ((m.plan_pago.cuotas||[]).length) {
+      html += '<div class="table-responsive"><table class="table table-sm mb-0" style="font-size:.8rem;">'
+        +'<thead><tr><th>#</th><th>Vence</th><th class="text-end">Valor</th><th>Estado</th></tr></thead><tbody>';
+      m.plan_pago.cuotas.forEach(function(c) {
+        var st = c.pagada
+          ? '<span class="badge bg-success">Pagada</span>'
+          : '<span class="badge bg-warning text-dark">Pendiente</span>';
+        html += '<tr><td>'+esc(c.numero)+'</td><td>'+fmtDate(c.fecha_vencimiento)+'</td>'
+          +'<td class="text-end">'+fmtMoney(c.valor)+'</td><td>'+st+'</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
 }
 
 function toggleItemsRow(btn, id) {
-  var row = document.getElementById('items-row-' + id);
+  var row = document.getElementById('items-row-'+id);
   if (!row) return;
   if (row.classList.contains('d-none')) {
     row.classList.remove('d-none');
@@ -418,236 +543,283 @@ function toggleItemsRow(btn, id) {
   }
 }
 
-/* ── Anular matrícula ── */
+/* ── Anular ── */
 function anularMatricula(id) {
-  if (!confirm('¿Estás seguro de anular esta matrícula? Esta acción no se puede deshacer.')) return;
+  if (!confirm('¿Anular esta matrícula? Esta acción no se puede deshacer.')) return;
   apiPut(CONFIG.ENDPOINTS.matriculas, 'cancel', {}, { id: id })
-    .then(function() {
-      showToast('Matrícula anulada correctamente.', 'success');
-      loadMatriculas();
-    })
+    .then(function() { showToast('Matrícula anulada.', 'success'); loadMatriculas(); })
     .catch(function(err) { showToast(err.message || 'Error al anular.', 'danger'); });
 }
-
-/* ── Anular ítem de matrícula ── */
 function anularItem(id, tipo) {
-  if (!confirm('¿Anular este ítem (' + tipo + ')?')) return;
+  if (!confirm('¿Anular este ítem ('+tipo+')?')) return;
   apiPut(CONFIG.ENDPOINTS.matriculas, 'removeitem', {}, { id: id, tipo: tipo })
-    .then(function() {
-      showToast('Ítem anulado.', 'success');
-      loadMatriculas();
-    })
+    .then(function() { showToast('Ítem anulado.', 'success'); loadMatriculas(); })
     .catch(function(err) { showToast(err.message || 'Error al anular ítem.', 'danger'); });
 }
 
-/* ── Nueva matrícula: mostrar / cargar datos ── */
+/* ── Nueva matrícula ── */
 function showNuevaMatricula() {
+  editMatriculaData = null;
+  resetForm();
+  document.getElementById('form-mat-title').innerHTML = '<i class="bi bi-journal-plus me-2"></i>Nueva Matrícula';
+  document.getElementById('btn-submit-mat').innerHTML  = '<i class="bi bi-check-lg me-1"></i>Crear Matrícula';
+  document.getElementById('mat-fecha-inicio').disabled = false;
+  document.getElementById('mat-items-actuales').classList.add('d-none');
+  document.getElementById('mat-edit-id').value = '';
+
+  var hoy = new Date().toISOString().substring(0, 10);
+  document.getElementById('mat-fecha-inicio').value = hoy;
+
+  document.getElementById('form-mat-card').classList.remove('d-none');
+  document.getElementById('form-mat-card').scrollIntoView({ behavior: 'smooth' });
+  loadMembresiasSelect(null);
+  loadClasesDisponibles();
+  loadActividadesDisponibles();
+}
+
+/* ── Editar matrícula ── */
+function editMatricula(m) {
+  editMatriculaData = m;
+  resetForm();
+  document.getElementById('form-mat-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Matrícula <small class="text-muted">#'+m.id+'</small>';
+  document.getElementById('btn-submit-mat').innerHTML  = '<i class="bi bi-check-lg me-1"></i>Guardar Cambios';
+  document.getElementById('mat-fecha-inicio').disabled = true;
+  document.getElementById('mat-edit-id').value = m.id;
+
+  document.getElementById('mat-fecha-inicio').value = m.fecha_inicio ? String(m.fecha_inicio).substring(0,10) : '';
+  document.getElementById('mat-fecha-fin').value    = m.fecha_fin    ? String(m.fecha_fin).substring(0,10)    : '';
+
+  // Mostrar ítems actuales
+  renderItemsActuales(m);
+
+  document.getElementById('form-mat-card').classList.remove('d-none');
+  document.getElementById('form-mat-card').scrollIntoView({ behavior: 'smooth' });
+  loadMembresiasSelect(m.membresia_id);
+  loadClasesDisponibles();
+  loadActividadesDisponibles();
+}
+
+function renderItemsActuales(m) {
+  var section = document.getElementById('mat-items-actuales');
+  var body    = document.getElementById('mat-items-actuales-body');
+  var activos = (m.clases||[]).filter(function(c){ return c.estado===1; });
+  var actsActivos = (m.actividades||[]).filter(function(a){ return a.estado===1; });
+
+  if (!activos.length && !actsActivos.length) { section.classList.add('d-none'); return; }
+  section.classList.remove('d-none');
+
+  body.innerHTML = activos.map(function(c) {
+    return '<div class="col-auto">'
+      +'<span class="badge d-inline-flex align-items-center gap-2 p-2 rounded" style="background:var(--brand-color);color:var(--brand-text);">'
+        +'<i class="bi bi-book"></i>'+esc(c.clase_nombre||'Clase #'+c.clase)
+        +'<button type="button" class="btn-close btn-close-dark btn-sm" style="filter:none;" onclick="anularItem('+c.id+',\'clase\')" title="Quitar"></button>'
+      +'</span></div>';
+  }).join('')
+  + actsActivos.map(function(a) {
+    return '<div class="col-auto">'
+      +'<span class="badge d-inline-flex align-items-center gap-2 p-2 rounded" style="background:#6f42c1;color:#fff;">'
+        +'<i class="bi bi-trophy"></i>'+esc(a.actividad_nombre||'Actividad #'+a.actividad)
+        +'<button type="button" class="btn-close btn-close-white btn-sm" style="filter:none;" onclick="anularItem('+a.id+',\'actividad\')" title="Quitar"></button>'
+      +'</span></div>';
+  }).join('');
+}
+
+/* ── Reset formulario ── */
+function resetForm() {
   clasesSeleccionadas      = [];
   actividadesSeleccionadas = [];
   updateClasesSeleccionadas();
   updateActividadesSeleccionadas();
   document.getElementById('mat-resultado').classList.add('d-none');
   document.getElementById('mat-form-warn').classList.add('d-none');
+  document.getElementById('mat-membresia-info').textContent = '';
   document.getElementById('form-nueva-mat').reset();
-
-  loadMembresiastSelect();
-  loadInstitucionesSelect('mat-institucion');
-
-  // Preselect institution from global state
-  var instId = getCurrentInstitucionId ? getCurrentInstitucionId() : null;
-  if (instId) {
-    setTimeout(function() {
-      var sel = document.getElementById('mat-institucion');
-      if (sel) sel.value = instId;
-    }, 600);
-  }
-
-  document.getElementById('form-mat-card').classList.remove('d-none');
-  document.getElementById('form-mat-card').scrollIntoView({ behavior: 'smooth' });
 }
 
-function loadMembresiastSelect() {
+/* ── Membresías select ── */
+function loadMembresiasSelect(preselect) {
   var sel = document.getElementById('mat-membresia');
   sel.innerHTML = '<option value="">Sin membresía</option>';
-  apiGet(CONFIG.ENDPOINTS.membresias, 'list')
+  apiGet(CONFIG.ENDPOINTS.matriculas, 'membresias')
     .then(function(data) {
-      if (Array.isArray(data)) {
-        data.forEach(function(m) {
-          var opt = document.createElement('option');
-          opt.value = m.id;
-          opt.textContent = m.titulo + ' — $' + parseFloat(m.precio).toFixed(2);
-          if (m.porcentaje) opt.textContent += ' (' + m.porcentaje + '% dto.)';
-          sel.appendChild(opt);
-        });
+      membresiasList = Array.isArray(data) ? data : [];
+      membresiasList.forEach(function(m) {
+        var opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.titulo+' — '+fmtMoney(m.precio)
+          +(m.porcentaje ? ' ('+m.porcentaje+'% dto.)' : '')+' · '+m.periodo;
+        opt.dataset.precio     = m.precio;
+        opt.dataset.porcentaje = m.porcentaje;
+        opt.dataset.periodo    = m.periodo;
+        opt.dataset.fechaFin   = m.fecha_fin ? String(m.fecha_fin).substring(0,10) : '';
+        sel.appendChild(opt);
+      });
+      if (preselect) {
+        sel.value = preselect;
+        sel.dispatchEvent(new Event('change'));
       }
     })
-    .catch(function() {});
-  document.getElementById('mat-membresia-info').textContent = '';
-  sel.addEventListener('change', function() {
-    document.getElementById('mat-membresia-info').textContent = '';
-  });
+    .catch(function(){});
 }
 
-function loadInstitucionesSelect(selectId) {
-  var sel = document.getElementById(selectId);
-  if (!sel) return;
-  if (window.CUSPIDE_STATE && window.CUSPIDE_STATE.instituciones && window.CUSPIDE_STATE.instituciones.length > 0) {
-    populateInstSelect(sel, window.CUSPIDE_STATE.instituciones);
-    return;
-  }
-  apiGet(CONFIG.ENDPOINTS.instituciones, 'list')
-    .then(function(data) { if (Array.isArray(data)) populateInstSelect(sel, data); })
-    .catch(function() { sel.innerHTML = '<option value="">Error al cargar</option>'; });
-}
-function populateInstSelect(sel, items) {
-  sel.innerHTML = '<option value="">— Seleccionar institución —</option>' +
-    items.map(function(i) { return '<option value="' + i.id + '">' + esc(i.nombre) + '</option>'; }).join('');
-}
-
-/* ── Cargar clases disponibles ── */
-document.getElementById('btn-load-clases').addEventListener('click', function() {
-  var instId = document.getElementById('mat-institucion').value;
-  if (!instId) { showToast('Selecciona una institución primero.', 'warning'); return; }
-  var wrap = document.getElementById('clases-available');
-  wrap.innerHTML = '<div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</div>';
-  apiGet(CONFIG.ENDPOINTS.clases, 'list', { institucion: instId })
-    .then(function(data) {
-      renderClasesDisponibles(Array.isArray(data) ? data : []);
-    })
-    .catch(function(err) {
-      wrap.innerHTML = '<div class="col-12 text-danger small">' + esc(err.message) + '</div>';
-    });
+document.getElementById('mat-membresia').addEventListener('change', function() {
+  var infoEl = document.getElementById('mat-membresia-info');
+  var opt    = this.options[this.selectedIndex];
+  if (!this.value) { infoEl.textContent = ''; return; }
+  var precio     = parseFloat(opt.dataset.precio     || 0);
+  var porcentaje = parseFloat(opt.dataset.porcentaje || 0);
+  var descuento  = Math.round(precio * porcentaje / 100 * 100) / 100;
+  var periodo    = opt.dataset.periodo || 'mensual';
+  var texto      = 'Descuento automático: '+fmtMoney(descuento);
+  if (porcentaje) texto += ' ('+porcentaje+'%)';
+  texto += ' · Período de cobro: '+periodo;
+  infoEl.textContent = texto;
+  var fin = opt.dataset.fechaFin;
+  if (fin && !editMatriculaData) document.getElementById('mat-fecha-fin').value = fin;
 });
 
-function renderClasesDisponibles(clases) {
+/* ── Clases ── */
+function loadClasesDisponibles() {
   var wrap = document.getElementById('clases-available');
-  if (!clases.length) { wrap.innerHTML = '<div class="col-12 text-muted small">No hay clases disponibles para esta institución.</div>'; return; }
+  wrap.innerHTML = '<div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando clases...</div>';
+  apiGet(CONFIG.ENDPOINTS.matriculas, 'clases', {})
+    .then(function(data) { renderClasesDisponibles(Array.isArray(data) ? data : []); })
+    .catch(function() { wrap.innerHTML = '<div class="col-12 text-muted small">No se pudieron cargar las clases.</div>'; });
+}
+
+function getActiveIds() {
+  var active = { clases: {}, actividades: {} };
+  if (editMatriculaData) {
+    (editMatriculaData.clases||[]).forEach(function(c){ if (c.estado===1) active.clases[c.clase] = true; });
+    (editMatriculaData.actividades||[]).forEach(function(a){ if (a.estado===1) active.actividades[a.actividad] = true; });
+  }
+  return active;
+}
+
+function renderClasesDisponibles(clases) {
+  var wrap    = document.getElementById('clases-available');
+  var actives = getActiveIds();
+  if (!clases.length) { wrap.innerHTML = '<div class="col-12 text-muted small">No hay clases disponibles.</div>'; return; }
   wrap.innerHTML = clases.map(function(c) {
-    var yaSeleccionada = clasesSeleccionadas.some(function(s) { return s.clase_id === c.id; });
-    var disponibles = (c.cupo_maximo || 0) - (c.matriculados || 0);
-    var cupoText = disponibles > 0
-      ? '<span class="badge bg-success ms-1">' + disponibles + ' cupos</span>'
+    var yaSeleccionada = clasesSeleccionadas.some(function(s){ return s.clase_id === c.id; });
+    var yaActiva       = !!actives.clases[c.id];
+    var disponibles    = (c.cupo_maximo||0) - (c.matriculados||0);
+    var cupoHtml = disponibles > 0
+      ? '<span class="badge bg-success ms-1">'+disponibles+' cupos</span>'
       : '<span class="badge bg-danger ms-1">Sin cupo</span>';
-    return '<div class="col-md-6 col-lg-4">' +
-      '<div class="p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">' +
-        '<div class="d-flex justify-content-between align-items-start">' +
-          '<div>' +
-            '<div class="fw-semibold small">' + esc(c.nombre) + '</div>' +
-            '<div class="text-muted small">Docente: ' + esc(c.primer_nombre + ' ' + c.primer_apellido) + '</div>' +
-            '<div class="mt-1">' + cupoText + '</div>' +
-          '</div>' +
-          (yaSeleccionada
-            ? '<span class="badge bg-success"><i class="bi bi-check-lg"></i></span>'
-            : '<button type="button" class="btn btn-xs btn-outline-secondary btn-sm" onclick="addClase(' + c.id + ',\'' + esc(c.nombre) + '\')" ' + (disponibles <= 0 ? 'disabled title="Sin cupo"' : '') + '><i class="bi bi-plus-lg"></i></button>') +
-        '</div>' +
-      '</div></div>';
+    var btn;
+    if (yaActiva) {
+      btn = '<span class="badge bg-info text-dark" title="Ya matriculado"><i class="bi bi-check2-circle"></i></span>';
+    } else if (yaSeleccionada) {
+      btn = '<span class="badge bg-success"><i class="bi bi-check-lg"></i></span>';
+    } else {
+      btn = '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="addClase('+c.id+','+jsStr(c.nombre)+')" '+(disponibles<=0?'disabled':'')+'>'+
+        '<i class="bi bi-plus-lg"></i></button>';
+    }
+    return '<div class="col-md-6 col-lg-4"><div class="p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">'
+      +'<div class="d-flex justify-content-between align-items-start">'
+        +'<div><div class="fw-semibold small">'+esc(c.nombre)+'</div>'
+          +'<div class="text-muted small">Docente: '+esc((c.primer_nombre||'')+' '+(c.primer_apellido||''))+'</div>'
+          +'<div class="mt-1">'+cupoHtml+'</div>'
+        +'</div>'+btn
+      +'</div></div></div>';
   }).join('');
 }
 
 function addClase(id, nombre) {
-  if (clasesSeleccionadas.some(function(c) { return c.clase_id === id; })) return;
-  clasesSeleccionadas.push({ clase_id: id, nombre: nombre, modalidad: 1, fecha_inicio: '', fecha_fin: '' });
+  if (clasesSeleccionadas.some(function(c){ return c.clase_id===id; })) return;
+  clasesSeleccionadas.push({ clase_id: id, nombre: nombre, modalidad: 1 });
   updateClasesSeleccionadas();
-  document.getElementById('btn-load-clases').click();
+  loadClasesDisponibles();
 }
-
 function removeClase(id) {
-  clasesSeleccionadas = clasesSeleccionadas.filter(function(c) { return c.clase_id !== id; });
+  clasesSeleccionadas = clasesSeleccionadas.filter(function(c){ return c.clase_id!==id; });
   updateClasesSeleccionadas();
+  loadClasesDisponibles();
 }
-
 function updateClasesSeleccionadas() {
   var wrap = document.getElementById('clases-seleccionadas');
-  if (!clasesSeleccionadas.length) {
-    wrap.innerHTML = '<span class="text-muted small">Ninguna aún.</span>';
-    return;
-  }
+  if (!clasesSeleccionadas.length) { wrap.innerHTML = '<span class="text-muted small">Ninguna aún.</span>'; return; }
   wrap.innerHTML = clasesSeleccionadas.map(function(c) {
-    return '<span class="badge d-flex align-items-center gap-2 p-2 rounded" style="background:var(--brand-color);color:var(--brand-text);">' +
-      '<i class="bi bi-book"></i>' + esc(c.nombre) +
-      '<button type="button" class="btn-close btn-close-dark btn-sm" onclick="removeClase(' + c.clase_id + ')"></button></span>';
+    return '<span class="badge d-flex align-items-center gap-2 p-2 rounded" style="background:var(--brand-color);color:var(--brand-text);">'
+      +'<i class="bi bi-book"></i>'+esc(c.nombre)
+      +'<button type="button" class="btn-close btn-close-dark btn-sm" style="filter:none;" onclick="removeClase('+c.clase_id+')"></button></span>';
   }).join('');
 }
 
-/* ── Cargar actividades disponibles ── */
-document.getElementById('btn-load-actividades').addEventListener('click', function() {
-  var instId = document.getElementById('mat-institucion').value;
-  if (!instId) { showToast('Selecciona una institución primero.', 'warning'); return; }
+/* ── Actividades ── */
+function loadActividadesDisponibles() {
   var wrap = document.getElementById('actividades-available');
-  wrap.innerHTML = '<div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</div>';
-  apiGet(CONFIG.ENDPOINTS.actividades, 'list', { institucion: instId })
-    .then(function(data) {
-      renderActividadesDisponibles(Array.isArray(data) ? data : []);
-    })
-    .catch(function(err) {
-      wrap.innerHTML = '<div class="col-12 text-danger small">' + esc(err.message) + '</div>';
-    });
-});
+  wrap.innerHTML = '<div class="col-12"><span class="spinner-border spinner-border-sm me-2"></span>Cargando actividades...</div>';
+  apiGet(CONFIG.ENDPOINTS.matriculas, 'actividades', {})
+    .then(function(data) { renderActividadesDisponibles(Array.isArray(data) ? data : []); })
+    .catch(function() { wrap.innerHTML = '<div class="col-12 text-muted small">No hay actividades disponibles.</div>'; });
+}
 
 function renderActividadesDisponibles(acts) {
-  var wrap = document.getElementById('actividades-available');
+  var wrap    = document.getElementById('actividades-available');
+  var actives = getActiveIds();
   if (!acts.length) { wrap.innerHTML = '<div class="col-12 text-muted small">No hay actividades disponibles.</div>'; return; }
   wrap.innerHTML = acts.map(function(a) {
-    var yaSeleccionada = actividadesSeleccionadas.some(function(s) { return s.actividad_id === a.id; });
-    return '<div class="col-md-6 col-lg-4">' +
-      '<div class="p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">' +
-        '<div class="d-flex justify-content-between align-items-start">' +
-          '<div>' +
-            '<div class="fw-semibold small">' + esc(a.nombre) + '</div>' +
-            '<div class="text-muted small">' + esc(a.deporte) + ' · ' + esc(a.nivel) + '</div>' +
-            '<div class="text-muted small">$' + parseFloat(a.precio || 0).toFixed(2) + '</div>' +
-          '</div>' +
-          (yaSeleccionada
-            ? '<span class="badge bg-success"><i class="bi bi-check-lg"></i></span>'
-            : '<button type="button" class="btn btn-xs btn-outline-secondary btn-sm" onclick="addActividad(' + a.id + ',\'' + esc(a.nombre) + '\')"><i class="bi bi-plus-lg"></i></button>') +
-        '</div>' +
-      '</div></div>';
+    var yaSeleccionada = actividadesSeleccionadas.some(function(s){ return s.actividad_id===a.id; });
+    var yaActiva       = !!actives.actividades[a.id];
+    var btn;
+    if (yaActiva) {
+      btn = '<span class="badge bg-info text-dark" title="Ya matriculado"><i class="bi bi-check2-circle"></i></span>';
+    } else if (yaSeleccionada) {
+      btn = '<span class="badge bg-success"><i class="bi bi-check-lg"></i></span>';
+    } else {
+      btn = '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="addActividad('+a.id+','+jsStr(a.nombre)+')"><i class="bi bi-plus-lg"></i></button>';
+    }
+    return '<div class="col-md-6 col-lg-4"><div class="p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">'
+      +'<div class="d-flex justify-content-between align-items-start">'
+        +'<div><div class="fw-semibold small">'+esc(a.nombre)+'</div>'
+          +'<div class="text-muted small">'+esc(a.deporte||'')+(a.nivel?' · '+esc(a.nivel):'')+'</div>'
+          +'<div class="text-muted small">'+fmtMoney(a.precio||0)+'</div>'
+        +'</div>'+btn
+      +'</div></div></div>';
   }).join('');
 }
 
 function addActividad(id, nombre) {
-  if (actividadesSeleccionadas.some(function(a) { return a.actividad_id === id; })) return;
-  actividadesSeleccionadas.push({ actividad_id: id, nombre: nombre, modalidad: 1, fecha_inicio: '', fecha_fin: '' });
+  if (actividadesSeleccionadas.some(function(a){ return a.actividad_id===id; })) return;
+  actividadesSeleccionadas.push({ actividad_id: id, nombre: nombre, modalidad: 1 });
   updateActividadesSeleccionadas();
-  document.getElementById('btn-load-actividades').click();
+  loadActividadesDisponibles();
 }
-
 function removeActividad(id) {
-  actividadesSeleccionadas = actividadesSeleccionadas.filter(function(a) { return a.actividad_id !== id; });
+  actividadesSeleccionadas = actividadesSeleccionadas.filter(function(a){ return a.actividad_id!==id; });
   updateActividadesSeleccionadas();
+  loadActividadesDisponibles();
 }
-
 function updateActividadesSeleccionadas() {
   var wrap = document.getElementById('actividades-seleccionadas');
-  if (!actividadesSeleccionadas.length) {
-    wrap.innerHTML = '<span class="text-muted small">Ninguna aún.</span>';
-    return;
-  }
+  if (!actividadesSeleccionadas.length) { wrap.innerHTML = '<span class="text-muted small">Ninguna aún.</span>'; return; }
   wrap.innerHTML = actividadesSeleccionadas.map(function(a) {
-    return '<span class="badge d-flex align-items-center gap-2 p-2 rounded" style="background:var(--brand-color);color:var(--brand-text);">' +
-      '<i class="bi bi-trophy"></i>' + esc(a.nombre) +
-      '<button type="button" class="btn-close btn-close-dark btn-sm" onclick="removeActividad(' + a.actividad_id + ')"></button></span>';
+    return '<span class="badge d-flex align-items-center gap-2 p-2 rounded" style="background:var(--brand-color);color:var(--brand-text);">'
+      +'<i class="bi bi-trophy"></i>'+esc(a.nombre)
+      +'<button type="button" class="btn-close btn-close-dark btn-sm" style="filter:none;" onclick="removeActividad('+a.actividad_id+')"></button></span>';
   }).join('');
 }
 
-/* ── Enviar nueva matrícula ── */
+/* ── Submit (crear o editar) ── */
 document.getElementById('form-nueva-mat').addEventListener('submit', function(e) {
   e.preventDefault();
-
   var warn = document.getElementById('mat-form-warn');
   warn.classList.add('d-none');
 
-  if (!clasesSeleccionadas.length && !actividadesSeleccionadas.length) {
+  var editId      = parseInt(document.getElementById('mat-edit-id').value) || 0;
+  var isEdit      = editId > 0;
+  var fechaInicio = document.getElementById('mat-fecha-inicio').value;
+  var fechaFin    = document.getElementById('mat-fecha-fin').value;
+  var membresiaId = document.getElementById('mat-membresia').value || null;
+
+  // En modo crear exige al menos un ítem
+  if (!isEdit && !clasesSeleccionadas.length && !actividadesSeleccionadas.length) {
     document.getElementById('mat-form-warn-msg').textContent = 'Debes seleccionar al menos una clase o actividad.';
     warn.classList.remove('d-none');
     return;
   }
-
-  var fechaInicio = document.getElementById('mat-fecha-inicio').value;
-  var fechaFin    = document.getElementById('mat-fecha-fin').value;
-  var instId      = parseInt(document.getElementById('mat-institucion').value);
-  var membresiaId = parseInt(document.getElementById('mat-membresia').value) || null;
-  var descuento   = parseFloat(document.getElementById('mat-descuento').value) || 0;
 
   var clases = clasesSeleccionadas.map(function(c) {
     return { clase_id: c.clase_id, modalidad: 1, fecha_inicio: fechaInicio, fecha_fin: fechaFin };
@@ -656,44 +828,71 @@ document.getElementById('form-nueva-mat').addEventListener('submit', function(e)
     return { actividad_id: a.actividad_id, modalidad: 1, fecha_inicio: fechaInicio, fecha_fin: fechaFin };
   });
 
-  var body = {
-    persona:      matPersona.id,
-    fecha_inicio: fechaInicio,
-    fecha_fin:    fechaFin,
-    membresia:    membresiaId,
-    institucion:  instId,
-    descuento:    descuento,
-    clases:       clases,
-    actividades:  actividades,
-  };
-
   var btn = document.getElementById('btn-submit-mat');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creando...';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>'+(isEdit?'Guardando...':'Registrando...');
 
-  apiPost(CONFIG.ENDPOINTS.matriculas, 'create', body)
-    .then(function(data) {
-      var res = document.getElementById('mat-resultado');
-      document.getElementById('mat-resultado-body').innerHTML =
-        '<div class="row g-2 small">' +
-        '<div class="col-sm-6"><strong>Matrícula:</strong> #' + esc(data.matricula_id) + '</div>' +
-        '<div class="col-sm-6"><strong>Factura:</strong> ' + esc(data.numero_factura) + '</div>' +
-        '<div class="col-sm-4"><strong>Subtotal:</strong> $' + parseFloat(data.subtotal||0).toFixed(2) + '</div>' +
-        '<div class="col-sm-4"><strong>Descuento:</strong> $' + parseFloat(data.descuento||0).toFixed(2) + '</div>' +
-        '<div class="col-sm-4"><strong>Total:</strong> <span class="fw-bold fs-6">$' + parseFloat(data.total||0).toFixed(2) + '</span></div>' +
-        '</div>';
-      res.classList.remove('d-none');
-      showToast('Matrícula creada. Factura: ' + data.numero_factura, 'success');
-      loadMatriculas();
-    })
-    .catch(function(err) { showToast(err.message || 'Error al crear matrícula.', 'danger'); })
-    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Crear Matrícula'; });
+  var promise;
+  if (isEdit) {
+    promise = apiPut(CONFIG.ENDPOINTS.matriculas, 'update',
+      { fecha_fin: fechaFin, membresia: membresiaId, clases: clases, actividades: actividades },
+      { id: editId });
+  } else {
+    promise = apiPost(CONFIG.ENDPOINTS.matriculas, 'create',
+      { persona: matPersona.id, fecha_inicio: fechaInicio, fecha_fin: fechaFin,
+        membresia: membresiaId, clases: clases, actividades: actividades });
+  }
+
+  promise.then(function(data) {
+    var res     = document.getElementById('mat-resultado');
+    var titulo  = document.getElementById('mat-resultado-titulo');
+    var body    = document.getElementById('mat-resultado-body');
+
+    if (isEdit) {
+      titulo.textContent = 'Matrícula actualizada';
+      body.innerHTML = '<div class="small">'
+        +'<strong>Clases agregadas:</strong> '+(data.clases_agregadas||0)
+        +' &nbsp;|&nbsp; <strong>Actividades agregadas:</strong> '+(data.actividades_agregadas||0)
+        +'</div>';
+      showToast('Matrícula #'+editId+' actualizada.', 'success');
+    } else {
+      titulo.textContent = 'Matrícula registrada';
+      var cuotasHtml = '';
+      if (data.cuotas && data.cuotas.length) {
+        cuotasHtml = '<div class="mt-2"><strong class="small">Plan de cuotas:</strong>'
+          +'<div class="table-responsive"><table class="table table-sm mb-0" style="font-size:.8rem;">'
+          +'<thead><tr><th>#</th><th>Vence</th><th>Valor</th></tr></thead><tbody>'
+          +data.cuotas.map(function(c){
+            return '<tr><td>'+c.numero+'</td><td>'+fmtDate(c.fecha_vencimiento)+'</td><td>'+fmtMoney(c.valor)+'</td></tr>';
+          }).join('')+'</tbody></table></div></div>';
+      }
+      body.innerHTML = '<div class="row g-2 small">'
+        +'<div class="col-6"><strong>Matrícula:</strong> #'+esc(data.matricula_id)+'</div>'
+        +'<div class="col-6"><strong>Factura:</strong> '+esc(data.numero_factura)+'</div>'
+        +'<div class="col-4"><strong>Subtotal:</strong> '+fmtMoney(data.subtotal)+'</div>'
+        +'<div class="col-4"><strong>Descuento:</strong> '+fmtMoney(data.descuento)+'</div>'
+        +'<div class="col-4"><strong>Total:</strong> <span class="fw-bold">'+fmtMoney(data.total)+'</span></div>'
+        +'</div>'+cuotasHtml;
+      showToast('Matrícula creada. Factura: '+data.numero_factura, 'success');
+    }
+    res.classList.remove('d-none');
+    loadMatriculas();
+  })
+  .catch(function(err) { showToast(err.message || 'Error al guardar.', 'danger'); })
+  .finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = isEdit
+      ? '<i class="bi bi-check-lg me-1"></i>Guardar Cambios'
+      : '<i class="bi bi-check-lg me-1"></i>Crear Matrícula';
+  });
 });
 
-/* ── Botones de UI ── */
+/* ── Botones UI ── */
 document.getElementById('btn-nueva-matricula').addEventListener('click', showNuevaMatricula);
 
 function hideMatForm() {
   document.getElementById('form-mat-card').classList.add('d-none');
+  editMatriculaData = null;
   clasesSeleccionadas = [];
   actividadesSeleccionadas = [];
 }
@@ -702,7 +901,7 @@ document.getElementById('btn-cancelar-mat-2').addEventListener('click', hideMatF
 
 document.getElementById('btn-mat-cambiar-persona').addEventListener('click', function() {
   document.getElementById('mat-persona-section').classList.add('d-none');
-  document.getElementById('form-mat-card').classList.add('d-none');
+  hideMatForm();
   matPersona = null;
   document.getElementById('mat-search').focus();
 });
@@ -715,8 +914,9 @@ document.getElementById('btn-mat-limpiar').addEventListener('click', function() 
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', function() {
-  var inp = document.getElementById('mat-search');
-  inp.addEventListener('input', function() { doSearch(this.value.trim()); });
+  if (!requireAuth()) return;
+  loadRecentMatriculas();
+  document.getElementById('mat-search').addEventListener('input', function() { doSearch(this.value.trim()); });
 });
 </script>
 {% endblock %}

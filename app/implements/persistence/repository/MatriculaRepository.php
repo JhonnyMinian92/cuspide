@@ -70,9 +70,10 @@ class MatriculaRepository
   {
     $stmt = $this->db->prepare(
       "SELECT m.id, m.fecha_registro, m.fecha_inicio, m.fecha_fin,
-              mem.titulo AS membresia,
-              i.nombre   AS institucion,
-              e.nombre   AS estado
+              m.membresia AS membresia_id,
+              mem.titulo  AS membresia,
+              i.nombre    AS institucion,
+              e.nombre    AS estado
        FROM matricula m
        LEFT JOIN membresias mem ON mem.id = m.membresia
        JOIN instituciones   i   ON i.id   = m.institucion

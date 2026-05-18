@@ -4,6 +4,13 @@
 {% block page_title %}Actividades Deportivas{% endblock %}
 
 {% block content %}
+<!-- Acceso rápido -->
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="/matriculas" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Volver a Matrículas
+  </a>
+</div>
+
 <style>
 .toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
 .toast-notification.show{opacity:1;transform:translateX(0);}
@@ -21,13 +28,13 @@
     </button>
   </li>
   <li class="nav-item">
-    <button class="nav-link" id="tab-deportes-btn" type="button" onclick="switchTab('deportes')">
-      <i class="bi bi-dribbble me-2"></i>Deportes
-    </button>
-  </li>
-  <li class="nav-item">
     <button class="nav-link" id="tab-categorias-btn" type="button" onclick="switchTab('categorias')">
       <i class="bi bi-tags me-2"></i>Categorías
+    </button>
+  </li>
+    <li class="nav-item">
+    <button class="nav-link" id="tab-deportes-btn" type="button" onclick="switchTab('deportes')">
+      <i class="bi bi-dribbble me-2"></i>Deportes
     </button>
   </li>
 </ul>
@@ -83,19 +90,17 @@
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th>Nombre</th>
-              <th>Deporte</th>
-              <th>Nivel</th>
+              <th style="width: 25%;">Nombre</th>
+              <th>Categoría / Deporte</th>
+              <th class="text-center">Nivel</th>
+              <th class="text-center">Cupo</th>
               <th class="text-end">Precio</th>
-              <th class="text-center">Matriculados</th>
-              <th class="text-center">Asistencias</th>
-              <th class="text-center">Faltas</th>
               <th class="text-center">Estado</th>
               <th class="text-end pe-4">Acciones</th>
             </tr>
           </thead>
           <tbody id="act-list-tbody">
-            <tr><td colspan="9" class="text-center text-muted py-5">
+            <tr><td colspan="8" class="text-center text-muted py-5">
               <span class="spinner-border spinner-border-sm me-2"></span>Cargando actividades...
             </td></tr>
           </tbody>
@@ -119,36 +124,47 @@
       <form id="form-act" novalidate>
         <input type="hidden" id="act-id" value="">
         <div class="row g-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">Nombre *</label>
             <input type="text" class="form-control" id="act-nombre" placeholder="Ej: Fútbol Sub-15" required>
           </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Deporte *</label>
-            <select class="form-select" id="act-deporte" required>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Categoría Deportiva *</label>
+            <select class="form-select" id="act-categoria-deportiva" required>
               <option value="">Cargando...</option>
             </select>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <label class="form-label fw-semibold">Nivel *</label>
             <select class="form-select" id="act-nivel" required>
-              <option value="">— Seleccionar —</option>
-              <option value="1">Iniciación</option>
-              <option value="2">Básico</option>
-              <option value="3">Intermedio</option>
-              <option value="4">Avanzado</option>
-              <option value="5">Élite</option>
+              <option value="">Cargando niveles...</option>
             </select>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
             <label class="form-label fw-semibold">Precio ($) *</label>
             <input type="number" class="form-control" id="act-precio" placeholder="0.00" min="0" step="0.01" required>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Cupo Máximo *</label>
+            <input type="number" class="form-control" id="act-cupo-maximo" placeholder="Ej: 20" min="1" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Docente (Entrenador)</label>
+            <select class="form-select" id="act-docente">
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Periodo Académico</label>
+            <select class="form-select" id="act-periodo-academico">
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="col-md-6">
             <label class="form-label fw-semibold">Estado</label>
             <select class="form-select" id="act-estado">
               <option value="1">Activo</option>
-              <option value="0">Inactivo</option>
+              <option value="2">Inactivo</option>
             </select>
           </div>
           <div class="col-md-6">
@@ -162,59 +178,6 @@
           </button>
           <button type="submit" class="btn btn-brand" id="btn-act-submit">
             <i class="bi bi-check-lg me-1"></i>Guardar
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Sección Asistencias -->
-  <div class="card chart-card mb-4">
-    <div class="card-body p-4">
-      <h6 class="fw-bold mb-1"><i class="bi bi-clipboard2-check me-2"></i>Registrar Asistencia a Actividad</h6>
-      <p class="text-muted small mb-4">Registra la presencia de un matriculado en una actividad y horario específicos.</p>
-      <form id="form-asistencia" novalidate>
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Fecha *</label>
-            <input type="date" class="form-control" id="asi-fecha" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Actividad *</label>
-            <select class="form-select" id="asi-actividad" required>
-              <option value="">— Seleccionar —</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Horario *</label>
-            <select class="form-select" id="asi-horario" required>
-              <option value="">— Seleccionar actividad —</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Matrícula ID *</label>
-            <input type="number" class="form-control" id="asi-matricula" placeholder="ID de matrícula" required min="1">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Estado *</label>
-            <select class="form-select" id="asi-estado" required>
-              <option value="1">Presente</option>
-              <option value="2">Ausente</option>
-              <option value="3">Justificado</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Hora de Entrada</label>
-            <input type="time" class="form-control" id="asi-hora-entrada">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Hora de Salida</label>
-            <input type="time" class="form-control" id="asi-hora-salida">
-          </div>
-        </div>
-        <div class="d-flex justify-content-end mt-4">
-          <button type="submit" class="btn btn-brand" id="btn-asi-submit">
-            <i class="bi bi-clipboard2-plus me-1"></i>Registrar Asistencia
           </button>
         </div>
       </form>
@@ -327,12 +290,102 @@
 
 <!-- ==================== TAB: CATEGORÍAS ==================== -->
 <div id="panel-categorias" class="d-none">
+  <!-- Header + Búsqueda -->
+  <div class="card chart-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
+        <div>
+          <h6 class="fw-bold mb-1">Categorías Deportivas</h6>
+          <p class="text-muted small mb-0">Gestiona las categorías del club. Busca, edita o crea nuevas categorías.</p>
+        </div>
+        <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nueva-categoria">
+          <i class="bi bi-plus-lg me-1"></i>Nueva Categoría
+        </button>
+      </div>
+      <div class="row g-3 align-items-center">
+        <div class="col-12 col-lg-10">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="cat-search"
+              placeholder="Buscar por nombre, nemónico o deporte..." autocomplete="off">
+          </div>
+        </div>
+        <div class="col-12 col-lg-2">
+          <button type="button" class="btn btn-outline-secondary w-100" id="btn-cat-limpiar">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <!-- Formulario Crear / Editar -->
+  <div class="card chart-card mb-4 d-none" id="form-cat-card">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h6 class="fw-bold mb-1" id="form-cat-title"><i class="bi bi-tags me-2"></i>Nueva Categoría</h6>
+          <p class="text-muted small mb-0">Completa los datos de la categoría deportiva.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cat-form-cerrar">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <form id="form-cat" novalidate>
+        <input type="hidden" id="cat-id" value="">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nombre *</label>
+            <input type="text" class="form-control" id="cat-nombre" placeholder="Ej: Sub-12" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Deporte *</label>
+            <select class="form-select" id="cat-deporte" required>
+              <option value="">Cargando deportes...</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nemónico</label>
+            <input type="text" class="form-control" id="cat-nemonico" placeholder="Ej: S12">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Edad Mínima</label>
+            <input type="number" class="form-control" id="cat-edad-min" placeholder="Ej: 10" min="0">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Edad Máxima</label>
+            <input type="number" class="form-control" id="cat-edad-max" placeholder="Ej: 12" min="0">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Estado</label>
+            <select class="form-select" id="cat-estado">
+              <option value="1">Activo</option>
+              <option value="0">Inactivo</option>
+            </select>
+          </div>
+          <div class="col-md-12">
+            <label class="form-label fw-semibold">Descripción</label>
+            <input type="text" class="form-control" id="cat-descripcion" placeholder="Descripción opcional...">
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-4">
+          <button type="button" class="btn btn-outline-secondary" id="btn-cat-cancelar">
+            <i class="bi bi-x-lg me-1"></i>Cancelar
+          </button>
+          <button type="submit" class="btn btn-brand" id="btn-cat-submit">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabla categorías -->
   <div class="card chart-card mb-4">
     <div class="card-body p-0">
-      <div class="px-4 pt-4 pb-3 d-flex justify-content-between align-items-center">
+      <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
         <div>
-          <h6 class="fw-bold mb-1"><i class="bi bi-tags me-2"></i>Categorías Deportivas</h6>
+          <h6 class="fw-bold mb-0">Listado de Categorías</h6>
           <p class="text-muted small mb-0" id="cat-list-info">Cargando...</p>
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cat-reload" title="Recargar">
@@ -349,10 +402,11 @@
               <th class="text-center">Edad Mín.</th>
               <th class="text-center">Edad Máx.</th>
               <th class="text-center">Estado</th>
+              <th class="text-end pe-4">Acciones</th>
             </tr>
           </thead>
           <tbody id="cat-list-tbody">
-            <tr><td colspan="6" class="text-center text-muted py-5">
+            <tr><td colspan="7" class="text-center text-muted py-5">
               <span class="spinner-border spinner-border-sm me-2"></span>Cargando categorías...
             </td></tr>
           </tbody>
@@ -388,15 +442,31 @@ function debounce(fn, ms) {
   return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null, a); }, ms); };
 }
 var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+const PAGE_CONFIG = {
+  ENDPOINTS: {
+    actividades: '/app/controllers/api/actividades/',
+    deportes: '/app/controllers/api/deportes/',
+    horarios: '/app/controllers/api/horarios/',
+    categorias: '/app/controllers/api/categorias/',
+    personas: '/app/controllers/api/personas/',
+    periodos: '/app/controllers/api/periodos/', // Asumiendo que este endpoint existe
+    clases: '/app/controllers/api/clases/'
+  }
+};
 
 /* ── API helpers ── */
 function apiCall(method, endpoint, action, body, params) {
-  return Cuspide.api.call(method, CONFIG.ENDPOINTS[endpoint], action, body, params);
+  // Asumiendo que Cuspide.api.call existe y está configurado globalmente
+  return Cuspide.api.call(method, PAGE_CONFIG.ENDPOINTS[endpoint], action, body, params);
 }
 
 /* ── Estado ── */
 var actividadesData = [];
 var deportesData    = [];
+var categoriasData  = [];
+var docentesData    = [];
+var periodosData    = [];
+var nivelesData     = [];
 
 /* ─────────────────────────────────────────────
    TABS
@@ -419,11 +489,10 @@ function loadActividades() {
     .then(function(data) {
       actividadesData = Array.isArray(data) ? data : [];
       renderActividades(actividadesData);
-      poblarSelectActividades();
     })
     .catch(function(err) {
       document.getElementById('act-list-tbody').innerHTML =
-        '<tr><td colspan="9" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar') + '</td></tr>';
+        '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar') + '</td></tr>';
       document.getElementById('act-list-info').textContent = 'Error al cargar.';
     });
 }
@@ -432,23 +501,21 @@ function renderActividades(items) {
   var tbody = document.getElementById('act-list-tbody');
   var info  = document.getElementById('act-list-info');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-5"><i class="bi bi-trophy fs-2 d-block mb-2 opacity-25"></i>Sin actividades registradas.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-trophy fs-2 d-block mb-2 opacity-25"></i>Sin actividades registradas.</td></tr>';
     info.textContent = 'Sin resultados.';
     return;
   }
   info.textContent = items.length + ' actividad(es).';
   tbody.innerHTML = items.map(function(a) {
     var estadoBadge = parseInt(a.estado) === 1
-      ? '<span class="badge rounded-pill bg-success">Activo</span>'
-      : '<span class="badge rounded-pill bg-secondary">Inactivo</span>';
+      ? '<span class="badge bg-success rounded-pill">Activo</span>'
+      : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
     return '<tr>' +
       '<td class="fw-semibold">' + esc(a.nombre) + '</td>' +
-      '<td>' + esc(a.deporte || '—') + '</td>' +
-      '<td><span class="badge rounded-pill" style="background:var(--info-bg);color:var(--info-text);border:1px solid var(--info-border);">' + esc(a.nivel || '—') + '</span></td>' +
+      '<td><div class="fw-semibold">' + esc(a.categoria_deportiva_nombre || 'N/A') + '</div><div class="small text-muted">' + esc(a.deporte_nombre || '—') + '</div></td>' +
+      '<td class="text-center"><span class="badge rounded-pill" style="background:var(--info-bg);color:var(--info-text);border:1px solid var(--info-border);">' + esc(a.nivel_nombre || '—') + '</span></td>' +
+      '<td class="text-center">' + esc(a.matriculados || 0) + ' / ' + esc(a.cupo_maximo || '∞') + '</td>' +
       '<td class="text-end fw-semibold">' + formatMoney(a.precio) + '</td>' +
-      '<td class="text-center">' + esc(a.matriculados || 0) + '</td>' +
-      '<td class="text-center text-success">' + esc(a.asistencias || 0) + '</td>' +
-      '<td class="text-center text-danger">' + esc(a.faltas || 0) + '</td>' +
       '<td class="text-center">' + estadoBadge + '</td>' +
       '<td class="text-end pe-3">' +
         '<button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="verCupo(' + a.id + ')" title="Ver cupo"><i class="bi bi-people"></i></button>' +
@@ -461,7 +528,7 @@ function renderActividades(items) {
 /* ── Búsqueda actividades (debounce 350ms) ── */
 var doActSearch = debounce(function(q) {
   var filtered = actividadesData.filter(function(a) {
-    var hay = (a.nombre + ' ' + (a.deporte || '') + ' ' + (a.nivel || '')).toLowerCase();
+    var hay = (a.nombre + ' ' + (a.categoria_deportiva_nombre || '') + ' ' + (a.deporte_nombre || '') + ' ' + (a.nivel_nombre || '')).toLowerCase();
     return hay.indexOf(q.toLowerCase()) !== -1;
   });
   renderActividades(filtered);
@@ -499,18 +566,14 @@ function editarActividad(id) {
   if (!a) return;
   document.getElementById('act-id').value     = a.id;
   document.getElementById('act-nombre').value = a.nombre || '';
-  document.getElementById('act-precio').value = a.precio || '';
+  document.getElementById('act-categoria-deportiva').value = a.categoria_deportiva_id || '';
+  document.getElementById('act-nivel').value = a.nivel_id || '';
+  document.getElementById('act-precio').value = a.precio || '0.00';
+  document.getElementById('act-cupo-maximo').value = a.cupo_maximo || '';
+  document.getElementById('act-docente').value = a.docente_id || '';
+  document.getElementById('act-periodo-academico').value = a.periodo_academico_id || '';
   document.getElementById('act-observacion').value = a.observacion || '';
   document.getElementById('act-estado').value = (a.estado !== undefined ? a.estado : 1);
-  // Deporte: intentar coincidir por nombre
-  var depSel = document.getElementById('act-deporte');
-  Array.from(depSel.options).forEach(function(opt) {
-    if (opt.textContent.trim().toLowerCase() === (a.deporte || '').toLowerCase()) depSel.value = opt.value;
-  });
-  // Nivel: coincide por nombre
-  var nivNames = ['', 'iniciación', 'básico', 'intermedio', 'avanzado', 'élite'];
-  var nivIdx = nivNames.findIndex(function(n) { return n === (a.nivel || '').toLowerCase(); });
-  document.getElementById('act-nivel').value = nivIdx > 0 ? nivIdx : (a.nivel_id || '');
 
   document.getElementById('form-act-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Actividad';
   document.getElementById('form-act-card').classList.remove('d-none');
@@ -547,19 +610,33 @@ document.getElementById('btn-act-cancelar').addEventListener('click', cerrarForm
 
 document.getElementById('form-act').addEventListener('submit', function(e) {
   e.preventDefault();
-  var id     = document.getElementById('act-id').value;
-  var nombre = document.getElementById('act-nombre').value.trim();
-  var deporte= document.getElementById('act-deporte').value;
-  var nivel  = document.getElementById('act-nivel').value;
-  var precio = document.getElementById('act-precio').value;
-  var obs    = document.getElementById('act-observacion').value.trim();
-  var estado = parseInt(document.getElementById('act-estado').value);
+  var id = document.getElementById('act-id').value;
+  var body = {
+    nombre: document.getElementById('act-nombre').value.trim(),
+    categoria_deportiva: document.getElementById('act-categoria-deportiva').value,
+    nivel: document.getElementById('act-nivel').value,
+    precio: document.getElementById('act-precio').value,
+    cupo_maximo: document.getElementById('act-cupo-maximo').value,
+    docente: document.getElementById('act-docente').value,
+    periodo_academico: document.getElementById('act-periodo-academico').value,
+    observacion: document.getElementById('act-observacion').value.trim(),
+    estado: parseInt(document.getElementById('act-estado').value),
+    institucion: institucionId
+  };
 
-  if (!nombre || !deporte || !nivel || !precio) {
+  if (!body.nombre || !body.categoria_deportiva || !body.nivel || !body.precio || !body.cupo_maximo) {
     showToast('Completa los campos obligatorios.', 'warning');
     return;
   }
-  var body = { nombre: nombre, deporte: parseInt(deporte), precio: parseFloat(precio), nivel: parseInt(nivel), observacion: obs, institucion: institucionId, estado: estado };
+
+  // Convertir a números
+  body.categoria_deportiva = parseInt(body.categoria_deportiva);
+  body.nivel = parseInt(body.nivel);
+  body.precio = parseFloat(body.precio);
+  body.cupo_maximo = parseInt(body.cupo_maximo);
+  body.docente = body.docente ? parseInt(body.docente) : null;
+  body.periodo_academico = body.periodo_academico ? parseInt(body.periodo_academico) : null;
+
   var btn = document.getElementById('btn-act-submit');
   btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 
@@ -578,101 +655,22 @@ document.getElementById('form-act').addEventListener('submit', function(e) {
 document.getElementById('btn-act-reload').addEventListener('click', loadActividades);
 
 /* ─────────────────────────────────────────────
-   ASISTENCIAS
-───────────────────────────────────────────── */
-function poblarSelectActividades() {
-  var sel = document.getElementById('asi-actividad');
-  var prev = sel.value;
-  sel.innerHTML = '<option value="">— Seleccionar —</option>';
-  actividadesData.forEach(function(a) {
-    var opt = document.createElement('option');
-    opt.value = a.id;
-    opt.textContent = a.nombre;
-    sel.appendChild(opt);
-  });
-  if (prev) sel.value = prev;
-}
-
-document.getElementById('asi-actividad').addEventListener('change', function() {
-  var actId = this.value;
-  var horSel = document.getElementById('asi-horario');
-  horSel.innerHTML = '<option value="">Cargando...</option>';
-  if (!actId) { horSel.innerHTML = '<option value="">— Seleccionar actividad —</option>'; return; }
-  apiCall('GET', 'horarios', 'list', null, { actividad: actId })
-    .then(function(data) {
-      horSel.innerHTML = '<option value="">— Seleccionar horario —</option>';
-      if (Array.isArray(data) && data.length) {
-        data.forEach(function(h) {
-          var opt = document.createElement('option');
-          opt.value = h.id;
-          opt.textContent = (h.nombre || 'Horario #' + h.id) + ' — ' + (h.dia_semana || '') + ' ' + (h.hora_inicio || '') + '-' + (h.hora_fin || '');
-          horSel.appendChild(opt);
-        });
-      } else {
-        horSel.innerHTML = '<option value="">Sin horarios disponibles</option>';
-      }
-    })
-    .catch(function() { horSel.innerHTML = '<option value="">Error al cargar horarios</option>'; });
-});
-
-// Fecha por defecto: hoy
-(function() {
-  var today = new Date().toISOString().split('T')[0];
-  document.getElementById('asi-fecha').value = today;
-})();
-
-document.getElementById('form-asistencia').addEventListener('submit', function(e) {
-  e.preventDefault();
-  var fecha       = document.getElementById('asi-fecha').value;
-  var actividadId = document.getElementById('asi-actividad').value;
-  var matriculaId = document.getElementById('asi-matricula').value;
-  var horarioId   = document.getElementById('asi-horario').value;
-  var estadoAsi   = document.getElementById('asi-estado').value;
-  var horaEntrada = document.getElementById('asi-hora-entrada').value;
-  var horaSalida  = document.getElementById('asi-hora-salida').value;
-
-  if (!fecha || !actividadId || !matriculaId || !horarioId) {
-    showToast('Completa todos los campos obligatorios.', 'warning');
-    return;
-  }
-  var body = {
-    matricula:    parseInt(matriculaId),
-    actividad:    parseInt(actividadId),
-    fecha:        fecha,
-    estado:       parseInt(estadoAsi),
-    horario:      parseInt(horarioId),
-    hora_entrada: horaEntrada || null,
-    hora_salida:  horaSalida  || null,
-    observacion:  ''
-  };
-  var btn = document.getElementById('btn-asi-submit');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Registrando...';
-
-  apiCall('POST', 'actividades', 'attendance', body, null)
-    .then(function() {
-      showToast('Asistencia registrada correctamente.', 'success');
-      document.getElementById('form-asistencia').reset();
-      document.getElementById('asi-fecha').value = new Date().toISOString().split('T')[0];
-    })
-    .catch(function(err) { showToast(err.message || 'Error al registrar asistencia.', 'error'); })
-    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-clipboard2-plus me-1"></i>Registrar Asistencia'; });
-});
-
-/* ─────────────────────────────────────────────
    TAB DEPORTES
 ───────────────────────────────────────────── */
 function loadDeportes() {
   document.getElementById('dep-list-info').textContent = 'Cargando...';
-  apiCall('GET', 'deportes', 'list', null, null)
+  return apiCall('GET', 'deportes', 'list', null, null)
     .then(function(data) {
       deportesData = Array.isArray(data) ? data : [];
       renderDeportes(deportesData);
+      poblarSelectDeportesCat();
       poblarSelectDeportes();
     })
     .catch(function(err) {
       document.getElementById('dep-list-tbody').innerHTML =
         '<tr><td colspan="5" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar') + '</td></tr>';
       document.getElementById('dep-list-info').textContent = 'Error.';
+      throw err;
     });
 }
 
@@ -701,13 +699,13 @@ function renderDeportes(items) {
 }
 
 function poblarSelectDeportes() {
-  var sel = document.getElementById('act-deporte');
+  var sel = document.getElementById('cat-deporte'); // Este es para el form de categorías
   var prev = sel.value;
   sel.innerHTML = '<option value="">— Seleccionar —</option>';
   deportesData.forEach(function(d) {
     var opt = document.createElement('option');
     opt.value = d.id;
-    opt.textContent = d.nombre;
+    opt.textContent = d.nombre; // Poblar el select del form de categorías
     sel.appendChild(opt);
   });
   if (prev) sel.value = prev;
@@ -796,15 +794,16 @@ document.getElementById('btn-dep-reload').addEventListener('click', function() {
 ───────────────────────────────────────────── */
 function loadCategorias() {
   document.getElementById('cat-list-info').textContent = 'Cargando...';
-  apiCall('GET', 'actividades', 'categories', null, { institucion: institucionId })
+  apiCall('GET', 'categorias', 'list', null, { institucion: institucionId })
     .then(function(data) {
-      renderCategorias(Array.isArray(data) ? data : []);
+      categoriasData = Array.isArray(data) ? data : [];
+      poblarSelectCategoriasAct();
+      renderCategorias(categoriasData);
     })
-    .catch(function() {
-      // Intentar con endpoint 'deportes'
-      apiCall('GET', 'deportes', 'categories', null, { institucion: institucionId })
-        .then(function(data) { renderCategorias(Array.isArray(data) ? data : []); })
-        .catch(function() { renderCategorias([]); });
+    .catch(function(err) {
+      document.getElementById('cat-list-tbody').innerHTML =
+        '<tr><td colspan="7" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar categorías') + '</td></tr>';
+      document.getElementById('cat-list-info').textContent = 'Error al cargar.';
     });
 }
 
@@ -812,13 +811,8 @@ function renderCategorias(items) {
   var tbody = document.getElementById('cat-list-tbody');
   var info  = document.getElementById('cat-list-info');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5">' +
-      '<i class="bi bi-tags fs-2 d-block mb-2 opacity-25"></i>' +
-      '<div>No hay categorías disponibles.</div>' +
-      '<div class="mt-2"><span class="badge rounded-pill px-3 py-2" style="background:var(--warning-bg);color:var(--warning-text);border:1px solid var(--warning-border);">' +
-        '<i class="bi bi-hourglass-split me-1"></i>Gestión de categorías deportivas disponible próximamente</span></div>' +
-      '</td></tr>';
-    info.textContent = 'Sin datos.';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5"><i class="bi bi-tags fs-2 d-block mb-2 opacity-25"></i>Sin categorías registradas.</td></tr>';
+    info.textContent = 'Sin resultados.';
     return;
   }
   info.textContent = items.length + ' categoría(s).';
@@ -829,23 +823,240 @@ function renderCategorias(items) {
     return '<tr>' +
       '<td class="fw-semibold">' + esc(c.nombre) + '</td>' +
       '<td><code>' + esc(c.nemonico || '—') + '</code></td>' +
-      '<td>' + esc(c.deporte_nombre || c.deporte || '—') + '</td>' +
+      '<td>' + esc(c.deporte_nombre || '—') + '</td>' +
       '<td class="text-center">' + esc(c.edad_minima || '—') + '</td>' +
       '<td class="text-center">' + esc(c.edad_maxima || '—') + '</td>' +
       '<td class="text-center">' + estadoBadge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editarCategoria(' + c.id + ')" title="Editar"><i class="bi bi-pencil"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarCategoria(' + c.id + ')" title="Eliminar"><i class="bi bi-trash"></i></button>' +
+      '</td>' +
     '</tr>';
   }).join('');
 }
 
+function poblarSelectCategoriasAct() {
+  var sel = document.getElementById('act-categoria-deportiva');
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar —</option>';
+  categoriasData.forEach(function(c) {
+    if (parseInt(c.estado) === 1) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nombre + ' (' + (c.deporte_nombre || 'N/A') + ')';
+      sel.appendChild(opt);
+    }
+  });
+  if (prev) sel.value = prev;
+}
+
+function poblarSelectDeportesCat() {
+  var sel = document.getElementById('cat-deporte');
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar —</option>';
+  deportesData.forEach(function(d) {
+    if (parseInt(d.estado) === 1) {
+      var opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.nombre;
+      sel.appendChild(opt);
+    }
+  });
+  if (prev) sel.value = prev;
+}
+
+var doCatSearch = debounce(function(q) {
+  var filtered = categoriasData.filter(function(c) {
+    var hay = (c.nombre + ' ' + (c.nemonico || '') + ' ' + (c.deporte_nombre || '')).toLowerCase();
+    return hay.indexOf(q.toLowerCase()) !== -1;
+  });
+  renderCategorias(filtered);
+}, 350);
+
+document.getElementById('cat-search').addEventListener('input', function() {
+  var q = this.value.trim();
+  if (q.length === 0) renderCategorias(categoriasData);
+  else if (q.length >= 2) doCatSearch(q);
+});
+document.getElementById('btn-cat-limpiar').addEventListener('click', function() {
+  document.getElementById('cat-search').value = '';
+  renderCategorias(categoriasData);
+});
+
+function cerrarFormCat() {
+  document.getElementById('form-cat-card').classList.add('d-none');
+  document.getElementById('cat-id').value = '';
+  document.getElementById('form-cat').reset();
+}
+
+document.getElementById('btn-nueva-categoria').addEventListener('click', function() {
+  document.getElementById('cat-id').value = '';
+  document.getElementById('form-cat').reset();
+  document.getElementById('form-cat-title').innerHTML = '<i class="bi bi-tags me-2"></i>Nueva Categoría';
+  document.getElementById('form-cat-card').classList.remove('d-none');
+  document.getElementById('form-cat-card').scrollIntoView({ behavior: 'smooth' });
+});
+document.getElementById('btn-cat-form-cerrar').addEventListener('click', cerrarFormCat);
+document.getElementById('btn-cat-cancelar').addEventListener('click', cerrarFormCat);
+
+function editarCategoria(id) {
+  var c = categoriasData.find(function(x) { return x.id == id; });
+  if (!c) return;
+  document.getElementById('cat-id').value = c.id;
+  document.getElementById('cat-nombre').value = c.nombre || '';
+  document.getElementById('cat-nemonico').value = c.nemonico || '';
+  document.getElementById('cat-deporte').value = c.deporte || '';
+  document.getElementById('cat-edad-min').value = c.edad_minima || '';
+  document.getElementById('cat-edad-max').value = c.edad_maxima || '';
+  document.getElementById('cat-descripcion').value = c.descripcion || '';
+  document.getElementById('cat-estado').value = (c.estado !== undefined ? c.estado : 1);
+
+  document.getElementById('form-cat-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Categoría';
+  document.getElementById('form-cat-card').classList.remove('d-none');
+  document.getElementById('form-cat-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function eliminarCategoria(id) {
+  if (!confirm('¿Está seguro de que desea eliminar esta categoría? Esta acción la marcará como inactiva.')) return;
+  apiCall('DELETE', 'categorias', 'delete', null, { id: id })
+    .then(function() {
+      showToast('Categoría eliminada.', 'success');
+      loadCategorias();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al eliminar.', 'error'); });
+}
+
+document.getElementById('form-cat').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var id = document.getElementById('cat-id').value;
+  var body = {
+    nombre: document.getElementById('cat-nombre').value.trim(),
+    nemonico: document.getElementById('cat-nemonico').value.trim(),
+    deporte: document.getElementById('cat-deporte').value,
+    edad_minima: document.getElementById('cat-edad-min').value,
+    edad_maxima: document.getElementById('cat-edad-max').value,
+    descripcion: document.getElementById('cat-descripcion').value.trim(),
+    estado: parseInt(document.getElementById('cat-estado').value),
+    institucion: institucionId
+  };
+
+  if (!body.nombre || !body.deporte) {
+    showToast('Nombre y Deporte son obligatorios.', 'warning');
+    return;
+  }
+
+  var btn = document.getElementById('btn-cat-submit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  var method = id ? 'PUT' : 'POST';
+  apiCall(method, 'categorias', 'save', body, id ? {id: id} : null)
+    .then(function() {
+      showToast(id ? 'Categoría actualizada.' : 'Categoría creada.', 'success');
+      cerrarFormCat();
+      loadCategorias();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al guardar.', 'error'); })
+    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar'; });
+});
+
 document.getElementById('btn-cat-reload').addEventListener('click', loadCategorias);
+
+/* ─────────────────────────────────────────────
+   CARGA DE DATOS PARA FORMULARIOS (NIVELES)
+───────────────────────────────────────────── */
+function loadNiveles() {
+    // Reutilizar el endpoint de 'clases' que ya funciona para obtener los niveles.
+    return apiCall('GET', 'clases', 'niveles', null, null)
+        .then(function(data) {
+            nivelesData = Array.isArray(data) ? data : [];
+            poblarSelectNiveles();
+        }).catch(function(err){
+            console.error("Error cargando niveles", err);
+            nivelesData = [];
+            poblarSelectNiveles();
+        });
+}
+
+function poblarSelectNiveles() {
+    var sel = document.getElementById('act-nivel');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>';
+    nivelesData.forEach(function(n) {
+        var opt = document.createElement('option');
+        opt.value = n.id;
+        opt.textContent = n.nombre;
+        sel.appendChild(opt);
+    });
+}
+/* ─────────────────────────────────────────────
+   CARGA DE DATOS PARA FORMULARIOS
+───────────────────────────────────────────── */
+function loadDocentes() {
+    // Usar el endpoint correcto para obtener la lista de docentes
+    return apiCall('GET', 'clases', 'docentes', null, { institucion: institucionId })
+        .then(function(data) {
+            docentesData = Array.isArray(data) ? data : [];
+            poblarSelectDocentes();
+        }).catch(function(err){
+            console.error("Error cargando docentes", err);
+            docentesData = [];
+            poblarSelectDocentes();
+        });
+}
+
+function poblarSelectDocentes() {
+    var sel = document.getElementById('act-docente');
+    sel.innerHTML = '<option value="">— Opcional —</option>';
+    docentesData.forEach(function(d) {
+        var opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = (d.primer_nombre + ' ' + d.primer_apellido).trim();
+        sel.appendChild(opt);
+    });
+}
+
+function loadPeriodos() {
+    // Asumiendo que existe un endpoint para periodos académicos
+    return apiCall('GET', 'periodos', 'list', null, { institucion: institucionId })
+        .then(function(data) {
+            periodosData = Array.isArray(data) ? data : [];
+            poblarSelectPeriodos();
+        }).catch(function(err){
+            console.warn("No se pudieron cargar los periodos académicos. El endpoint puede no existir.", err);
+            periodosData = [];
+            poblarSelectPeriodos();
+        });
+}
+
+function poblarSelectPeriodos() {
+    var sel = document.getElementById('act-periodo-academico');
+    sel.innerHTML = '<option value="">— Opcional —</option>';
+    periodosData.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nombre;
+        sel.appendChild(opt);
+    });
+}
 
 /* ─────────────────────────────────────────────
    INIT
 ───────────────────────────────────────────── */
 function init() {
-  // Cargar deportes primero (para poblar select de actividades)
-  loadDeportes();
-  loadActividades();
+  // Cargar datos en secuencia para poblar los formularios correctamente
+  loadDeportes()
+    .then(function() {
+      // Cargar categorías, docentes y periodos en paralelo
+      return Promise.all([
+        loadCategorias(),
+        loadDocentes(),
+        loadPeriodos(),
+        loadNiveles()
+      ]);
+    }).then(loadActividades) // Finalmente, cargar las actividades
+    .catch(function(err) {
+      console.error("Error en la inicialización:", err);
+      showToast("Error al cargar datos iniciales. " + (err ? err.message : ''), 'error');
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -3,16 +3,21 @@ declare(strict_types=1);
 
 namespace Services;
 
+require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/ActividadRepository.php';
 require_once __DIR__ . '/../persistence/repository/AsistenciaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Actividad.php';
+require_once __DIR__ . '/../../controllers/request/ActividadRequest.php';
 require_once __DIR__ . '/../persistence/entitys/Asistencia.php';
 require_once __DIR__ . '/../utils/Token.php';
 
+use Core\Database;
+use PDO;
 use Repositories\ActividadRepository;
 use Repositories\AsistenciaRepository;
 use Entitys\Actividad;
 use Entitys\Asistencia;
+use Request\ActividadRequest;
 use Utils\Token;
 
 class ActividadServices
@@ -20,12 +25,14 @@ class ActividadServices
     private ActividadRepository $actividadRepo;
     private AsistenciaRepository $asistenciaRepo;
     private array $security;
+    private PDO $db;
 
     public function __construct()
     {
         $this->actividadRepo  = new ActividadRepository();
         $this->asistenciaRepo = new AsistenciaRepository();
         $this->security       = require __DIR__ . '/../../properties/security.php';
+        $this->db             = Database::getInstance();
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -45,6 +52,9 @@ class ActividadServices
         switch (true) {
             case $method === 'GET' && $resource === 'list':
                 return $this->fetchActividades($queryParams);
+
+            case $method === 'GET' && $resource === 'niveles':
+                return $this->fetchNiveles($queryParams);
 
             case $method === 'GET' && $resource === 'capacity':
                 return $this->fetchCapacity((int)($queryParams['id'] ?? 0));
@@ -77,15 +87,20 @@ class ActividadServices
         $result = [];
         foreach ($rows as $row) {
             $result[] = [
-                'id'           => (int)$row['id'],
-                'nombre'       => $row['nombre'],
-                'deporte'      => $row['deporte']  ?? null,
-                'nivel'        => $row['nivel']    ?? null,
-                'precio'       => (float)$row['precio'],
-                'estado'       => (int)$row['estado'],
-                'matriculados' => (int)$row['matriculados'],
-                'asistencias'  => (int)$row['asistencias'],
-                'faltas'       => (int)$row['faltas'],
+                'id'                     => (int)$row['id'],
+                'nombre'                 => $row['nombre'],
+                'observacion'            => $row['observacion'],
+                'categoria_deportiva_id' => isset($row['categoria_deportiva_id']) ? (int)$row['categoria_deportiva_id'] : null,
+                'categoria_deportiva_nombre' => $row['categoria_deportiva_nombre'] ?? null,
+                'deporte_nombre'         => $row['deporte_nombre'] ?? null,
+                'nivel_id'               => isset($row['nivel_id']) ? (int)$row['nivel_id'] : null,
+                'nivel_nombre'           => $row['nivel_nombre'] ?? null,
+                'docente_id'             => isset($row['docente_id']) ? (int)$row['docente_id'] : null,
+                'periodo_academico_id'   => isset($row['periodo_academico_id']) ? (int)$row['periodo_academico_id'] : null,
+                'precio'                 => (float)$row['precio'],
+                'cupo_maximo'            => (int)($row['cupo_maximo'] ?? 0),
+                'estado'                 => (int)$row['estado'],
+                'matriculados'           => (int)$row['matriculados'],
             ];
         }
         return $result;
@@ -117,48 +132,57 @@ class ActividadServices
     }
 
     // -------------------------------------------------------------------------
+    // fetchNiveles
+    // -------------------------------------------------------------------------
+    private function fetchNiveles(array $queryParams): array
+    {
+        $institucionId = (int)($queryParams['institucion'] ?? 0);
+        if ($institucionId <= 0) {
+            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT id, nombre FROM nivel_asignatura WHERE institucion = :inst AND estado = 1 ORDER BY nombre ASC"
+        );
+        $stmt->execute([':inst' => $institucionId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+    // -------------------------------------------------------------------------
     // saveActividad
     // -------------------------------------------------------------------------
     private function saveActividad(?int $id): array
     {
-        $body = file_get_contents('php://input');
-        $data = json_decode($body, true);
-        if (!is_array($data)) {
-            throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
-        }
-
-        foreach (['nombre', 'deporte', 'precio', 'institucion'] as $field) {
-            if (!isset($data[$field]) || $data[$field] === '') {
-                throw new \RuntimeException("El campo {$field} es requerido.", 400);
-            }
-        }
-
-        $nombre      = trim($data['nombre']);
-        $deporte     = (int)$data['deporte'];
-        $precio      = (float)$data['precio'];
-        $nivel       = isset($data['nivel']) && $data['nivel'] !== '' ? (int)$data['nivel'] : null;
-        $observacion = trim($data['observacion'] ?? '');
-        $institucion = (int)$data['institucion'];
-        $estado      = isset($data['estado']) ? (int)$data['estado'] : 1;
-
-        // Resolve id: prefer URL param, then body
-        $entityId = ($id !== null && $id > 0) ? $id : (isset($data['id']) && (int)$data['id'] > 0 ? (int)$data['id'] : null);
+        $req = ActividadRequest::fromJson();
+        $entityId = ($id !== null && $id > 0) ? $id : null;
 
         if ($entityId !== null) {
             $existing = $this->actividadRepo->findById($entityId);
             if (!$existing) {
                 throw new \RuntimeException('Actividad no encontrada para actualizar.', 404);
             }
+            if ($existing->getInstitucion()?->getId() !== $req->getInstitucion()) {
+                throw new \RuntimeException('No tiene permisos para modificar esta actividad.', 403);
+            }
         }
 
-        $actividad = new Actividad($entityId, $deporte, $precio, $nivel, $observacion, $institucion, $nombre, $estado);
+        $actividad = new Actividad(
+            $entityId,
+            $req->getCategoriaDeportiva(),
+            $req->getPrecio(),
+            $req->getNivel(),
+            $req->getObservacion(),
+            $req->getInstitucion(),
+            $req->getNombre(),
+            $req->getEstado(),
+            $req->getDocente(),
+            $req->getCupoMaximo(),
+            $req->getPeriodoAcademico()
+        );
         $saved     = $this->actividadRepo->save($actividad);
 
         return [
             'id'     => (int)$saved->getId(),
             'nombre' => $saved->getNombre(),
-            'precio' => $saved->getPrecio(),
-            'estado' => (int)$saved->getEstado()?->getId(),
         ];
     }
 

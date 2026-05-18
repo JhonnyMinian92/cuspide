@@ -9,6 +9,7 @@ require_once __DIR__ . '/../persistence/repository/PagoRepository.php';
 require_once __DIR__ . '/../persistence/repository/PagoDetalleRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Pago.php';
 require_once __DIR__ . '/../persistence/entitys/PagoDetalle.php';
 require_once __DIR__ . '/../persistence/conexion/Database.php';
@@ -20,6 +21,7 @@ use Repositories\PagoRepository;
 use Repositories\PagoDetalleRepository;
 use Repositories\VentaRepository;
 use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Entitys\Pago;
 use Entitys\PagoDetalle;
 use RuntimeException;
@@ -49,13 +51,14 @@ final class PagoServices implements PagoServiceInterface
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
     {
         $payload = Token::validateBearerToken($authHeader, $this->jwtSecret);
+        $userId  = (int) ($payload['sub'] ?? 0);
 
         $resource = $this->resolveResource($requestUri, $queryParams, 'pagos');
 
         return match (true) {
-            $method === 'GET'  && $resource === 'pending'   => $this->fetchPendientes($queryParams),
-            $method === 'GET'  && $resource === 'history'   => $this->fetchHistorial($queryParams),
-            $method === 'POST' && $resource === 'register'  => $this->registrarPago(),
+            $method === 'GET'  && $resource === 'pending'        => $this->fetchPendientes($queryParams, $userId),
+            $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams),
+            $method === 'POST' && $resource === 'register'       => $this->registrarPago($userId),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
         };
     }
@@ -113,11 +116,11 @@ final class PagoServices implements PagoServiceInterface
     // fetchPendientes
     // -------------------------------------------------------------------------
 
-    private function fetchPendientes(array $queryParams): array
+    private function fetchPendientes(array $queryParams, int $userId): array
     {
         $institucion = (int) ($queryParams['institucion'] ?? 0);
         if ($institucion <= 0) {
-            throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
+            $institucion = $this->getInstitucionByUserId($userId);
         }
 
         $rows = $this->ventaRepo->findPendientesByInstitucion($institucion);
@@ -177,7 +180,7 @@ final class PagoServices implements PagoServiceInterface
     // registrarPago
     // -------------------------------------------------------------------------
 
-    private function registrarPago(): array
+    private function registrarPago(int $userId): array
     {
         $body = json_decode((string) file_get_contents('php://input'), true);
         if (!is_array($body)) {
@@ -193,8 +196,12 @@ final class PagoServices implements PagoServiceInterface
         $referencia  = (string) ($body['referencia']   ?? '');
         $observacion = (string) ($body['observacion']  ?? '');
 
-        if ($persona <= 0 || $formaPago <= 0 || $institucion <= 0 || $monto <= 0) {
-            throw new RuntimeException('Faltan campos obligatorios: persona, forma_pago, institucion, monto.', 400);
+        if ($persona <= 0 || $formaPago <= 0 || $monto <= 0) {
+            throw new RuntimeException('Faltan campos obligatorios: persona, forma_pago, monto.', 400);
+        }
+
+        if ($institucion <= 0) {
+            $institucion = $this->getInstitucionByUserId($userId);
         }
 
         $db = Database::getInstance();
@@ -275,5 +282,18 @@ final class PagoServices implements PagoServiceInterface
             $db->rollBack();
             throw new RuntimeException('Error al registrar pago: ' . $e->getMessage(), 500);
         }
+    }
+
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 }

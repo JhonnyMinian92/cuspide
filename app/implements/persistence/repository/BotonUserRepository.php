@@ -54,7 +54,14 @@ class BotonUserRepository
 
   public function findByTypeUser(string $typeUser): array
   {
-    $stmt = $this->db->prepare('SELECT * FROM boton_user WHERE type_user = :type_user ORDER BY id ASC');
+    $stmt = $this->db->prepare(
+      'SELECT bu.*
+       FROM boton_user bu
+       JOIN botones b ON b.id = bu.boton
+       WHERE bu.type_user = :type_user
+         AND b.estado = 1
+       ORDER BY b.orden ASC, bu.id ASC'
+    );
     $stmt->execute([':type_user' => $typeUser]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -67,7 +74,15 @@ class BotonUserRepository
   public function findByTypeUserAndInstitucion(string $typeUser, int $institucion): array
   {
     try {
-      $stmt = $this->db->prepare('SELECT * FROM boton_user WHERE type_user = :type_user AND (institucion = :institucion OR institucion IS NULL) ORDER BY id ASC');
+      $stmt = $this->db->prepare(
+        'SELECT bu.*
+         FROM boton_user bu
+         JOIN botones b ON b.id = bu.boton
+         WHERE bu.type_user = :type_user
+           AND (bu.institucion = :institucion OR bu.institucion IS NULL)
+           AND b.estado = 1
+         ORDER BY b.orden ASC, bu.id ASC'
+      );
       $stmt->execute([
         ':type_user' => $typeUser,
         ':institucion' => $institucion,

@@ -6,12 +6,14 @@ namespace Services;
 
 require_once __DIR__ . '/../persistence/repository/ClaseRepository.php';
 require_once __DIR__ . '/../persistence/repository/AsistenciaRepository.php';
+require_once __DIR__ . '/../persistence/repository/NivelAsignaturaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Clase.php';
 require_once __DIR__ . '/../persistence/entitys/Asistencia.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Repositories\ClaseRepository;
 use Repositories\AsistenciaRepository;
+use Repositories\NivelAsignaturaRepository;
 use Entitys\Clase;
 use Entitys\Asistencia;
 use Utils\Token;
@@ -20,12 +22,14 @@ class ClaseServices
 {
     private ClaseRepository $claseRepo;
     private AsistenciaRepository $asistenciaRepo;
+    private NivelAsignaturaRepository $nivelRepo;
     private array $security;
 
     public function __construct()
     {
         $this->claseRepo      = new ClaseRepository();
         $this->asistenciaRepo = new AsistenciaRepository();
+        $this->nivelRepo      = new NivelAsignaturaRepository();
         $this->security       = require __DIR__ . '/../../properties/security.php';
     }
 
@@ -36,7 +40,6 @@ class ClaseServices
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
-        // Detect resource from ?api= param first, then URL path
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -44,16 +47,22 @@ class ClaseServices
         }
 
         switch (true) {
-            case $method === 'GET' && $resource === 'list':
+            case $method === 'GET'  && $resource === 'list':
                 return $this->fetchClases($queryParams);
 
-            case $method === 'GET' && $resource === 'capacity':
+            case $method === 'GET'  && $resource === 'capacity':
                 return $this->fetchCapacity((int)($queryParams['id'] ?? 0));
+
+            case $method === 'GET'  && $resource === 'docentes':
+                return $this->fetchDocentes((int)($queryParams['institucion'] ?? 0));
+
+            case $method === 'GET'  && $resource === 'niveles':
+                return $this->fetchNiveles();
 
             case in_array($method, ['POST', 'PUT'], true) && $resource === 'save':
                 return $this->saveClase(isset($queryParams['id']) ? (int)$queryParams['id'] : null);
 
-            case $method === 'PUT' && $resource === 'delete':
+            case $method === 'PUT'  && $resource === 'delete':
                 return $this->deleteClase((int)($queryParams['id'] ?? 0));
 
             case $method === 'POST' && $resource === 'attendance':
@@ -74,20 +83,30 @@ class ClaseServices
             throw new \RuntimeException('El parámetro institucion es requerido.', 400);
         }
 
-        $rows   = $this->claseRepo->findByInstitucionWithStats($institucionId);
+        $periodoId = isset($queryParams['periodo']) && $queryParams['periodo'] !== '' ? (int)$queryParams['periodo'] : null;
+        $rows      = $this->claseRepo->findByInstitucionWithStats($institucionId, $periodoId);
+
         $result = [];
         foreach ($rows as $row) {
             $result[] = [
-                'id'              => (int)$row['id'],
-                'nombre'          => $row['nombre'],
-                'cupo_maximo'     => (int)$row['cupo_maximo'],
-                'estado'          => (int)$row['estado'],
-                'periodo'         => $row['periodo']         ?? null,
-                'primer_nombre'   => $row['primer_nombre']   ?? null,
-                'primer_apellido' => $row['primer_apellido'] ?? null,
-                'matriculados'    => (int)$row['matriculados'],
-                'asistencias'     => (int)$row['asistencias'],
-                'faltas'          => (int)$row['faltas'],
+                'id'                => (int)$row['id'],
+                'nombre'            => $row['nombre'],
+                'cupo_maximo'       => (int)$row['cupo_maximo'],
+                'estado'            => (int)$row['estado'],
+                'periodo_academico' => $row['periodo_academico'] !== null ? (int)$row['periodo_academico'] : null,
+                'periodo'           => $row['periodo']           ?? null,
+                'asignatura'        => $row['asignatura']        !== null ? (int)$row['asignatura'] : null,
+                'asignatura_nombre' => $row['asignatura_nombre'] ?? null,
+                'nivel_asignatura'  => $row['nivel_asignatura']  !== null ? (int)$row['nivel_asignatura'] : null,
+                'nivel_nombre'      => $row['nivel_nombre']      ?? null,
+                'precio'            => $row['precio']            !== null ? (float)$row['precio'] : null,
+                'observacion'       => $row['observacion']       ?? null,
+                'docente'           => $row['docente']           !== null ? (int)$row['docente'] : null,
+                'primer_nombre'     => $row['primer_nombre']     ?? null,
+                'primer_apellido'   => $row['primer_apellido']   ?? null,
+                'matriculados'      => (int)$row['matriculados'],
+                'asistencias'       => (int)$row['asistencias'],
+                'faltas'            => (int)$row['faltas'],
             ];
         }
         return $result;
@@ -115,6 +134,39 @@ class ClaseServices
     }
 
     // -------------------------------------------------------------------------
+    // fetchDocentes
+    // -------------------------------------------------------------------------
+    private function fetchDocentes(int $institucionId): array
+    {
+        if ($institucionId <= 0) {
+            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
+        }
+
+        $rows = $this->claseRepo->findDocentesByInstitucion($institucionId);
+
+        return array_map(fn($r) => [
+            'id'             => (int)$r['id'],
+            'nombre_completo'=> trim($r['nombre_completo']),
+            'primer_nombre'  => $r['primer_nombre']  ?? '',
+            'primer_apellido'=> $r['primer_apellido'] ?? '',
+            'tipo'           => $r['tipo']            ?? '',
+        ], $rows);
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchNiveles
+    // -------------------------------------------------------------------------
+    private function fetchNiveles(): array
+    {
+        $entities = $this->nivelRepo->findAll();
+        return array_map(fn($n) => [
+            'id'       => $n->getId(),
+            'nombre'   => $n->getNombre(),
+            'nemonico' => $n->getNemonico(),
+        ], $entities);
+    }
+
+    // -------------------------------------------------------------------------
     // saveClase
     // -------------------------------------------------------------------------
     private function saveClase(?int $id): array
@@ -134,11 +186,14 @@ class ClaseServices
         $nombre           = trim($data['nombre']);
         $periodoAcademico = (int)$data['periodo_academico'];
         $institucion      = (int)$data['institucion'];
-        $docente          = isset($data['docente']) && $data['docente'] !== '' ? (int)$data['docente'] : null;
+        $docente          = isset($data['docente'])          && $data['docente']          !== '' ? (int)$data['docente']          : null;
+        $asignatura       = isset($data['asignatura'])       && $data['asignatura']       !== '' ? (int)$data['asignatura']       : null;
+        $nivelAsignatura  = isset($data['nivel_asignatura']) && $data['nivel_asignatura'] !== '' ? (int)$data['nivel_asignatura'] : null;
+        $precio           = isset($data['precio'])           && $data['precio']           !== '' ? (float)$data['precio']         : null;
+        $observacion      = isset($data['observacion'])      && $data['observacion']      !== '' ? trim($data['observacion'])     : null;
         $cupoMaximo       = (int)$data['cupo_maximo'];
         $estado           = isset($data['estado']) ? (int)$data['estado'] : 1;
 
-        // Resolve id: prefer URL param, then body
         $entityId = ($id !== null && $id > 0) ? $id : (isset($data['id']) && (int)$data['id'] > 0 ? (int)$data['id'] : null);
 
         if ($entityId !== null) {
@@ -148,7 +203,7 @@ class ClaseServices
             }
         }
 
-        $clase = new Clase($entityId, $nombre, $periodoAcademico, $institucion, $docente, $cupoMaximo, $estado);
+        $clase = new Clase($entityId, $nombre, $periodoAcademico, $institucion, $docente, $cupoMaximo, $estado, $asignatura, $nivelAsignatura, $precio, $observacion);
         $saved = $this->claseRepo->save($clase);
 
         return [
@@ -156,6 +211,9 @@ class ClaseServices
             'nombre'           => $saved->getNombre(),
             'cupo_maximo'      => $saved->getCupoMaximo(),
             'estado'           => (int)$saved->getEstado()?->getId(),
+            'asignatura'       => $saved->getAsignatura(),
+            'nivel_asignatura' => $saved->getNivelAsignatura(),
+            'precio'           => $saved->getPrecio(),
         ];
     }
 
@@ -198,25 +256,15 @@ class ClaseServices
         $matricula   = (int)$data['matricula'];
         $clase       = (int)$data['clase'];
         $fecha       = trim($data['fecha']);
-        $horario     = isset($data['horario']) && $data['horario'] !== '' ? (int)$data['horario'] : null;
-        $horaEntrada = isset($data['hora_entrada']) && $data['hora_entrada'] !== '' ? $data['hora_entrada'] : null;
-        $horaSalida  = isset($data['hora_salida'])  && $data['hora_salida']  !== '' ? $data['hora_salida']  : null;
+        $horario     = isset($data['horario'])     && $data['horario']     !== '' ? (int)$data['horario']      : null;
+        $horaEntrada = isset($data['hora_entrada']) && $data['hora_entrada'] !== '' ? $data['hora_entrada']     : null;
+        $horaSalida  = isset($data['hora_salida'])  && $data['hora_salida']  !== '' ? $data['hora_salida']      : null;
         $observacion = trim($data['observacion'] ?? '');
-        $estado      = (int)$data['estado']; // 1=Presente, 2=Ausente, 3=Justificado
+        $estado      = (int)$data['estado'];
 
         $asistencia = new Asistencia(
-            null,
-            $fecha,
-            $matricula,
-            $clase,
-            null,       // actividad
-            $observacion,
-            $estado,
-            null,       // calendario
-            $horario,
-            null,       // plan_entrenamiento_sesion
-            $horaEntrada,
-            $horaSalida
+            null, $fecha, $matricula, $clase, null, $observacion, $estado,
+            null, $horario, null, $horaEntrada, $horaSalida
         );
 
         $saved = $this->asistenciaRepo->save($asistencia);

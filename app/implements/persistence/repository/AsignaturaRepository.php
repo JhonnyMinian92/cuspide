@@ -67,7 +67,7 @@ class AsignaturaRepository
               COUNT(DISTINCT cm.id) AS total_matriculados
        FROM asignaturas a
        LEFT JOIN asignatura_clase ac ON ac.asignatura = a.id
-       LEFT JOIN clase_matricula  cm ON cm.clase = ac.clase AND cm.estado = 1
+       LEFT JOIN clases_matricula  cm ON cm.clase = ac.clase AND cm.estado = 1
        WHERE a.institucion = :inst
        GROUP BY a.id
        ORDER BY a.nombre ASC"

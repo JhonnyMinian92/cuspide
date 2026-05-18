@@ -97,6 +97,23 @@
 
       usuario:       '/usuarios',
       usuarios:      '/usuarios',
+
+      gasto:         '/gastos',
+      gastos:        '/gastos',
+      egreso:        '/gastos',
+      egresos:       '/gastos',
+
+      contrato:      '/contratos',
+      contratos:     '/contratos',
+      empleado:      '/empleados',
+      empleados:     '/empleados',
+
+      reporte:       '/reportes',
+      reportes:      '/reportes',
+      informe:       '/reportes',
+      informes:      '/reportes',
+      estadistica:   '/reportes',
+      estadisticas:  '/reportes',
     }),
     STORAGE_KEYS: Object.freeze({
       token: 'token',
@@ -123,6 +140,11 @@
       inventario:    '/app/controllers/api/inventario/',
       ventas:        '/app/controllers/api/ventas/',
       usuarios:      '/app/controllers/api/usuarios/',
+      dashboard:     '/app/controllers/api/dashboard/',
+      gastos:        '/app/controllers/api/gastos/',
+      contratos:     '/app/controllers/api/contratos/',
+      periodos:      '/app/controllers/api/periodos/',
+      permisos:      '/app/controllers/api/permisos/',
     }),
   });
 })(window);

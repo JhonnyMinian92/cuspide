@@ -225,6 +225,10 @@ function resolveRouteAlias(value) {
   if (key.indexOf('usuario') !== -1 || key.indexOf('permiso') !== -1 || key.indexOf('boton') !== -1) return '/usuarios';
   if (key.indexOf('config') !== -1 || key.indexOf('ajuste') !== -1) return '/configuracion';
   if (key.indexOf('dashboard') !== -1 || key.indexOf('panel') !== -1 || key.indexOf('inicio') !== -1) return '/dashboard';
+  if (key.indexOf('gasto') !== -1 || key.indexOf('egreso') !== -1) return '/gastos';
+  if (key.indexOf('contrato') !== -1) return '/contratos';
+  if (key.indexOf('empleado') !== -1) return '/empleados';
+  if (key.indexOf('reporte') !== -1 || key.indexOf('informe') !== -1 || key.indexOf('estadistica') !== -1) return '/reportes';
 
   return null;
 }

@@ -105,7 +105,9 @@ class PersonaRepository
               CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.segundo_nombre,''),' ',
                      COALESCE(p.primer_apellido,''),' ',COALESCE(p.segundo_apellido,'')) AS nombre_completo,
               tp.nombre AS tipo,
-              i.nombre  AS institucion
+              i.nombre  AS institucion,
+              pi.estado AS pi_estado,
+              pi.tipo   AS tipo_id
        FROM personas p
        LEFT JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.estado = 1
        LEFT JOIN tipo_persona tp        ON tp.id = pi.tipo
@@ -115,6 +117,104 @@ class PersonaRepository
           OR p.primer_apellido LIKE :q3
        LIMIT :lim"
     );
+    $stmt->bindValue(':q1', $like);
+    $stmt->bindValue(':q2', $like);
+    $stmt->bindValue(':q3', $like);
+    $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
+
+  public function findStudentsByInstitucion(int $institucionId, int $limit = 20): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT p.id, p.identificacion,
+              TRIM(CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.segundo_nombre,''),' ',
+                          COALESCE(p.primer_apellido,''),' ',COALESCE(p.segundo_apellido,''))) AS nombre_completo,
+              p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
+              p.fecha_nacimiento, p.direccion,
+              tp.nombre AS tipo, tp.nemonico AS tipo_nemonico,
+              pi.estado AS pi_estado
+       FROM personas p
+       JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.id_institucion = :inst
+       JOIN tipo_persona tp        ON tp.id = pi.tipo AND tp.nemonico = 'TIPO_EST'
+       ORDER BY p.primer_apellido ASC, p.primer_nombre ASC
+       LIMIT :lim"
+    );
+    $stmt->bindValue(':inst', $institucionId, \PDO::PARAM_INT);
+    $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
+
+  public function countStudentsByInstitucion(int $institucionId): int
+  {
+    $stmt = $this->db->prepare(
+      "SELECT COUNT(*) FROM persona_institucion pi
+       JOIN tipo_persona tp ON tp.id = pi.tipo AND tp.nemonico = 'TIPO_EST'
+       WHERE pi.id_institucion = :inst AND pi.estado = 1"
+    );
+    $stmt->execute([':inst' => $institucionId]);
+    return (int) $stmt->fetchColumn();
+  }
+
+  public function findEmployeesByInstitucion(int $institucionId, int $limit = 20): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT p.id, p.identificacion,
+              TRIM(CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.segundo_nombre,''),' ',
+                          COALESCE(p.primer_apellido,''),' ',COALESCE(p.segundo_apellido,''))) AS nombre_completo,
+              p.primer_nombre, p.segundo_nombre, p.primer_apellido, p.segundo_apellido,
+              p.fecha_nacimiento, p.direccion,
+              tp.nombre AS tipo, tp.nemonico AS tipo_nemonico,
+              pi.estado AS pi_estado
+       FROM personas p
+       JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.id_institucion = :inst
+       JOIN tipo_persona tp        ON tp.id = pi.tipo AND tp.nemonico != 'TIPO_EST'
+       ORDER BY p.primer_apellido ASC, p.primer_nombre ASC
+       LIMIT :lim"
+    );
+    $stmt->bindValue(':inst', $institucionId, \PDO::PARAM_INT);
+    $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
+
+  public function countEmployeesByInstitucion(int $institucionId): int
+  {
+    $stmt = $this->db->prepare(
+      "SELECT COUNT(*) FROM persona_institucion pi
+       JOIN tipo_persona tp ON tp.id = pi.tipo AND tp.nemonico != 'TIPO_EST'
+       WHERE pi.id_institucion = :inst"
+    );
+    $stmt->execute([':inst' => $institucionId]);
+    return (int) $stmt->fetchColumn();
+  }
+
+  public function findByQueryAndInstitucion(string $q, int $institucionId, ?string $tipoNemonico = null, int $limit = 50): array
+  {
+    $like = '%' . $q . '%';
+    $tipoFilter = '';
+    if ($tipoNemonico === 'TIPO_EST') {
+      $tipoFilter = "AND tp.nemonico = 'TIPO_EST'";
+    } elseif ($tipoNemonico !== null) {
+      $tipoFilter = "AND tp.nemonico != 'TIPO_EST'";
+    }
+
+    $stmt = $this->db->prepare(
+      "SELECT p.id, p.identificacion,
+              TRIM(CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.segundo_nombre,''),' ',
+                          COALESCE(p.primer_apellido,''),' ',COALESCE(p.segundo_apellido,''))) AS nombre_completo,
+              p.primer_nombre, p.primer_apellido,
+              tp.nombre AS tipo, tp.nemonico AS tipo_nemonico,
+              pi.estado AS pi_estado
+       FROM personas p
+       JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.id_institucion = :inst
+       JOIN tipo_persona tp        ON tp.id = pi.tipo {$tipoFilter}
+       WHERE (p.identificacion LIKE :q1 OR p.primer_nombre LIKE :q2 OR p.primer_apellido LIKE :q3)
+       LIMIT :lim"
+    );
+    $stmt->bindValue(':inst', $institucionId, \PDO::PARAM_INT);
     $stmt->bindValue(':q1', $like);
     $stmt->bindValue(':q2', $like);
     $stmt->bindValue(':q3', $like);

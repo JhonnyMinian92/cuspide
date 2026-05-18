@@ -5,187 +5,177 @@
 
 {% block content %}
 
-<!-- Selector de institución -->
-<div class="d-flex align-items-center gap-3 mb-4">
-  <label class="fw-semibold small text-nowrap" for="pagos-institucion-select">
-    <i class="bi bi-building me-1"></i>Institución:
-  </label>
-  <select class="form-select form-select-sm" id="pagos-institucion-select" style="max-width:280px;">
-    <option value="">Cargando...</option>
-  </select>
-  <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-pendientes" title="Refrescar pendientes">
-    <i class="bi bi-arrow-repeat"></i>
+<div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+  <p class="text-muted small mb-0"><i class="bi bi-building me-1"></i>Mostrando pendientes de tu institución.</p>
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-pendientes">
+    <i class="bi bi-arrow-repeat me-1"></i>Actualizar
   </button>
 </div>
 
-<!-- Layout principal: dos columnas -->
-<div class="row g-4">
+<!-- Layout principal: columna única -->
+<div class="d-flex flex-column gap-4">
 
-  <!-- COLUMNA IZQUIERDA: Registrar Cobro -->
-  <div class="col-12 col-xl-7">
-    <div class="card chart-card h-100">
-      <div class="card-body p-4">
-        <h6 class="fw-bold mb-1"><i class="bi bi-cash-coin me-2" style="color:var(--brand-color);"></i>Registrar Cobro</h6>
-        <p class="text-muted small mb-4">Busca al cliente, revisa sus facturas pendientes y registra el pago.</p>
+  <!-- SECCIÓN: Registrar Cobro -->
+  <div class="card chart-card">
+    <div class="card-body p-4">
+      <h6 class="fw-bold mb-1"><i class="bi bi-cash-coin me-2" style="color:var(--brand-color);"></i>Registrar Cobro</h6>
+      <p class="text-muted small mb-4">Busca al cliente, revisa sus facturas pendientes y registra el pago.</p>
 
-        <!-- Paso 1: buscar persona -->
-        <div class="mb-4">
-          <label class="form-label fw-semibold small text-uppercase tracking-wide" style="letter-spacing:.05em;">
-            1 · Buscar cliente
-          </label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="search" class="form-control" id="pago-search"
-              placeholder="Cédula, nombre o apellido..." autocomplete="off">
-            <span class="input-group-text d-none" id="pago-search-spinner">
-              <span class="spinner-border spinner-border-sm"></span>
-            </span>
-          </div>
-          <div id="pago-search-results" class="d-none mt-2">
-            <div class="list-group" id="pago-search-list"></div>
-          </div>
+      <!-- Paso 1: buscar persona -->
+      <div class="mb-4">
+        <label class="form-label fw-semibold small text-uppercase tracking-wide" style="letter-spacing:.05em;">
+          1 · Buscar cliente
+        </label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="pago-search"
+            placeholder="Cédula, nombre o apellido..." autocomplete="off">
+          <span class="input-group-text d-none" id="pago-search-spinner">
+            <span class="spinner-border spinner-border-sm"></span>
+          </span>
         </div>
+        <div id="pago-search-results" class="d-none mt-2">
+          <div class="list-group" id="pago-search-list"></div>
+        </div>
+      </div>
 
-        <!-- Cliente seleccionado -->
-        <div id="pago-cliente-info" class="d-none mb-4">
-          <div class="p-3 rounded d-flex justify-content-between align-items-center"
-            style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
-            <div class="d-flex align-items-center gap-3">
-              <div class="avatar-circle" id="pago-cliente-avatar" style="width:40px;height:40px;">?</div>
-              <div>
-                <div class="fw-bold" id="pago-cliente-nombre">—</div>
-                <div class="d-flex gap-2 mt-1">
-                  <code class="small" id="pago-cliente-cedula">—</code>
-                  <span class="badge bg-secondary rounded-pill small" id="pago-cliente-tipo">—</span>
-                </div>
+      <!-- Cliente seleccionado -->
+      <div id="pago-cliente-info" class="d-none mb-4">
+        <div class="p-3 rounded d-flex justify-content-between align-items-center"
+          style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+          <div class="d-flex align-items-center gap-3">
+            <div class="avatar-circle" id="pago-cliente-avatar" style="width:40px;height:40px;">?</div>
+            <div>
+              <div class="fw-bold" id="pago-cliente-nombre">—</div>
+              <div class="d-flex gap-2 mt-1">
+                <code class="small" id="pago-cliente-cedula">—</code>
+                <span class="badge bg-secondary rounded-pill small" id="pago-cliente-tipo">—</span>
               </div>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cambiar-cliente" title="Cambiar cliente">
-              <i class="bi bi-x-lg"></i>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cambiar-cliente" title="Cambiar cliente">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Paso 2: facturas pendientes -->
+      <div id="pago-facturas-section" class="d-none mb-4">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          2 · Facturas pendientes (más antigua → más reciente)
+        </label>
+        <div id="pago-facturas-loading" class="text-muted small">
+          <span class="spinner-border spinner-border-sm me-1"></span> Cargando...
+        </div>
+        <div id="pago-facturas-list" class="d-none"></div>
+        <!-- Total adeudado -->
+        <div id="pago-total-adeudado" class="d-none mt-3 p-3 rounded" style="background:var(--danger-bg);border:1px solid var(--danger-border);">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-semibold" style="color:var(--danger-text);">Total adeudado:</span>
+            <span class="fw-bold fs-5" style="color:var(--danger-text);" id="pago-total-valor">$0.00</span>
+          </div>
+        </div>
+        <div id="pago-sin-deuda" class="d-none alert alert-success">
+          <i class="bi bi-check-circle-fill me-2"></i>Este cliente no tiene deudas pendientes.
+        </div>
+      </div>
+
+      <!-- Paso 3: formulario de pago -->
+      <div id="pago-form-section" class="d-none">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          3 · Registrar pago
+        </label>
+        <form id="form-pago">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Monto a pagar *</label>
+              <div class="input-group">
+                <span class="input-group-text fw-bold">$</span>
+                <input type="number" class="form-control form-control-lg fw-bold" id="pago-monto"
+                  name="monto" step="0.01" min="0.01" required placeholder="0.00">
+              </div>
+              <div class="form-text" id="pago-monto-hint"></div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Forma de Pago *</label>
+              <select class="form-select" id="pago-forma" name="forma_pago" required>
+                <option value="">— Seleccionar —</option>
+                <option value="1">Efectivo</option>
+                <option value="2">Transferencia Bancaria</option>
+                <option value="3">Tarjeta de Crédito</option>
+                <option value="4">Tarjeta de Débito</option>
+                <option value="5">Cheque</option>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Referencia <span class="text-muted small">(opcional)</span></label>
+              <input type="text" class="form-control" id="pago-referencia" name="referencia"
+                placeholder="Nº transferencia, recibo...">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Observación <span class="text-muted small">(opcional)</span></label>
+              <input type="text" class="form-control" id="pago-observacion" name="observacion"
+                placeholder="Nota del pago...">
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-brand btn-lg w-100 fw-bold" id="btn-registrar-pago">
+              <i class="bi bi-check-circle-fill me-2"></i>Registrar Pago
             </button>
           </div>
-        </div>
-
-        <!-- Paso 2: facturas pendientes -->
-        <div id="pago-facturas-section" class="d-none mb-4">
-          <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
-            2 · Facturas pendientes (más antigua → más reciente)
-          </label>
-          <div id="pago-facturas-loading" class="text-muted small">
-            <span class="spinner-border spinner-border-sm me-1"></span> Cargando...
-          </div>
-          <div id="pago-facturas-list" class="d-none"></div>
-          <!-- Total adeudado -->
-          <div id="pago-total-adeudado" class="d-none mt-3 p-3 rounded" style="background:var(--danger-bg);border:1px solid var(--danger-border);">
-            <div class="d-flex justify-content-between align-items-center">
-              <span class="fw-semibold" style="color:var(--danger-text);">Total adeudado:</span>
-              <span class="fw-bold fs-5" style="color:var(--danger-text);" id="pago-total-valor">$0.00</span>
-            </div>
-          </div>
-          <div id="pago-sin-deuda" class="d-none alert alert-success">
-            <i class="bi bi-check-circle-fill me-2"></i>Este cliente no tiene deudas pendientes.
-          </div>
-        </div>
-
-        <!-- Paso 3: formulario de pago -->
-        <div id="pago-form-section" class="d-none">
-          <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
-            3 · Registrar pago
-          </label>
-          <form id="form-pago">
-            <div class="row g-3">
-              <div class="col-sm-6">
-                <label class="form-label fw-semibold">Monto a pagar *</label>
-                <div class="input-group">
-                  <span class="input-group-text fw-bold">$</span>
-                  <input type="number" class="form-control form-control-lg fw-bold" id="pago-monto"
-                    name="monto" step="0.01" min="0.01" required placeholder="0.00">
-                </div>
-                <div class="form-text" id="pago-monto-hint"></div>
-              </div>
-              <div class="col-sm-6">
-                <label class="form-label fw-semibold">Forma de Pago *</label>
-                <select class="form-select" id="pago-forma" name="forma_pago" required>
-                  <option value="">— Seleccionar —</option>
-                  <option value="1">Efectivo</option>
-                  <option value="2">Transferencia Bancaria</option>
-                  <option value="3">Tarjeta de Crédito</option>
-                  <option value="4">Tarjeta de Débito</option>
-                  <option value="5">Cheque</option>
-                </select>
-              </div>
-              <div class="col-sm-6">
-                <label class="form-label fw-semibold">Referencia <span class="text-muted small">(opcional)</span></label>
-                <input type="text" class="form-control" id="pago-referencia" name="referencia"
-                  placeholder="Nº transferencia, recibo...">
-              </div>
-              <div class="col-sm-6">
-                <label class="form-label fw-semibold">Observación <span class="text-muted small">(opcional)</span></label>
-                <input type="text" class="form-control" id="pago-observacion" name="observacion"
-                  placeholder="Nota del pago...">
-              </div>
-            </div>
-            <div class="mt-4">
-              <button type="submit" class="btn btn-brand btn-lg w-100 fw-bold" id="btn-registrar-pago">
-                <i class="bi bi-check-circle-fill me-2"></i>Registrar Pago
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Resultado del pago -->
-        <div id="pago-resultado" class="d-none mt-4"></div>
-
+        </form>
       </div>
+
+      <!-- Resultado del pago -->
+      <div id="pago-resultado" class="d-none mt-4"></div>
+
     </div>
   </div>
 
-  <!-- COLUMNA DERECHA: Pendientes globales -->
-  <div class="col-12 col-xl-5">
-    <div class="card chart-card h-100">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Pendientes</h6>
-            <p class="text-muted small mb-0">Todas las facturas con saldo pendiente.</p>
-          </div>
-          <div>
-            <span class="badge rounded-pill fs-6 fw-bold" style="background:var(--danger-bg);color:var(--danger-text);border:1px solid var(--danger-border);" id="pendientes-total-badge">$0.00</span>
-          </div>
+  <!-- SECCIÓN: Pendientes globales -->
+  <div class="card chart-card">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Pendientes</h6>
+          <p class="text-muted small mb-0">Todas las facturas con saldo pendiente.</p>
         </div>
-
-        <!-- Filtro -->
-        <div class="mb-3">
-          <input type="search" class="form-control form-control-sm" id="pendientes-filter"
-            placeholder="Filtrar por nombre o cédula...">
+        <div>
+          <span class="badge rounded-pill fs-6 fw-bold" style="background:var(--danger-bg);color:var(--danger-text);border:1px solid var(--danger-border);" id="pendientes-total-badge">$0.00</span>
         </div>
-
-        <!-- Tabla de pendientes -->
-        <div id="pendientes-loading" class="text-center py-4 text-muted">
-          <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
-        </div>
-        <div id="pendientes-container" class="d-none">
-          <div class="table-responsive" style="max-height:520px;overflow-y:auto;">
-            <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
-              <thead class="table-light sticky-top">
-                <tr>
-                  <th>Cliente</th>
-                  <th>Factura</th>
-                  <th class="text-end">Saldo</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="pendientes-tbody"></tbody>
-            </table>
-          </div>
-          <div class="mt-2 text-muted small" id="pendientes-info"></div>
-        </div>
-        <div id="pendientes-empty" class="d-none text-center py-4 text-muted">
-          <i class="bi bi-check-circle-fill fs-2 d-block mb-2 text-success opacity-50"></i>
-          Sin facturas pendientes.
-        </div>
-
       </div>
+
+      <!-- Filtro -->
+      <div class="mb-3">
+        <input type="search" class="form-control form-control-sm" id="pendientes-filter"
+          placeholder="Filtrar por nombre o cédula...">
+      </div>
+
+      <!-- Tabla de pendientes -->
+      <div id="pendientes-loading" class="text-center py-4 text-muted">
+        <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+      </div>
+      <div id="pendientes-container" class="d-none">
+        <div class="table-responsive" style="max-height:520px;overflow-y:auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Cliente</th>
+                <th>Factura</th>
+                <th class="text-end">Saldo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="pendientes-tbody"></tbody>
+          </table>
+        </div>
+        <div class="mt-2 text-muted small" id="pendientes-info"></div>
+      </div>
+      <div id="pendientes-empty" class="d-none text-center py-4 text-muted">
+        <i class="bi bi-check-circle-fill fs-2 d-block mb-2 text-success opacity-50"></i>
+        Sin facturas pendientes.
+      </div>
+
     </div>
   </div>
 
@@ -246,54 +236,17 @@ function debounce(fn, ms) {
   return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null,a); }, ms); };
 }
 
-/* ── Instituciones ── */
-function loadInstitucionesSelect() {
-  var sel = document.getElementById('pagos-institucion-select');
-  var cached = window.CUSPIDE_STATE && window.CUSPIDE_STATE.instituciones && window.CUSPIDE_STATE.instituciones.length > 0;
-  var src = cached
-    ? Promise.resolve(window.CUSPIDE_STATE.instituciones)
-    : apiGet(CONFIG.ENDPOINTS.instituciones, 'list');
-
-  src.then(function(data) {
-    if (!Array.isArray(data) || !data.length) {
-      sel.innerHTML = '<option value="">Sin instituciones</option>';
-      return;
-    }
-    sel.innerHTML = data.map(function(i) {
-      return '<option value="' + i.id + '">' + esc(i.nombre) + '</option>';
-    }).join('');
-    var savedId = getCurrentInstitucionId ? getCurrentInstitucionId() : null;
-    if (savedId) {
-      for (var i = 0; i < sel.options.length; i++) {
-        if (parseInt(sel.options[i].value) === savedId) { sel.selectedIndex = i; break; }
-      }
-    }
-    currentInstId = parseInt(sel.value) || null;
-    if (currentInstId) loadPendientes();
-  }).catch(function() {
-    sel.innerHTML = '<option value="">Error al cargar</option>';
-  });
-}
-
-document.getElementById('pagos-institucion-select').addEventListener('change', function() {
-  currentInstId = parseInt(this.value) || null;
-  if (setCurrentInstitucion) setCurrentInstitucion(currentInstId);
-  if (currentInstId) loadPendientes();
-});
-
 document.getElementById('btn-refresh-pendientes').addEventListener('click', function() {
-  currentInstId = parseInt(document.getElementById('pagos-institucion-select').value) || null;
-  if (currentInstId) loadPendientes();
+  loadPendientes();
 });
 
-/* ── Cargar pendientes institucionales ── */
+/* ── Cargar pendientes institucionales (desde token) ── */
 function loadPendientes() {
-  if (!currentInstId) return;
   document.getElementById('pendientes-loading').classList.remove('d-none');
   document.getElementById('pendientes-container').classList.add('d-none');
   document.getElementById('pendientes-empty').classList.add('d-none');
 
-  apiGet(CONFIG.ENDPOINTS.pagos, 'pending', { institucion: currentInstId })
+  apiGet(CONFIG.ENDPOINTS.pagos, 'pending', {})
     .then(function(data) {
       allPendientes = Array.isArray(data) ? data : [];
       renderPendientes(allPendientes);
@@ -321,10 +274,10 @@ function renderPendientes(items) {
   var sorted = items.slice().sort(function(a, b) { return new Date(a.fecha) - new Date(b.fecha); });
   var tbody  = document.getElementById('pendientes-tbody');
   tbody.innerHTML = sorted.map(function(p) {
-    var saldo   = parseFloat(p.saldo || 0);
+    var saldo      = parseFloat(p.saldo || 0);
     var saldoClass = saldo > 0 ? 'color:var(--danger-text);' : '';
-    var tipoBadge = '<span class="badge bg-secondary rounded-pill" style="font-size:.7rem;">' + esc(p.tipo) + '</span>';
-    return '<tr>' +
+    var tipoBadge  = '<span class="badge bg-secondary rounded-pill" style="font-size:.7rem;">' + esc(p.tipo) + '</span>';
+    return '<tr id="pendiente-row-' + esc(p.id) + '">' +
       '<td>' +
         '<div class="fw-semibold" style="font-size:.82rem;">' + esc(p.nombre) + '</div>' +
         '<code style="font-size:.7rem;">' + esc(p.identificacion) + '</code>' +
@@ -336,14 +289,34 @@ function renderPendientes(items) {
       '</td>' +
       '<td class="text-end fw-bold" style="' + saldoClass + '">' + fmt(saldo) + '</td>' +
       '<td>' +
-        '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' +
-          'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')">' +
-          '<i class="bi bi-cash"></i>' +
-        '</button>' +
+        '<div class="d-flex gap-1">' +
+          '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' +
+            'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')">' +
+            '<i class="bi bi-cash"></i>' +
+          '</button>' +
+          '<button type="button" class="btn btn-xs btn-outline-danger btn-sm" title="Anular" ' +
+            'onclick="anularPendiente(' + esc(p.id) + ',\'' + esc(p.numero) + '\')">' +
+            '<i class="bi bi-x-circle"></i>' +
+          '</button>' +
+        '</div>' +
       '</td>' +
     '</tr>';
   }).join('');
   document.getElementById('pendientes-info').textContent = items.length + ' factura(s) pendiente(s).';
+}
+
+/* ── Anular factura pendiente ── */
+function anularPendiente(pagoId, facturaNumero) {
+  if (!confirm('¿Confirmas anular la factura ' + facturaNumero + '?\nEsta acción no se puede deshacer.')) return;
+  var body = { factura_id: pagoId };
+  apiPost(CONFIG.ENDPOINTS.pagos, 'cancel', body)
+    .then(function() {
+      showToast('Factura ' + facturaNumero + ' anulada.', 'success');
+      loadPendientes();
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al anular.', 'danger');
+    });
 }
 
 /* ── Filtro pendientes ── */
@@ -482,7 +455,6 @@ function renderFacturasCliente(facturas) {
 document.getElementById('form-pago').addEventListener('submit', function(e) {
   e.preventDefault();
   if (!pagoCliente) { showToast('Selecciona un cliente.', 'warning'); return; }
-  if (!currentInstId) { showToast('Selecciona una institución.', 'warning'); return; }
 
   var monto      = parseFloat(document.getElementById('pago-monto').value);
   var formaPago  = parseInt(document.getElementById('pago-forma').value);
@@ -497,7 +469,6 @@ document.getElementById('form-pago').addEventListener('submit', function(e) {
   var body = {
     persona:     pagoCliente.id,
     forma_pago:  formaPago,
-    institucion: currentInstId,
     monto:       monto,
     referencia:  referencia,
     observacion: observacion,
@@ -551,7 +522,8 @@ document.getElementById('btn-cambiar-cliente').addEventListener('click', functio
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', function() {
-  loadInstitucionesSelect();
+  checkAuth();
+  loadPendientes();
 
   var inp = document.getElementById('pago-search');
   inp.addEventListener('input', function() { doSearch(this.value.trim()); });

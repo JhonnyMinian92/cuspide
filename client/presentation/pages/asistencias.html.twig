@@ -1,6 +1,6 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'asistencias' %}
-{% block title %}Asistencias y Permisos — Huaquillas F.C.{% endblock %}
+{% block title %}Asistencias y Permisos — SportAdmin{% endblock %}
 {% block page_title %}Asistencias y Permisos{% endblock %}
 
 {% block head %}
@@ -52,9 +52,14 @@
             <h6 class="fw-bold mb-1">Control por Clase o Actividad</h6>
             <p class="text-muted small mb-0">Selecciona un grupo para registrar asistencia o permiso.</p>
           </div>
-          <div class="input-group" style="max-width:320px;">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="search" class="form-control" id="attendance-search" placeholder="Buscar..." autocomplete="off">
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <select class="form-select form-select-sm" id="periodo-select" style="max-width:220px;">
+              <option value="">Todos los períodos</option>
+            </select>
+            <div class="input-group" style="max-width:240px;">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="search" class="form-control" id="attendance-search" placeholder="Buscar..." autocomplete="off">
+            </div>
           </div>
         </div>
 
@@ -132,6 +137,9 @@
             <button type="submit" class="btn btn-primary">
               <i class="bi bi-check2-circle me-1"></i>Registrar
             </button>
+            <button type="button" class="btn btn-outline-warning" id="btn-abrir-permiso">
+              <i class="bi bi-calendar-x me-1"></i>Permiso
+            </button>
             <button type="button" class="btn btn-outline-secondary" id="attendance-cancel">
               <i class="bi bi-x-lg me-1"></i>Cancelar
             </button>
@@ -146,12 +154,95 @@
   </div>
 </div>
 
+<!-- Modal: Registrar Permiso -->
+<div class="modal fade" id="modal-permiso" tabindex="-1" aria-labelledby="modal-permiso-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-permiso-label">
+          <i class="bi bi-calendar-x me-2 text-warning"></i>Registrar Permiso / Ausencia Justificada
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3" id="permiso-context-label">Clase / Actividad seleccionada.</p>
+        <form id="form-permiso" novalidate>
+          <input type="hidden" id="permiso-target-id">
+          <input type="hidden" id="permiso-target-type">
+
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Buscar Estudiante <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="permiso-search" placeholder="Nombre o cédula..." autocomplete="off">
+                <span class="input-group-text d-none" id="permiso-search-spinner">
+                  <span class="spinner-border spinner-border-sm"></span>
+                </span>
+              </div>
+              <div id="permiso-search-results" class="d-none mt-1">
+                <div class="list-group" id="permiso-search-list"></div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div id="permiso-persona-info" class="d-none p-2 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+                <span class="fw-semibold" id="permiso-persona-nombre">—</span>
+                <code class="ms-2 small" id="permiso-persona-ced">—</code>
+                <input type="hidden" id="permiso-persona-id">
+                <input type="hidden" id="permiso-matricula-id">
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold" for="permiso-fecha-inicio">Fecha Inicio <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="permiso-fecha-inicio" required>
+              <div class="invalid-feedback">Seleccione la fecha de inicio.</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold" for="permiso-fecha-fin">Fecha Fin <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="permiso-fecha-fin" required>
+              <div class="invalid-feedback">Seleccione la fecha de fin.</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold" for="permiso-horas">Horas por día <span class="text-muted small">(opcional)</span></label>
+              <input type="number" class="form-control" id="permiso-horas" min="0.5" max="24" step="0.5" placeholder="Ej: 4.0">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="permiso-motivo">Motivo <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="permiso-motivo" maxlength="250" required placeholder="Razón del permiso">
+              <div class="invalid-feedback">El motivo es obligatorio.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="permiso-observacion">Observación <span class="text-muted small">(opcional)</span></label>
+              <textarea class="form-control" id="permiso-observacion" rows="2" maxlength="500" placeholder="Detalles adicionales"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning text-white fw-semibold" id="btn-guardar-permiso">
+          <i class="bi bi-calendar-check me-1"></i>Registrar Permiso
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   'use strict';
 
   var records = [];
   var currentInstitution = null;
+
+  function checkAuth() {
+    if (!localStorage.getItem(CONFIG.STORAGE_KEYS.token)) {
+      window.location.href = CONFIG.ROUTES.login;
+    }
+  }
 
   function toast(message, type) {
     var el = document.createElement('div');
@@ -172,13 +263,6 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
-  }
-
-  function getInstId() {
-    if (window.getCurrentInstitucionId && window.getCurrentInstitucionId()) {
-      return window.getCurrentInstitucionId();
-    }
-    return parseInt(localStorage.getItem('currentInstitucionId') || '0', 10) || currentInstitution || null;
   }
 
   function api(method, endpoint, action, body, params) {
@@ -240,29 +324,44 @@
   }
 
   function loadInstitution() {
-    var stateId = getInstId();
-    if (stateId) {
-      currentInstitution = stateId;
-      return Promise.resolve(stateId);
-    }
-
-    return api('GET', 'instituciones', 'list', null, null).then(function (items) {
-      if (!Array.isArray(items) || !items.length) throw new Error('No hay instituciones disponibles.');
-      currentInstitution = parseInt(items[0].id, 10);
-      if (window.setCurrentInstitucion) window.setCurrentInstitucion(currentInstitution);
-      return currentInstitution;
+    if (currentInstitution) return Promise.resolve(currentInstitution);
+    return api('GET', 'dashboard', 'stats', null, null).then(function (stats) {
+      var instId = parseInt((stats && stats.institucion_id) || 0, 10);
+      if (!instId) throw new Error('No se pudo determinar la institución.');
+      currentInstitution = instId;
+      return instId;
     });
   }
 
+  function loadPeriodos() {
+    return api('GET', 'periodos', 'list', null, null).then(function (items) {
+      var sel = document.getElementById('periodo-select');
+      var existing = sel.querySelectorAll('option:not([value=""])');
+      existing.forEach(function (o) { o.remove(); });
+      var list = Array.isArray(items) ? items : [];
+      list.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = escapeHtml(p.nombre);
+        sel.appendChild(opt);
+      });
+    }).catch(function () {});
+  }
+
   function loadData() {
+    var periodoId = document.getElementById('periodo-select').value;
+    var params = {};
+    if (periodoId) params.periodo = periodoId;
+
     return loadInstitution().then(function (instId) {
+      params.institucion = instId;
       return Promise.all([
-        api('GET', 'clases', 'list', null, { institucion: instId }),
-        api('GET', 'actividades', 'list', null, { institucion: instId }),
+        api('GET', 'clases', 'list', null, params),
+        api('GET', 'actividades', 'list', null, params),
       ]);
     }).then(function (responses) {
-      var clases = Array.isArray(responses[0]) ? responses[0] : [];
-      var actividades = Array.isArray(responses[1]) ? responses[1] : [];
+      var clases = Array.isArray(responses[0]) ? responses[0] : (responses[0] && responses[0].items ? responses[0].items : []);
+      var actividades = Array.isArray(responses[1]) ? responses[1] : (responses[1] && responses[1].items ? responses[1].items : []);
       records = clases.map(function (item) {
         return Object.assign({}, item, { tipo: 'Clase', apiType: 'clase' });
       }).concat(actividades.map(function (item) {
@@ -281,6 +380,7 @@
   });
 
   document.getElementById('attendance-search').addEventListener('input', render);
+  document.getElementById('periodo-select').addEventListener('change', loadData);
   document.getElementById('attendance-cancel').addEventListener('click', closeForm);
 
   document.getElementById('attendance-form').addEventListener('submit', function (event) {
@@ -320,6 +420,123 @@
   });
 
   document.getElementById('attendance-fecha').valueAsDate = new Date();
+
+  /* ── Permiso modal ── */
+  var bsPermisoModal = null;
+  var permisoSearchTimeout = null;
+
+  function getPermisoModal() {
+    if (!bsPermisoModal) bsPermisoModal = new bootstrap.Modal(document.getElementById('modal-permiso'));
+    return bsPermisoModal;
+  }
+
+  document.getElementById('btn-abrir-permiso').addEventListener('click', function () {
+    var targetId   = document.getElementById('attendance-target-id').value;
+    var targetType = document.getElementById('attendance-target-type').value;
+    var targetName = document.getElementById('attendance-form-subtitle').textContent;
+    if (!targetId) { toast('Selecciona primero una clase o actividad.', 'error'); return; }
+
+    document.getElementById('form-permiso').reset();
+    document.getElementById('form-permiso').classList.remove('was-validated');
+    document.getElementById('permiso-persona-info').classList.add('d-none');
+    document.getElementById('permiso-search-results').classList.add('d-none');
+    document.getElementById('permiso-target-id').value   = targetId;
+    document.getElementById('permiso-target-type').value = targetType;
+    document.getElementById('permiso-context-label').textContent =
+      (targetType === 'actividad' ? 'Actividad' : 'Clase') + ': ' + targetName;
+    document.getElementById('permiso-fecha-inicio').valueAsDate = new Date();
+    document.getElementById('permiso-fecha-fin').valueAsDate    = new Date();
+    getPermisoModal().show();
+  });
+
+  function permisoSearchPersona(q) {
+    if (q.length < 2) {
+      document.getElementById('permiso-search-results').classList.add('d-none');
+      return;
+    }
+    document.getElementById('permiso-search-spinner').classList.remove('d-none');
+    api('GET', 'personas', 'search', null, { q: q })
+      .then(function (data) {
+        var items = Array.isArray(data) ? data : [];
+        var wrap  = document.getElementById('permiso-search-results');
+        var list  = document.getElementById('permiso-search-list');
+        if (!items.length) { wrap.classList.add('d-none'); return; }
+        wrap.classList.remove('d-none');
+        list.innerHTML = items.map(function (p) {
+          return '<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between py-2" ' +
+            'data-pid="' + p.id + '" data-pnombre="' + escapeHtml(p.nombre_completo) + '" data-pced="' + escapeHtml(p.identificacion) + '">' +
+            '<span class="fw-semibold small">' + escapeHtml(p.nombre_completo) + '</span>' +
+            '<code class="small">' + escapeHtml(p.identificacion) + '</code>' +
+            '</button>';
+        }).join('');
+      })
+      .catch(function () {})
+      .finally(function () {
+        document.getElementById('permiso-search-spinner').classList.add('d-none');
+      });
+  }
+
+  document.getElementById('permiso-search').addEventListener('input', function () {
+    clearTimeout(permisoSearchTimeout);
+    permisoSearchTimeout = setTimeout(function () {
+      permisoSearchPersona(document.getElementById('permiso-search').value.trim());
+    }, 300);
+  });
+
+  document.getElementById('permiso-search-list').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-pid]');
+    if (!btn) return;
+    document.getElementById('permiso-persona-id').value      = btn.getAttribute('data-pid');
+    document.getElementById('permiso-persona-nombre').textContent = btn.getAttribute('data-pnombre');
+    document.getElementById('permiso-persona-ced').textContent   = btn.getAttribute('data-pced');
+    document.getElementById('permiso-persona-info').classList.remove('d-none');
+    document.getElementById('permiso-search-results').classList.add('d-none');
+    document.getElementById('permiso-search').value = '';
+  });
+
+  document.getElementById('btn-guardar-permiso').addEventListener('click', function () {
+    var form = document.getElementById('form-permiso');
+    form.classList.add('was-validated');
+    if (!form.checkValidity()) return;
+
+    var personaId = document.getElementById('permiso-persona-id').value;
+    if (!personaId) { toast('Selecciona un estudiante.', 'error'); return; }
+
+    var targetId   = document.getElementById('permiso-target-id').value;
+    var targetType = document.getElementById('permiso-target-type').value;
+    var horas      = document.getElementById('permiso-horas').value;
+
+    var body = {
+      persona:      parseInt(personaId, 10),
+      fecha_inicio: document.getElementById('permiso-fecha-inicio').value,
+      fecha_fin:    document.getElementById('permiso-fecha-fin').value,
+      motivo:       document.getElementById('permiso-motivo').value.trim(),
+      observacion:  document.getElementById('permiso-observacion').value.trim() || null,
+      horas_por_dia: horas ? parseFloat(horas) : null,
+    };
+    if (targetType === 'actividad') body.actividad = parseInt(targetId, 10);
+    else body.clase = parseInt(targetId, 10);
+
+    var btn = document.getElementById('btn-guardar-permiso');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+    api('POST', 'permisos', 'save', body, null)
+      .then(function () {
+        toast('Permiso registrado correctamente.', 'success');
+        getPermisoModal().hide();
+      })
+      .catch(function (err) {
+        toast(err.message || 'Error al registrar permiso.', 'error');
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-calendar-check me-1"></i>Registrar Permiso';
+      });
+  });
+
+  checkAuth();
+  loadPeriodos();
   loadData();
 })();
 </script>
