@@ -108,22 +108,32 @@ final class FacturaServices implements FacturaServiceInterface
             throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
         }
 
-        $limit  = max(1, (int) ($queryParams['limit']  ?? 100));
-        $offset = max(0, (int) ($queryParams['offset'] ?? 0));
+        $filters = [
+            'limit'  => max(1, (int) ($queryParams['limit']  ?? 100)),
+            'page'   => max(1, (int) ($queryParams['page'] ?? 1)),
+            'desde'  => $queryParams['desde'] ?? null,
+            'hasta'  => $queryParams['hasta'] ?? null,
+            'q'      => $queryParams['q'] ?? null,
+        ];
 
-        $rows = $this->ventaRepo->findByInstitucion($institucion, null, null, $limit, $offset);
+        $result = $this->ventaRepo->findByInstitucion($institucion, $filters);
 
-        return array_map(fn($r) => [
-            'id'             => (int)   $r['id'],
-            'numero'         => $r['numero'],
-            'fecha'          => $r['fecha'],
-            'total'          => (float) $r['total'],
-            'saldo'          => (float) $r['saldo'],
-            'tipo'           => $r['tipo'],
-            'estado'         => (int)   $r['estado'],
-            'identificacion' => $r['identificacion'],
-            'nombre'         => $r['nombre'],
-        ], $rows);
+        return [
+            'items' => array_map(fn($r) => [
+                'id'             => (int)   $r['id'],
+                'numero'         => $r['numero'],
+                'fecha'          => $r['fecha'],
+                'total'          => (float) $r['total'],
+                'saldo'          => (float) $r['saldo'],
+                'tipo'           => $r['tipo'],
+                'estado'         => (int)   $r['estado'],
+                'identificacion' => $r['identificacion'],
+                'nombre'         => $r['nombre'],
+            ], $result['items']),
+            'totalItems' => (int) $result['total'],
+            'totalPages' => (int) ceil($result['total'] / $filters['limit']),
+            'currentPage' => $filters['page'],
+        ];
     }
 
     // -------------------------------------------------------------------------

@@ -37,11 +37,14 @@
     <!-- Barra de búsqueda -->
     <div class="card chart-card mb-4">
       <div class="card-body p-4">
-        <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-2 mb-2">
+        <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-center gap-2 mb-2">
           <div>
             <h6 class="fw-bold mb-1">Catálogo de Productos</h6>
             <p class="text-muted small mb-0">Busca por nombre o código. Si no hay resultados aparecerá el formulario de creación.</p>
           </div>
+          <a href="/inventario" class="btn btn-outline-secondary flex-shrink-0">
+            <i class="bi bi-clipboard-data me-1"></i> Control de Inventario
+          </a>
         </div>
         <div class="row g-3 align-items-center">
           <div class="col-12 col-lg-8">
@@ -55,7 +58,7 @@
             <button type="button" class="btn btn-outline-secondary flex-fill" id="btn-limpiar-prod">
               <i class="bi bi-x-circle me-1"></i>Limpiar
             </button>
-            <button type="button" class="btn btn-brand flex-fill d-none" id="btn-nuevo-prod" aria-hidden="true" tabindex="-1">
+            <button type="button" class="btn btn-brand flex-fill" id="btn-nuevo-prod">
               <i class="bi bi-plus-lg me-1"></i>Nuevo
             </button>
           </div>
@@ -198,7 +201,7 @@
             <button type="button" class="btn btn-outline-secondary flex-fill" id="btn-limpiar-cat">
               <i class="bi bi-x-circle me-1"></i>Limpiar
             </button>
-            <button type="button" class="btn btn-brand flex-fill d-none" id="btn-nueva-cat" aria-hidden="true" tabindex="-1">
+            <button type="button" class="btn btn-brand flex-fill" id="btn-nueva-cat">
               <i class="bi bi-plus-lg me-1"></i>Nueva
             </button>
           </div>
@@ -429,15 +432,17 @@ function renderProdTable(items) {
 
 /* ── BÚSQUEDA CLIENT-SIDE (debounce 350 ms) ── */
 var doProdSearch = debounce(function(q) {
-  if (!q) { renderProdTable(allProducts); hideProdForm(); return; }
+  if (!q) {
+    renderProdTable(allProducts);
+    return;
+  }
   var lq = q.toLowerCase();
   var filtered = allProducts.filter(function(p) {
     return (p.nombre||'').toLowerCase().indexOf(lq) > -1 ||
            (p.codigo||'').toLowerCase().indexOf(lq) > -1;
   });
   renderProdTable(filtered);
-  if (filtered.length === 0) { openNewProdForm(); }
-  else { hideProdForm(); }
+  hideProdForm();
 }, 350);
 
 document.getElementById('prod-search').addEventListener('input', function(){
@@ -584,8 +589,7 @@ var doCatSearch = debounce(function(q) {
     return (c.nombre||'').toLowerCase().indexOf(lq) > -1;
   });
   renderCatTable(filtered);
-  if (filtered.length === 0) { openNewCatForm(); }
-  else { hideCatForm(); }
+  hideCatForm();
 }, 350);
 
 document.getElementById('cat-search').addEventListener('input', function(){

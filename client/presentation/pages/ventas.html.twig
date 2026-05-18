@@ -4,19 +4,49 @@
 {% block page_title %}Ventas{% endblock %}
 
 {% block content %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:1060;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+</style>
+
 <div class="row g-4">
-  <div class="col-12 col-xl-7">
+  <div class="col-12">
+    <!-- Filtros y acciones -->
     <div class="card chart-card mb-4">
       <div class="card-body p-4">
-        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
           <div>
-            <h6 class="fw-bold mb-1">Ventas Registradas</h6>
-            <p class="text-muted small mb-0" id="ventas-info">Cargando ventas...</p>
+            <h6 class="fw-bold mb-1">Gestión de Ventas</h6>
+            <p class="text-muted small mb-0">Consulta el historial de ventas y registra nuevas transacciones.</p>
           </div>
-          <div class="input-group" style="max-width:340px;">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="search" class="form-control" id="venta-search" placeholder="Factura, cliente o cédula">
+          <button class="btn btn-brand flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modal-venta">
+            <i class="bi bi-plus-lg me-1"></i>Registrar Venta
+          </button>
+        </div>
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-5 col-lg-4">
+            <label for="venta-search" class="form-label small">Buscar</label>
+            <input type="search" class="form-control" id="venta-search" placeholder="Factura, cliente o cédula...">
           </div>
+          <div class="col-md-3 col-lg-2">
+            <label for="filtro-fecha-inicio" class="form-label small">Desde</label>
+            <input type="date" class="form-control" id="filtro-fecha-inicio">
+          </div>
+          <div class="col-md-3 col-lg-2">
+            <label for="filtro-fecha-fin" class="form-label small">Hasta</label>
+            <input type="date" class="form-control" id="filtro-fecha-fin">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de ventas -->
+    <div class="card chart-card">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0">Historial de Ventas</h6>
+          <small class="text-muted" id="ventas-info">Cargando...</small>
         </div>
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
@@ -27,73 +57,93 @@
                 <th>Tipo</th>
                 <th class="text-end">Total</th>
                 <th class="text-end">Saldo</th>
-                <th>Estado</th>
+                <th class="text-center">Estado</th>
               </tr>
             </thead>
             <tbody id="ventas-tbody">
-              <tr><td colspan="6" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>
+              <!-- Filas se insertan con JS -->
             </tbody>
           </table>
         </div>
+        <!-- Pagination -->
+        <nav id="pagination-nav" class="mt-4 d-flex justify-content-center" aria-label="Navegación de ventas"></nav>
       </div>
     </div>
   </div>
 
-  <div class="col-12 col-xl-5">
-    <div class="card chart-card">
-      <div class="card-body p-4">
-        <h6 class="fw-bold mb-3">Generar Venta</h6>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Buscar cliente</label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-person-search"></i></span>
-            <input type="search" class="form-control" id="cliente-search" placeholder="Cédula o nombre">
+</div>
+
+<!-- Modal para generar venta -->
+<div class="modal fade" id="modal-venta" tabindex="-1" aria-labelledby="modal-venta-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-venta-label"><i class="bi bi-receipt me-2"></i>Generar Venta</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">1. Buscar cliente</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person-search"></i></span>
+              <input type="search" class="form-control" id="cliente-search" placeholder="Cédula o nombre">
+            </div>
+            <div class="list-group mt-2 d-none" id="cliente-results"></div>
+            <div class="alert alert-success py-2 mt-2 mb-0 d-none" id="cliente-selected"></div>
           </div>
-          <div class="list-group mt-2 d-none" id="cliente-results"></div>
-          <div class="alert alert-secondary py-2 mt-2 mb-0 d-none" id="cliente-selected"></div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">2. Buscar producto</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-bag"></i></span>
+              <input type="search" class="form-control" id="producto-search" placeholder="Código o nombre">
+            </div>
+            <div class="list-group mt-2 d-none" id="producto-results"></div>
+          </div>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Buscar producto</label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-bag"></i></span>
-            <input type="search" class="form-control" id="producto-search" placeholder="Código o nombre">
-          </div>
-          <div class="list-group mt-2 d-none" id="producto-results"></div>
-        </div>
-
-        <div class="table-responsive mb-3">
-          <table class="table table-sm align-middle">
+        <h6 class="fw-bold mt-4 mb-3">3. Carrito de Compra</h6>
+        <div class="table-responsive border rounded">
+          <table class="table table-sm align-middle mb-0">
             <thead class="table-light">
-              <tr><th>Producto</th><th style="width:86px;">Cant.</th><th class="text-end">Total</th><th></th></tr>
+              <tr><th class="ps-3">Producto</th><th style="width:90px;">Cant.</th><th class="text-end">Total</th><th class="pe-3"></th></tr>
             </thead>
             <tbody id="cart-tbody">
-              <tr><td colspan="4" class="text-center text-muted py-3">Sin productos agregados.</td></tr>
+              <!-- Filas del carrito se insertan con JS -->
             </tbody>
           </table>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
-          <span class="fw-semibold">Total</span>
-          <span class="fs-5 fw-bold" id="cart-total">$0.00</span>
+        <div class="d-flex justify-content-end align-items-center border-top pt-3 mt-3">
+          <span class="fw-semibold me-3">Total</span>
+          <span class="fs-4 fw-bold" id="cart-total">$0.00</span>
         </div>
 
-        <div class="row g-3 mb-3">
+        <h6 class="fw-bold mt-4 mb-3">4. Finalizar Venta</h6>
+        <div class="row g-3">
           <div class="col-12 col-sm-6">
-            <label class="form-label fw-semibold">Estado de pago</label>
-            <select class="form-select" id="venta-pago">
-              <option value="pendiente">Pendiente</option>
+            <label class="form-label fw-semibold">Estado de la Venta</label>
+            <select class="form-select" id="venta-estado-pago">
+              <option value="pendiente">Pendiente de Pago</option>
               <option value="pagada">Pagada</option>
+            </select>
+          </div>
+          <div class="col-12 col-sm-6" id="forma-pago-group" style="display: none;">
+            <label class="form-label fw-semibold">Forma de Pago</label>
+            <select class="form-select" id="venta-forma-pago">
+              <!-- Opciones cargadas dinámicamente -->
             </select>
           </div>
           <div class="col-12 col-sm-6">
             <label class="form-label fw-semibold">Referencia</label>
-            <input class="form-control" id="venta-referencia" placeholder="Opcional">
+            <input class="form-control" id="venta-referencia" placeholder="Ej: Transferencia #123">
           </div>
         </div>
-
-        <button class="btn btn-brand w-100" id="btn-registrar-venta">
-          <i class="bi bi-receipt me-1"></i>Registrar Venta
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-brand" id="btn-registrar-venta">
+          <i class="bi bi-check-lg me-1"></i>Confirmar y Registrar Venta
         </button>
       </div>
     </div>
@@ -101,69 +151,257 @@
 </div>
 
 <script>
-(function(){
-  var institucionId=(window.CUSPIDE_STATE&&window.CUSPIDE_STATE.currentInstitucionId)||1;
-  var ventas=[], productos=[], cliente=null, cart=[];
-  function money(v){return '$'+(parseFloat(v||0)).toFixed(2);}
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
-  function api(m,e,a,b,p){return Cuspide.api.call(m,CONFIG.ENDPOINTS[e],a,b,p);}
-  function toast(m){alert(m);}
+document.addEventListener('DOMContentLoaded', function() {
+  var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+  var allProducts = [], cliente = null, cart = [], formasPagoList = [];
+  var ventaModal = new bootstrap.Modal(document.getElementById('modal-venta'));
+  var currentFilters = { page: 1, limit: 20, q: null, desde: null, hasta: null };
 
-  function loadVentas(){
-    api('GET','ventas','list',null,{institucion:institucionId}).then(function(data){
-      ventas=Array.isArray(data)?data:[]; renderVentas();
-    }).catch(function(err){
-      document.getElementById('ventas-tbody').innerHTML='<tr><td colspan="6" class="text-danger text-center py-4">'+esc(err.message||'Error al cargar ventas')+'</td></tr>';
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]; }); }
+  function money(v) { return '$' + (parseFloat(v || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function api(m, e, a, b, p) { return Cuspide.api.call(m, CONFIG.ENDPOINTS[e], a, b, p); }
+  function showToast(msg, type) { type = type || 'success'; var t = document.createElement('div'); t.className = 'toast-notification toast-' + type; t.textContent = msg; document.body.appendChild(t); setTimeout(function() { t.classList.add('show'); }, 10); setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200); }
+  var debounce = function(fn, ms) { var t; return function() { var a = arguments, ctx = this; clearTimeout(t); t = setTimeout(function() { fn.apply(ctx, a); }, ms); }; };
+
+  function loadVentas(page = 1) {
+    currentFilters.page = page;
+    var tbody = document.getElementById('ventas-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+    var params = { institucion: institucionId, ...currentFilters };
+    api('GET', 'ventas', 'list', null, params).then(function(response) {
+      renderVentas(response.items);
+      renderPagination(response.currentPage, response.totalPages, response.totalItems);
+    }).catch(function(err) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-4">' + esc(err.message || 'Error al cargar ventas') + '</td></tr>';
     });
   }
-  function renderVentas(){
-    var q=document.getElementById('venta-search').value.toLowerCase();
-    var rows=ventas.filter(function(v){return !q||[v.numero,v.nombre,v.identificacion,v.tipo].join(' ').toLowerCase().indexOf(q)>-1;});
-    document.getElementById('ventas-info').textContent=rows.length+' venta(s).';
-    document.getElementById('ventas-tbody').innerHTML=rows.length?rows.map(function(v){
-      var pagada=parseFloat(v.saldo||0)<=0;
-      return '<tr><td><code>'+esc(v.numero)+'</code></td><td>'+esc(v.nombre)+'<br><small class="text-muted">'+esc(v.identificacion)+'</small></td><td>'+esc(v.tipo)+'</td><td class="text-end">'+money(v.total)+'</td><td class="text-end">'+money(v.saldo)+'</td><td><span class="badge '+(pagada?'bg-success':'bg-warning text-dark')+'">'+(pagada?'Pagada':'Pendiente')+'</span></td></tr>';
-    }).join(''):'<tr><td colspan="6" class="text-center text-muted py-4">Sin ventas.</td></tr>';
+
+  async function loadInitialData() {
+    try {
+      // Load products
+      const productsData = await api('GET', 'productos', 'list', null, { institucion: institucionId });
+      allProducts = Array.isArray(productsData) ? productsData : [];
+
+      // Load payment methods (formas_pago)
+      const formasPagoData = await api('GET', 'ventas', 'formas_pago', null, null);
+      formasPagoList = Array.isArray(formasPagoData) ? formasPagoData : [];
+      populateFormasPagoSelect();
+
+    } catch (err) {
+      showToast('Error al cargar datos iniciales: ' + (err.message || 'Desconocido'), 'error');
+    }
   }
-  function loadProductos(){api('GET','productos','list',null,{institucion:institucionId}).then(function(data){productos=Array.isArray(data)?data:[];});}
-  function searchCliente(q){
+
+  function populateFormasPagoSelect() {
+    var select = document.getElementById('venta-forma-pago');
+    select.innerHTML = formasPagoList.map(fp => `<option value="${fp.id}">${esc(fp.nombre)}</option>`).join('');
+    if (select.options.length > 0) select.value = formasPagoList[0].id; // Select first by default
+  }
+
+  function renderVentas(ventas) {
+    var tbody = document.getElementById('ventas-tbody');
+    if (!ventas.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No se encontraron ventas con los filtros aplicados.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = ventas.map(function(v) {
+      var pagada = parseFloat(v.saldo || 0) <= 0;
+      return '<tr>' +
+        '<td><code>' + esc(v.numero) + '</code><br><small class="text-muted">' + esc(v.fecha.substring(0, 10)) + '</small></td>' +
+        '<td>' + esc(v.nombre) + '<br><small class="text-muted">' + esc(v.identificacion) + '</small></td>' +
+        '<td>' + esc(v.tipo) + '</td>' +
+        '<td class="text-end fw-bold">' + money(v.total) + '</td>' +
+        '<td class="text-end ' + (pagada ? 'text-success' : 'text-warning') + '">' + money(v.saldo) + '</td>' +
+        '<td class="text-center"><span class="badge ' + (pagada ? 'bg-success' : 'bg-warning text-dark') + '">' + (pagada ? 'Pagada' : 'Pendiente') + '</span></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function renderPagination(currentPage, totalPages, totalItems) {
+    var nav = document.getElementById('pagination-nav');
+    var ventasInfo = document.getElementById('ventas-info');
+
+    if (totalPages <= 1) {
+      nav.innerHTML = '';
+      ventasInfo.textContent = totalItems + ' registro(s)';
+      return;
+    }
+
+    var startItem = (currentPage - 1) * currentFilters.limit + 1;
+    var endItem = Math.min(startItem + currentFilters.limit - 1, totalItems);
+    ventasInfo.textContent = 'Mostrando ' + startItem + '-' + endItem + ' de ' + totalItems + ' registros';
+
+    var html = '<ul class="pagination">';
+
+    html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '">' +
+            '<a class="page-link" href="#" onclick="event.preventDefault(); loadVentas(' + (currentPage - 1) + ')">Anterior</a>' +
+            '</li>';
+
+    let startPage, endPage;
+    if (totalPages <= 5) {
+      startPage = 1;
+      endPage = totalPages;
+    } else {
+      if (currentPage <= 3) {
+        startPage = 1;
+        endPage = 5;
+      } else if (currentPage + 2 >= totalPages) {
+        startPage = totalPages - 4;
+        endPage = totalPages;
+      } else {
+        startPage = currentPage - 2;
+        endPage = currentPage + 2;
+      }
+    }
+
+    if (startPage > 1) {
+      html += '<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); loadVentas(1)">1</a></li>';
+      if (startPage > 2) {
+        html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      html += '<li class="page-item ' + (i === currentPage ? 'active' : '') + '">' +
+              '<a class="page-link" href="#" onclick="event.preventDefault(); loadVentas(' + i + ')">' + i + '</a>' +
+              '</li>';
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+      }
+      html += '<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); loadVentas(' + totalPages + ')">' + totalPages + '</a></li>';
+    }
+
+    html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '">' +
+            '<a class="page-link" href="#" onclick="event.preventDefault(); loadVentas(' + (currentPage + 1) + ')">Siguiente</a>' +
+            '</li>';
+
+    html += '</ul>';
+    nav.innerHTML = html;
+  }
+
+  var searchCliente = debounce(function(q) {
     var box=document.getElementById('cliente-results');
     if(q.length<2){box.classList.add('d-none');return;}
     api('GET','personas','search',null,{q:q}).then(function(items){
       box.classList.remove('d-none');
       box.innerHTML=(items||[]).slice(0,6).map(function(p){return '<button class="list-group-item list-group-item-action" data-cliente-id="'+p.id+'" data-cliente-name="'+esc(p.nombre_completo)+'">'+esc(p.nombre_completo)+'<br><small>'+esc(p.identificacion)+'</small></button>';}).join('')||'<div class="list-group-item text-muted">Sin resultados.</div>';
     });
-  }
-  function searchProducto(q){
+  }, 350);
+
+  var searchProducto = debounce(function(q) {
     var box=document.getElementById('producto-results');
     if(q.length<1){box.classList.add('d-none');return;}
-    var rows=productos.filter(function(p){return [p.codigo,p.nombre].join(' ').toLowerCase().indexOf(q.toLowerCase())>-1;}).slice(0,8);
+    var rows=allProducts.filter(function(p){return [p.codigo,p.nombre].join(' ').toLowerCase().indexOf(q.toLowerCase())>-1;}).slice(0,8);
     box.classList.remove('d-none');
     box.innerHTML=rows.map(function(p){return '<button class="list-group-item list-group-item-action d-flex justify-content-between" data-prod-id="'+p.id+'"><span>'+esc(p.codigo)+' - '+esc(p.nombre)+'</span><strong>'+money(p.precio)+'</strong></button>';}).join('')||'<div class="list-group-item text-muted">Sin resultados.</div>';
-  }
-  function renderCart(){
+  }, 300);
+
+  function renderCart() {
     var total=cart.reduce(function(s,i){return s+(i.cantidad*i.precio_unitario);},0);
     document.getElementById('cart-total').textContent=money(total);
     document.getElementById('cart-tbody').innerHTML=cart.length?cart.map(function(i,idx){
-      return '<tr><td>'+esc(i.descripcion)+'</td><td><input class="form-control form-control-sm" type="number" min="1" value="'+i.cantidad+'" data-cart-qty="'+idx+'"></td><td class="text-end">'+money(i.cantidad*i.precio_unitario)+'</td><td><button class="btn btn-sm btn-outline-danger" data-cart-del="'+idx+'"><i class="bi bi-x"></i></button></td></tr>';
+      return '<tr><td class="ps-3">'+esc(i.descripcion)+'</td><td><input class="form-control form-control-sm" type="number" min="1" value="'+i.cantidad+'" data-cart-qty="'+idx+'"></td><td class="text-end">'+money(i.cantidad*i.precio_unitario)+'</td><td class="pe-3"><button class="btn btn-sm btn-outline-danger py-0 px-1" data-cart-del="'+idx+'"><i class="bi bi-x"></i></button></td></tr>';
     }).join(''):'<tr><td colspan="4" class="text-center text-muted py-3">Sin productos agregados.</td></tr>';
   }
-  document.getElementById('venta-search').addEventListener('input',renderVentas);
-  document.getElementById('cliente-search').addEventListener('input',function(){searchCliente(this.value.trim());});
-  document.getElementById('producto-search').addEventListener('input',function(){searchProducto(this.value.trim());});
-  document.addEventListener('click',function(e){
-    var c=e.target.closest('[data-cliente-id]'); if(c){cliente={id:parseInt(c.dataset.clienteId,10),nombre:c.dataset.clienteName};document.getElementById('cliente-selected').textContent='Cliente: '+cliente.nombre;document.getElementById('cliente-selected').classList.remove('d-none');document.getElementById('cliente-results').classList.add('d-none');}
-    var p=e.target.closest('[data-prod-id]'); if(p){var prod=productos.find(function(x){return String(x.id)===String(p.dataset.prodId);}); if(prod){cart.push({producto_id:prod.id,descripcion:prod.nombre,cantidad:1,precio_unitario:parseFloat(prod.precio||0),descuento:0});renderCart();document.getElementById('producto-results').classList.add('d-none');document.getElementById('producto-search').value='';}}
-    var del=e.target.closest('[data-cart-del]'); if(del){cart.splice(parseInt(del.dataset.cartDel,10),1);renderCart();}
+
+  var doFilter = debounce(function() { loadVentas(1); }, 400);
+  document.getElementById('venta-search').addEventListener('input', function() { currentFilters.q = this.value.trim(); doFilter(); });
+  document.getElementById('filtro-fecha-inicio').addEventListener('change', function() { currentFilters.desde = this.value; doFilter(); });
+  document.getElementById('filtro-fecha-fin').addEventListener('change', function() { currentFilters.hasta = this.value; doFilter(); });
+
+  document.getElementById('cliente-search').addEventListener('input', function() { searchCliente(this.value.trim()); });
+  document.getElementById('producto-search').addEventListener('input', function() { searchProducto(this.value.trim()); });
+
+  document.getElementById('modal-venta').addEventListener('click', function(e) {
+    var c = e.target.closest('[data-cliente-id]');
+    if (c) {
+      cliente = { id: parseInt(c.dataset.clienteId, 10), nombre: c.dataset.clienteName };
+      document.getElementById('cliente-selected').innerHTML = '<i class="bi bi-person-check-fill me-2"></i>' + esc(cliente.nombre);
+      document.getElementById('cliente-selected').classList.remove('d-none');
+      document.getElementById('cliente-results').classList.add('d-none');
+      document.getElementById('cliente-search').value = '';
+    }
+    var p = e.target.closest('[data-prod-id]');
+    if (p) {
+      var prod = allProducts.find(function(x) { return String(x.id) === String(p.dataset.prodId); });
+      if (prod) {
+        var existing = cart.find(function(item) { return item.producto_id === prod.id; });
+        if (existing) { existing.cantidad++; }
+        else { cart.push({ producto_id: prod.id, descripcion: prod.nombre, cantidad: 1, precio_unitario: parseFloat(prod.precio || 0), descuento: 0 }); }
+        renderCart();
+        document.getElementById('producto-results').classList.add('d-none');
+        document.getElementById('producto-search').value = '';
+      }
+    }
   });
-  document.addEventListener('input',function(e){if(e.target.matches('[data-cart-qty]')){cart[parseInt(e.target.dataset.cartQty,10)].cantidad=parseFloat(e.target.value||1);renderCart();}});
-  document.getElementById('btn-registrar-venta').addEventListener('click',function(){
-    if(!cliente){toast('Selecciona un cliente.');return;} if(!cart.length){toast('Agrega al menos un producto.');return;}
-    var body={persona:cliente.id,institucion:institucionId,tipo:'VENTA',items:cart,referencia:document.getElementById('venta-referencia').value.trim()||null};
-    if(document.getElementById('venta-pago').value==='pagada') body.forma_pago=1;
-    api('POST','ventas','create',body,null).then(function(){toast('Venta registrada.');cart=[];cliente=null;renderCart();document.getElementById('cliente-selected').classList.add('d-none');loadVentas();loadProductos();}).catch(function(err){toast(err.message||'Error al registrar venta.');});
+
+  document.getElementById('modal-venta').addEventListener('input', function(e) {
+    if (e.target.matches('[data-cart-qty]')) { cart[parseInt(e.target.dataset.cartQty, 10)].cantidad = Math.max(1, parseFloat(e.target.value || 1)); renderCart(); }
   });
-  loadVentas(); loadProductos(); renderCart();
-})();
+  document.getElementById('cart-tbody').addEventListener('click', function(e) {
+    var del = e.target.closest('[data-cart-del]');
+    if (del) { cart.splice(parseInt(del.dataset.cartDel, 10), 1); renderCart(); }
+  });
+
+  document.getElementById('btn-registrar-venta').addEventListener('click', function() {
+    if (!cliente) { showToast('Debes seleccionar un cliente.', 'warning'); return; }
+    if (!cart.length) { showToast('Debes agregar al menos un producto al carrito.', 'warning'); return; }
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Registrando...';
+
+    var ventaEstadoPago = document.getElementById('venta-estado-pago').value;
+    var ventaFormaPago = document.getElementById('venta-forma-pago').value;
+
+    var body = {
+      persona: cliente.id,
+      institucion: institucionId,
+      tipo: 'VENTA',
+      items: cart,
+      referencia: document.getElementById('venta-referencia').value.trim() || null
+    };
+
+    if (ventaEstadoPago === 'pagada') {
+      if (!ventaFormaPago || formasPagoList.length === 0) {
+        showToast('Debe seleccionar una forma de pago válida.', 'warning');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Confirmar y Registrar Venta';
+        return;
+      }
+      body.forma_pago = parseInt(ventaFormaPago, 10);
+    }
+
+    api('POST', 'ventas', 'create', body, null).then(function() {
+      showToast('Venta registrada exitosamente.', 'success');
+      cart = []; cliente = null;
+      renderCart();
+      document.getElementById('cliente-selected').classList.add('d-none');
+      document.getElementById('cliente-search').value = '';
+      document.getElementById('venta-referencia').value = '';
+      document.getElementById('venta-estado-pago').value = 'pendiente';
+      document.getElementById('forma-pago-group').style.display = 'none';
+      ventaModal.hide();
+      loadVentas(1);
+      loadInitialData(); // Recargar productos para actualizar stock si es necesario
+    }).catch(function(err) {
+      showToast(err.message || 'Error al registrar la venta.', 'error');
+    }).finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Confirmar y Registrar Venta';
+    });
+  });
+
+  document.getElementById('venta-estado-pago').addEventListener('change', function() {
+    document.getElementById('forma-pago-group').style.display = (this.value === 'pagada') ? 'block' : 'none';
+  });
+
+  checkAuth();
+  loadVentas();
+  loadInitialData();
+  renderCart();
+});
 </script>
 {% endblock %}

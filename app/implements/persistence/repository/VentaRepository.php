@@ -79,24 +79,55 @@ class VentaRepository
     return new Venta($row['id'], $row['numero'], $row['fecha'], $row['persona'], $row['matricula'] ?? null, $row['institucion'], $row['tipo'], (float) $row['subtotal'], (float) $row['descuento'], (float) $row['impuesto'], (float) $row['total'], (float) $row['saldo'], $row['estado']);
   }
 
-  public function findByInstitucion(int $institucionId, ?string $desde = null, ?string $hasta = null, int $limit = 100, int $offset = 0): array
+  public function findByInstitucion(int $institucionId, array $filters): array
   {
-    $sql = "SELECT v.id, v.numero, v.fecha, v.tipo, v.subtotal, v.descuento, v.total, v.saldo, v.estado,
+    $limit = (int) ($filters['limit'] ?? 20);
+    $page = (int) ($filters['page'] ?? 1);
+    $offset = ($page - 1) * $limit;
+    $desde = $filters['desde'] ?? null;
+    $hasta = $filters['hasta'] ?? null;
+    $q = $filters['q'] ?? null;
+
+    $whereClauses = ['v.institucion = :inst'];
+    $params = [':inst' => $institucionId];
+
+    if ($desde !== null) {
+      $whereClauses[] = 'v.fecha >= :desde';
+      $params[':desde'] = $desde;
+    }
+    if ($hasta !== null) {
+      $whereClauses[] = 'v.fecha <= :hasta_end';
+      $params[':hasta_end'] = $hasta . ' 23:59:59';
+    }
+    if ($q) {
+      $whereClauses[] = "(v.numero LIKE :q OR p.identificacion LIKE :q OR CONCAT(p.primer_nombre, ' ', p.primer_apellido) LIKE :q)";
+      $params[':q'] = "%{$q}%";
+    }
+
+    $whereSql = implode(' AND ', $whereClauses);
+
+    $countSql = "SELECT COUNT(v.id) FROM ventas v JOIN personas p ON p.id = v.persona WHERE $whereSql";
+    $countStmt = $this->db->prepare($countSql);
+    $countStmt->execute($params);
+    $totalItems = (int) $countStmt->fetchColumn();
+
+    $itemsSql = "SELECT v.id, v.numero, v.fecha, v.tipo, v.subtotal, v.descuento, v.total, v.saldo, v.estado,
                    p.identificacion,
                    CONCAT(p.primer_nombre,' ',p.primer_apellido) AS nombre
             FROM ventas v
             JOIN personas p ON p.id = v.persona
-            WHERE v.institucion = :inst";
-    $params = [':inst' => $institucionId];
-    if ($desde !== null) { $sql .= ' AND v.fecha >= :desde'; $params[':desde'] = $desde; }
-    if ($hasta !== null) { $sql .= ' AND v.fecha <= :hasta'; $params[':hasta'] = $hasta; }
-    $sql .= ' ORDER BY v.fecha DESC LIMIT :lim OFFSET :off';
-    $stmt = $this->db->prepare($sql);
-    foreach ($params as $k => $v) { $stmt->bindValue($k, $v); }
+            WHERE $whereSql
+            ORDER BY v.fecha DESC, v.id DESC LIMIT :lim OFFSET :off";
+    $stmt = $this->db->prepare($itemsSql);
+    foreach ($params as $k => $v) {
+      $stmt->bindValue($k, $v);
+    }
     $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
     $stmt->bindValue(':off', $offset, \PDO::PARAM_INT);
     $stmt->execute();
-    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    $items = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+    return ['items' => $items, 'total' => $totalItems];
   }
 
   public function findPendientesByInstitucion(int $institucionId): array
@@ -154,7 +185,10 @@ class VentaRepository
               AND v.estado = 1
               AND v.institucion = :inst";
     $params = [':inst' => $institucionId];
-    if ($personaId !== null) { $sql .= ' AND v.persona = :pid'; $params[':pid'] = $personaId; }
+    if ($personaId !== null) {
+      $sql .= ' AND v.persona = :pid';
+      $params[':pid'] = $personaId;
+    }
     $sql .= ' ORDER BY v.fecha ASC';
     $stmt = $this->db->prepare($sql);
     $stmt->execute($params);

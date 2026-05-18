@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Services;
@@ -14,6 +15,7 @@ use Repositories\ProductoRepository;
 use Repositories\ProductoCategoriaRepository;
 use Entitys\Producto;
 use Entitys\ProductoCategoria;
+use Core\Database;
 use Utils\Token;
 use Interfaces\ProductoServiceInterface;
 
@@ -203,59 +205,35 @@ class ProductoServices implements ProductoServiceInterface
         $descripcion = isset($data['descripcion']) && $data['descripcion'] !== ''
             ? trim((string)$data['descripcion'])
             : null;
+
         $nemonico = trim((string)($data['nemonico'] ?? ''));
         if ($nemonico === '') {
             $nemonico = strtoupper((string)preg_replace('/[^A-Z0-9]+/', '_', strtoupper($nombre)));
         }
+
         $institucion = isset($data['institucion']) && $data['institucion'] !== '' ? (int)$data['institucion'] : null;
         $estado = isset($data['estado']) ? (int)$data['estado'] : 1;
-        $db = Database::getInstance();
         $bodyId = isset($data['id']) ? (int)$data['id'] : 0;
         $finalId = ($id !== null && $id > 0) ? $id : ($bodyId > 0 ? $bodyId : null);
 
-        if ($finalId !== null) {
-            $stmt = $db->prepare(
-                'UPDATE producto_categorias
-                 SET nombre = :nombre, nemonico = :nemonico, descripcion = :descripcion, institucion = :institucion, estado = :estado
-                 WHERE id = :id'
-            );
-            $stmt->execute([
-                ':nombre' => $nombre,
-                ':nemonico' => $nemonico,
-                ':descripcion' => $descripcion,
-                ':institucion' => $institucion,
-                ':estado' => $estado,
-                ':id' => $finalId,
-            ]);
-            if ($stmt->rowCount() === 0) {
-                $check = $db->prepare('SELECT id FROM producto_categorias WHERE id = :id');
-                $check->execute([':id' => $finalId]);
-                if (!$check->fetch(\PDO::FETCH_ASSOC)) {
-                    throw new \RuntimeException('Categoría no encontrada.', 404);
-                }
-            }
-        } else {
-            $stmt = $db->prepare(
-                'INSERT INTO producto_categorias (nombre, nemonico, descripcion, institucion, estado)
-                 VALUES (:nombre, :nemonico, :descripcion, :institucion, :estado)'
-            );
-            $stmt->execute([
-                ':nombre' => $nombre,
-                ':nemonico' => $nemonico,
-                ':descripcion' => $descripcion,
-                ':institucion' => $institucion,
-                ':estado' => $estado,
-            ]);
-            $finalId = (int)$db->lastInsertId();
-        }
+        $categoria = new ProductoCategoria(
+            $finalId,
+            $nombre,
+            $nemonico,
+            $descripcion,
+            $institucion,
+            $estado
+        );
+
+        $saved = $this->categRepo->save($categoria);
 
         return [
-            'id' => (int)$finalId,
-            'nombre' => $nombre,
-            'nemonico' => $nemonico,
-            'descripcion' => $descripcion,
-            'institucion' => $institucion,
-            'estado' => $estado,
+            'id' => (int)$saved->getId(),
+            'nombre' => $saved->getNombre(),
+            'nemonico' => $saved->getNemonico(),
+            'descripcion' => $saved->getDescripcion(),
+            'institucion' => $saved->getInstitucion()?->getId(),
+            'estado' => $saved->getEstado()?->getId() ?? $estado,
         ];
     }
 }

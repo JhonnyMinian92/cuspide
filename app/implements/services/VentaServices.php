@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Services;
@@ -11,6 +12,8 @@ require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/InventarioRepository.php';
 require_once __DIR__ . '/../persistence/repository/MovimientoInventarioRepository.php';
 require_once __DIR__ . '/../persistence/repository/ProductoRepository.php';
+require_once __DIR__ . '/../persistence/repository/FormaPagoRepository.php';
+require_once __DIR__ . '/../persistence/entitys/FormaPago.php';
 require_once __DIR__ . '/../persistence/entitys/Venta.php';
 require_once __DIR__ . '/../persistence/entitys/VentaDetalle.php';
 require_once __DIR__ . '/../persistence/entitys/Pago.php';
@@ -25,6 +28,8 @@ use Repositories\PersonaRepository;
 use Repositories\InventarioRepository;
 use Repositories\MovimientoInventarioRepository;
 use Repositories\ProductoRepository;
+use Repositories\FormaPagoRepository;
+use Entitys\FormaPago;
 use Entitys\Venta;
 use Entitys\VentaDetalle;
 use Entitys\Pago;
@@ -40,6 +45,7 @@ class VentaServices
     private InventarioRepository          $inventarioRepo;
     private MovimientoInventarioRepository $movimientoRepo;
     private ProductoRepository            $productoRepo;
+    private FormaPagoRepository           $formaPagoRepo;
     private array                         $security;
 
     public function __construct()
@@ -51,6 +57,7 @@ class VentaServices
         $this->inventarioRepo = new InventarioRepository();
         $this->movimientoRepo = new MovimientoInventarioRepository();
         $this->productoRepo   = new ProductoRepository();
+        $this->formaPagoRepo  = new FormaPagoRepository();
         $this->security       = require __DIR__ . '/../../properties/security.php';
     }
 
@@ -83,6 +90,9 @@ class VentaServices
             case $method === 'POST' && $resource === 'create':
                 return $this->createVenta();
 
+            case $method === 'GET' && $resource === 'formas_pago':
+                return $this->fetchFormasPago();
+
             default:
                 throw new \RuntimeException('Recurso no encontrado o método no soportado.', 404);
         }
@@ -97,31 +107,33 @@ class VentaServices
             throw new \RuntimeException('El parámetro institucion es requerido.', 400);
         }
 
-        $institucion = (int)$queryParams['institucion'];
-        $limit       = isset($queryParams['limit']) ? max(1, (int)$queryParams['limit']) : 100;
-        $desde       = !empty($queryParams['desde']) ? $queryParams['desde'] : null;
-        $hasta       = !empty($queryParams['hasta']) ? $queryParams['hasta'] : null;
+        $filters = [
+            'institucion' => (int)$queryParams['institucion'],
+            'limit'       => isset($queryParams['limit']) ? max(1, (int)$queryParams['limit']) : 20,
+            'page'        => isset($queryParams['page']) ? max(1, (int)$queryParams['page']) : 1,
+            'desde'       => !empty($queryParams['desde']) ? $queryParams['desde'] : null,
+            'hasta'       => !empty($queryParams['hasta']) ? $queryParams['hasta'] : null,
+            'q'           => !empty($queryParams['q']) ? $queryParams['q'] : null,
+        ];
 
-        $rows = $this->ventaRepo->findByInstitucion($institucion, $desde, $hasta, $limit);
+        $result = $this->ventaRepo->findByInstitucion($filters['institucion'], $filters);
 
-        $result = [];
-        foreach ($rows as $row) {
-            $result[] = [
+        return [
+            'items' => array_map(fn($row) => [
                 'id'             => (int)$row['id'],
                 'numero'         => $row['numero'],
                 'fecha'          => $row['fecha'],
                 'tipo'           => $row['tipo'],
-                'subtotal'       => (float)$row['subtotal'],
-                'descuento'      => (float)$row['descuento'],
                 'total'          => (float)$row['total'],
                 'saldo'          => (float)$row['saldo'],
                 'estado'         => (int)$row['estado'],
                 'identificacion' => $row['identificacion'],
                 'nombre'         => $row['nombre'],
-            ];
-        }
-
-        return $result;
+            ], $result['items']),
+            'totalItems'  => (int) $result['total'],
+            'totalPages'  => (int) ceil($result['total'] / $filters['limit']),
+            'currentPage' => $filters['page'],
+        ];
     }
 
     // -------------------------------------------------------------------------
@@ -149,7 +161,7 @@ class VentaServices
                 'fecha'    => $venta->getFecha(),
                 'tipo'     => $venta->getTipo(),
                 'subtotal' => $venta->getSubtotal(),
-                'descuento'=> $venta->getDescuento(),
+                'descuento' => $venta->getDescuento(),
                 'impuesto' => $venta->getImpuesto(),
                 'total'    => $venta->getTotal(),
                 'saldo'    => $venta->getSaldo(),
@@ -194,7 +206,7 @@ class VentaServices
                 'numero'    => $p['numero'],
                 'fecha'     => $p['fecha'],
                 'monto'     => (float)$p['monto'],
-                'forma_pago'=> $p['forma_pago'],
+                'forma_pago' => $p['forma_pago'],
             ];
         }
 
@@ -366,7 +378,6 @@ class VentaServices
             }
 
             $db->commit();
-
         } catch (\Throwable $e) {
             $db->rollBack();
             throw new \RuntimeException('Error al crear la venta: ' . $e->getMessage(), 500);
@@ -378,5 +389,14 @@ class VentaServices
             'total'  => $total,
             'saldo'  => $saldo,
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchFormasPago
+    // -------------------------------------------------------------------------
+    private function fetchFormasPago(): array
+    {
+        $formas = $this->formaPagoRepo->findAll();
+        return array_map(fn($f) => ['id' => (int) $f->getId(), 'nombre' => $f->getNombre()], $formas);
     }
 }
