@@ -182,6 +182,8 @@ class VentaServices
             throw new \RuntimeException('Venta no encontrada.', 404);
         }
 
+        $persona = $venta->getPersona();
+
         // Fetch detail lines via repository
         $detalles = $this->detalleRepo->findByVenta($id);
 
@@ -190,9 +192,10 @@ class VentaServices
 
         $detallesFormatted = [];
         foreach ($detalles as $d) {
+            $producto = $d->getProducto();
             $detallesFormatted[] = [
                 'id'              => (int)$d->getId(),
-                'descripcion'     => null,
+                'descripcion'     => $producto ? $producto->getNombre() : 'Descripción no disponible',
                 'cantidad'        => (float)$d->getCantidad(),
                 'precio_unitario' => (float)$d->getPrecioUnitario(),
                 'descuento'       => (float)$d->getDescuento(),
@@ -206,7 +209,7 @@ class VentaServices
                 'numero'    => $p['numero'],
                 'fecha'     => $p['fecha'],
                 'monto'     => (float)$p['monto'],
-                'forma_pago' => $p['forma_pago'],
+                'forma_pago' => $p['forma_pago'] ?? 'Desconocida',
             ];
         }
 
@@ -222,6 +225,10 @@ class VentaServices
                 'total'     => $venta->getTotal(),
                 'saldo'     => $venta->getSaldo(),
                 'estado'    => $venta->getEstado()?->getId(),
+            ],
+            'cliente' => [
+                'nombre' => $persona ? trim($persona->getPrimerNombre() . ' ' . $persona->getPrimerApellido()) : 'N/A',
+                'identificacion' => $persona ? $persona->getIdentificacion() : 'N/A'
             ],
             'detalles'        => $detallesFormatted,
             'pagos_aplicados' => $pagosFormatted,
