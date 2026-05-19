@@ -69,6 +69,28 @@
 </div><!-- /main-content -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+/* Helper global — usa el tema activo de la app */
+window.swConfirm = function (title, text, confirmText) {
+  var st = getComputedStyle(document.documentElement);
+  var get = function (v) { return st.getPropertyValue(v).trim(); };
+  return Swal.fire({
+    title: title || '¿Estás seguro?',
+    text: text || '',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: confirmText || 'Sí, continuar',
+    cancelButtonText: 'Cancelar',
+    reverseButtons: true,
+    focusCancel: true,
+    background: get('--card-bg'),
+    color: get('--app-text'),
+    confirmButtonColor: get('--brand-color'),
+    cancelButtonColor: get('--app-surface-hover'),
+  });
+};
+</script>
 <script src="/client/js/theme.js"></script>
 {% block scripts %}{% endblock %}
 </body>

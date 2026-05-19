@@ -446,11 +446,11 @@ function renderClases(q) {
       ? esc(c.primer_nombre + ' ' + c.primer_apellido)
       : '<span class="text-muted small">—</span>';
     var cupoFull = (c.matriculados||0) >= c.cupo_maximo;
-    var cupoHtml = '<span class="badge '+(cupoFull ? 'bg-danger' : 'bg-success bg-opacity-10 text-success border border-success border-opacity-25')+'">'
+    var cupoHtml = '<span class="badge '+(cupoFull ? 'bg-danger' : 'bg-success')+'">'
       +(c.matriculados||0)+'/'+c.cupo_maximo+'</span>';
     var asigHtml = c.asignatura_nombre
       ? '<div class="fw-semibold small">'+esc(c.asignatura_nombre)+'</div>'
-        +(c.nivel_nombre ? '<span class="tag-badge badge bg-info bg-opacity-15 text-info">'+esc(c.nivel_nombre)+'</span>' : '')
+        +(c.nivel_nombre ? '<span class="tag-badge badge bg-info text-dark">'+esc(c.nivel_nombre)+'</span>' : '')
       : '<span class="text-muted small">—</span>';
 
     return '<tr>'
@@ -598,7 +598,7 @@ function renderAsignaturas(q) {
     return '<tr>'
       +'<td class="fw-semibold">'+esc(a.nombre)+'</td>'
       +'<td class="text-muted small">'+esc(a.descripcion||'—')+'</td>'
-      +'<td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary">'+esc(a.total_matriculados||0)+'</span></td>'
+      +'<td class="text-center"><span class="badge bg-primary">'+esc(a.total_matriculados||0)+'</span></td>'
       +'<td class="text-center">'+badge+'</td>'
       +'<td class="text-end pe-3 text-nowrap">'
         +'<button class="btn btn-sm btn-outline-secondary me-1" onclick="editAsignatura('+a.id+')" title="Editar"><i class="bi bi-pencil"></i></button>'

@@ -221,7 +221,8 @@ label,
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--sidebar-border);
-  transition: background-color 0.3s ease;
+  transition: width 0.25s ease, background-color 0.3s ease;
+  overflow: hidden;
 }
 
 /* Scroll en el menú del sidebar cuando hay muchos botones */
@@ -249,6 +250,8 @@ body.theme-light #sidebar-menu::-webkit-scrollbar-thumb {
 }
 
 .sidebar .nav-link {
+  display: flex;
+  align-items: center;
   color: var(--sidebar-text);
   border-radius: 10px;
   margin: 2px 8px;
@@ -385,7 +388,7 @@ body.theme-light .sidebar-skeleton-text {
     radial-gradient(circle at top right, rgba(232, 184, 75, 0.08), transparent 30rem),
     linear-gradient(135deg, var(--app-bg) 0%, var(--app-bg-soft) 100%);
   color: var(--app-text);
-  transition: margin 0.3s ease;
+  transition: margin-left 0.25s ease;
 }
 
 body.theme-light .main-content {
@@ -609,7 +612,6 @@ body.theme-light .btn-brand:focus {
 }
 
 .table {
-  min-width: 720px;
   --bs-table-bg: var(--table-bg);
   --bs-table-color: var(--app-text);
   --bs-table-border-color: var(--table-border);
@@ -776,6 +778,11 @@ body.theme-light .btn-close {
   border: 1px solid var(--app-border);
 }
 
+/* Badges with bright backgrounds (warning, info) always need dark text */
+.badge.text-dark {
+  color: #172033 !important;
+}
+
 /* ==========================================
    SCROLLBAR
    ========================================== */
@@ -795,6 +802,80 @@ body.theme-light .btn-close {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--app-text-faint);
+}
+
+/* ==========================================
+   SIDEBAR COLLAPSE (desktop)
+   ========================================== */
+body.sidebar-collapsed .sidebar {
+  width: 72px;
+}
+
+body.sidebar-collapsed .main-content {
+  margin-left: 72px;
+}
+
+body.sidebar-collapsed .sidebar-brand {
+  padding: 16px 8px;
+  justify-content: center;
+}
+
+body.sidebar-collapsed .sidebar-brand .brand-name {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-logo-box {
+  margin: 0 auto;
+}
+
+body.sidebar-collapsed #sidebar-menu .nav-link {
+  justify-content: center;
+  padding: 10px 0;
+  margin: 2px 8px;
+}
+
+body.sidebar-collapsed #sidebar-menu .nav-link:hover {
+  transform: none;
+}
+
+body.sidebar-collapsed #sidebar-menu .nav-link .nav-link-text {
+  display: none;
+}
+
+body.sidebar-collapsed #sidebar-menu .nav-link i {
+  margin: 0 !important;
+  width: auto;
+  font-size: 1.1rem;
+}
+
+body.sidebar-collapsed .sidebar-footer {
+  padding: 10px 4px;
+}
+
+body.sidebar-collapsed .sidebar-footer .user-info-row {
+  justify-content: center;
+}
+
+body.sidebar-collapsed #sidebar-username {
+  display: none !important;
+}
+
+body.sidebar-collapsed #sidebar-avatar {
+  margin: 0 auto;
+}
+
+body.sidebar-collapsed .sidebar-collapse-text {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-footer .salir-link {
+  justify-content: center;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+body.sidebar-collapsed .sidebar-footer .salir-link .salir-text {
+  display: none;
 }
 
 /* ==========================================
@@ -831,6 +912,42 @@ body.theme-light .btn-close {
   }
 }
 
+/* ==========================================
+   SWEETALERT2 — integración con tema
+   ========================================== */
+.swal2-popup {
+  border: 1px solid var(--card-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--card-shadow) !important;
+  font-family: inherit !important;
+}
+.swal2-title {
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+}
+.swal2-html-container {
+  font-size: .92rem !important;
+}
+.swal2-confirm {
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 22px !important;
+}
+.swal2-cancel {
+  border-radius: 8px !important;
+  padding: 8px 22px !important;
+  border: 1px solid var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+.swal2-icon.swal2-warning {
+  border-color: var(--warning-border) !important;
+  color: var(--warning-text) !important;
+}
+.swal2-icon.swal2-warning .swal2-icon-content {
+  color: var(--warning-text) !important;
+}
+
 @media (max-width: 575.98px) {
   .topbar {
     padding: 10px 12px;
@@ -857,5 +974,40 @@ body.theme-light .btn-close {
 
   .card-body {
     padding: 1rem;
+  }
+
+  /* Nav tabs: scroll horizontal en lugar de desbordarse */
+  .nav-tabs,
+  .nav.nav-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .nav-tabs::-webkit-scrollbar,
+  .nav.nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-tabs .nav-link,
+  .nav.nav-tabs .nav-link {
+    white-space: nowrap;
+  }
+
+  /* Card-headers con justify-content-between: envuelven en lugar de desbordarse */
+  .card-body .d-flex.justify-content-between,
+  [class*="px-4"].d-flex.justify-content-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Stat cards: reducir padding en pantallas muy pequeñas */
+  .stat-card .card-body {
+    padding: 0.875rem !important;
+  }
+  .stat-card .stat-value {
+    font-size: 1.4rem;
+  }
+  .stat-card .stat-icon {
+    font-size: 1.5rem;
   }
 }

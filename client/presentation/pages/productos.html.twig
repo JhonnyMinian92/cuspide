@@ -537,8 +537,9 @@ document.getElementById('form-producto').addEventListener('submit', function(e) 
     });
 });
 
-function disableProduct(id, btn) {
-  if (!confirm('¿Deshabilitar este producto?')) return;
+async function disableProduct(id, btn) {
+  var r = await swConfirm('¿Deshabilitar producto?', 'El producto dejará de estar disponible para ventas.', 'Sí, deshabilitar');
+  if (!r.isConfirmed) return;
   btn.disabled = true;
   Cuspide.api.call('PUT', CONFIG.ENDPOINTS.productos, 'disable', null, { id: id })
     .then(function() { showToast('Producto deshabilitado.', 'success'); loadProducts(); })

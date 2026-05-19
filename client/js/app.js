@@ -327,8 +327,8 @@ async function loadMenu() {
         var label = escapeHtml(item.nombre || 'Opción');
 
         return '<li class="nav-item">' +
-          '<a class="nav-link ' + isActive + '" href="' + escapeHtml(href) + '">' +
-          iconHtml + label +
+          '<a class="nav-link ' + isActive + '" href="' + escapeHtml(href) + '" title="' + label + '">' +
+          iconHtml + '<span class="nav-link-text">' + label + '</span>' +
           '</a></li>';
       })
       .join('');

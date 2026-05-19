@@ -478,7 +478,7 @@ function renderTable(items) {
     return '<tr>' +
       '<td><code>' + esc(p.identificacion) + '</code></td>' +
       '<td class="fw-semibold">' + esc(p.nombre_completo) + '</td>' +
-      '<td><span class="badge bg-primary bg-opacity-10 text-primary">' + esc(p.tipo || 'Empleado') + '</span></td>' +
+      '<td><span class="badge bg-primary">' + esc(p.tipo || 'Empleado') + '</span></td>' +
       '<td>' + badge + '</td>' +
       '<td class="text-end pe-3">' +
         '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="verPersona(' + p.id + ')">' +
