@@ -506,6 +506,7 @@ async function verDetalleVenta(ventaId) {
 
       <div class="row" style="text-align: right; margin-left: 20px;">
         <div class="col-md-6 col-lg-5">
+          <div class="table-responsive">
           <table class="table table-sm">
             <tbody>
               <tr><td>Subtotal:</td><td class="text-end">${money(data.venta.subtotal)}</td></tr>
@@ -515,6 +516,7 @@ async function verDetalleVenta(ventaId) {
               <tr><td class="fw-bold">Saldo Pendiente:</td><td class="text-end fw-bold text-warning">${money(data.venta.saldo)}</td></tr>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     `;
