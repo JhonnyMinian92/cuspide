@@ -464,8 +464,8 @@ function renderPendientes(items) {
   document.getElementById('pendientes-info').textContent = items.length + ' factura(s) con saldo pendiente. Total: ' + fmt(total);
 }
 
-document.getElementById('pendientes-filter').addEventListener('input', debounce(function() {
-  var q = this.value.trim().toLowerCase();
+document.getElementById('pendientes-filter').addEventListener('input', debounce(function(e) {
+  var q = e.target.value.trim().toLowerCase();
   var filtered = !q ? allPendientes : allPendientes.filter(function(p) {
     return (p.nombre||'').toLowerCase().includes(q) || (p.identificacion||'').includes(q) || (p.numero||'').toLowerCase().includes(q);
   });
@@ -762,10 +762,11 @@ function renderReversoHistorial(pagos) {
 
   list.innerHTML = '<div class="d-flex flex-column gap-2">' + pagos.map(function(p) {
     var estadoId = parseInt(p.estado || 1);
-    var esAnulado = estadoId === 4;
-    var estadoBadge = esAnulado
+    var estadoBadge = estadoId === 4
       ? '<span class="badge bg-danger">Anulado</span>'
-      : '<span class="badge bg-success">Activo</span>';
+      : estadoId === 1
+        ? '<span class="badge bg-success">Activo</span>'
+        : '<span class="badge bg-secondary">Estado ' + estadoId + '</span>';
     return '<div class="p-3 rounded d-flex justify-content-between align-items-center cursor-pointer" ' +
       'style="background:var(--app-surface-soft);border:1px solid var(--app-border);cursor:pointer;" ' +
       'onclick="cargarDetallePago(' + p.id + ')">' +
@@ -794,7 +795,8 @@ function cargarDetallePago(pagoId) {
 
 function renderDetallePago(det) {
   selectedPagoId = det.id;
-  var esAnulado  = det.estado_id === 4;
+  var esActivo  = det.estado_id === 1;
+  var esAnulado = det.estado_id === 4;
 
   document.getElementById('rev-numero').textContent   = det.numero || '—';
   document.getElementById('rev-fecha').textContent    = det.fecha  || '—';
@@ -804,7 +806,7 @@ function renderDetallePago(det) {
 
   var estadoBadge = document.getElementById('rev-estado-badge');
   estadoBadge.textContent = det.estado || '—';
-  estadoBadge.className = 'badge rounded-pill ' + (esAnulado ? 'bg-danger' : 'bg-success');
+  estadoBadge.className = 'badge rounded-pill ' + (esAnulado ? 'bg-danger' : esActivo ? 'bg-success' : 'bg-secondary');
 
   var obs = document.getElementById('rev-observacion');
   var obsRow = document.getElementById('rev-observacion-row');
@@ -831,8 +833,15 @@ function renderDetallePago(det) {
     detallesList.innerHTML = '<div class="text-muted small">Sin detalle de facturas.</div>';
   }
 
-  document.getElementById('rev-anular-section').classList.toggle('d-none', esAnulado);
-  document.getElementById('rev-ya-anulado').classList.toggle('d-none', !esAnulado);
+  document.getElementById('rev-anular-section').classList.toggle('d-none', !esActivo);
+  var yaAnuladoDiv = document.getElementById('rev-ya-anulado');
+  if (!esActivo) {
+    yaAnuladoDiv.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>' +
+      (esAnulado ? 'Este pago ya fue anulado anteriormente.' : 'Este pago no puede anularse (estado: ' + esc(det.estado) + ').');
+    yaAnuladoDiv.classList.remove('d-none');
+  } else {
+    yaAnuladoDiv.classList.add('d-none');
+  }
   document.getElementById('reverso-detalle-card').classList.remove('d-none');
   document.getElementById('reverso-detalle-card').scrollIntoView({ behavior: 'smooth' });
 }
