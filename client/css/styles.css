@@ -975,4 +975,39 @@ body.sidebar-collapsed .sidebar-footer .salir-link .salir-text {
   .card-body {
     padding: 1rem;
   }
+
+  /* Nav tabs: scroll horizontal en lugar de desbordarse */
+  .nav-tabs,
+  .nav.nav-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .nav-tabs::-webkit-scrollbar,
+  .nav.nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-tabs .nav-link,
+  .nav.nav-tabs .nav-link {
+    white-space: nowrap;
+  }
+
+  /* Card-headers con justify-content-between: envuelven en lugar de desbordarse */
+  .card-body .d-flex.justify-content-between,
+  [class*="px-4"].d-flex.justify-content-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Stat cards: reducir padding en pantallas muy pequeñas */
+  .stat-card .card-body {
+    padding: 0.875rem !important;
+  }
+  .stat-card .stat-value {
+    font-size: 1.4rem;
+  }
+  .stat-card .stat-icon {
+    font-size: 1.5rem;
+  }
 }
