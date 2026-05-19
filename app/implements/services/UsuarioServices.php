@@ -238,11 +238,12 @@ class UsuarioServices implements UsuarioServiceInterface
         $db = Database::getInstance();
 
         $user = $this->userRepo->findById($currentUserId);
-        $currentUserType = $user ? $user->getType() : '';
+        $currentUserTypeObject = $user ? $user->getType() : null;
+        $currentUserNemonico = $currentUserTypeObject && method_exists($currentUserTypeObject, 'getNemonico') ? $currentUserTypeObject->getNemonico() : '';
 
         $sql = "SELECT nemonico, nombre FROM type_users";
 
-        if ($currentUserType->getNemonico() !== 'DEV_USER') {
+        if ($currentUserNemonico !== 'DEV_USER') {
             $sql .= " WHERE nemonico != 'DEV_USER'";
         }
 
@@ -250,7 +251,12 @@ class UsuarioServices implements UsuarioServiceInterface
 
         $stmt = $db->prepare($sql);
         $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $types = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return [
+            'types' => $types,
+            'currentUserType' => $currentUserNemonico,
+        ];
     }
 
     // -------------------------------------------------------------------------
@@ -272,13 +278,14 @@ class UsuarioServices implements UsuarioServiceInterface
 
         $nombre   = trim($data['nombre']);
         $tipoUser = $data['tipo_user'];
+        $ruta     = $data['ruta'] ?? null;
 
         $boton  = new Boton(
             null,
             $data['orden'] ?? null,
             $nombre,
             $data['icono'] ?? '',
-            $data['tipo']  ?? $tipoUser,
+            $ruta,
             $data['color'] ?? null,
             1
         );

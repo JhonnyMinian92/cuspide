@@ -522,7 +522,12 @@ function populatePermissionSelects(userTypes) {
 function loadPermissionTypes() {
   Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'permission-types', null, null)
     .then(function(data) {
-      populatePermissionSelects(Array.isArray(data) ? data : []);
+      if (data && Array.isArray(data.types)) {
+        populatePermissionSelects(data.types);
+        currentUserType = data.currentUserType || '';
+      } else {
+        populatePermissionSelects(Array.isArray(data) ? data : []);
+      }
     })
     .catch(function(err) {
       console.error("Error al cargar los tipos de usuario para permisos:", err);
@@ -923,6 +928,7 @@ function setupPersonaAutocomplete(inputId, hiddenId) {
 ════════════════════════════════════════════════════════════ */
 
 var currentPermisosTipo = '';
+var currentUserType = '';
 
 /* ── Cargar botones para tipo seleccionado ── */
 function loadPermisos(tipo) {
@@ -936,7 +942,11 @@ function loadPermisos(tipo) {
 
   // Mostrar/ocultar form nuevo botón
   var formCard = document.getElementById('form-nuevo-boton-card');
-  formCard.classList.remove('d-none');
+  if (currentUserType === 'DEV_USER') {
+    formCard.classList.remove('d-none');
+  } else {
+    formCard.classList.add('d-none');
+  }
   document.getElementById('nb-tipo-user').value       = tipo;
   document.getElementById('nb-tipo-user-hidden').value = tipo;
   document.getElementById('nb-institucion').value      = institucionId;
@@ -1060,8 +1070,8 @@ document.getElementById('form-nuevo-boton').addEventListener('submit', function(
   var tipo_user = document.getElementById('nb-tipo-user').value;
   var inst      = document.getElementById('nb-institucion').value || institucionId;
 
-  if (!nombre || !ruta || !tipo_user) {
-    showToast('Nombre, ruta y tipo de usuario son requeridos.', 'warning');
+  if (!nombre || !tipo_user) {
+    showToast('Nombre y tipo de usuario son requeridos.', 'warning');
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Agregar Botón';
     return;
