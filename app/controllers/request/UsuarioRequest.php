@@ -11,6 +11,7 @@ class UsuarioRequest
     private string $username;
     private ?string $password;
     private string $tipo_user;
+    private ?int $persona_id;
     private ?string $imagen;
 
     public function __construct(array $data)
@@ -18,6 +19,7 @@ class UsuarioRequest
         $this->username  = trim((string) ($data['username'] ?? ''));
         $this->password  = isset($data['password']) && $data['password'] !== '' ? trim((string) $data['password']) : null;
         $this->tipo_user = trim((string) ($data['tipo_user'] ?? ''));
+        $this->persona_id = isset($data['persona_id']) && $data['persona_id'] !== '' ? (int)$data['persona_id'] : null;
         $this->imagen    = isset($data['imagen']) && $data['imagen'] !== '' ? trim((string) $data['imagen']) : null;
 
         $this->validate();
@@ -40,5 +42,6 @@ class UsuarioRequest
     public function getUsername(): string { return $this->username; }
     public function getPassword(): ?string { return $this->password; }
     public function getTipoUser(): string { return $this->tipo_user; }
+    public function getPersonaId(): ?int { return $this->persona_id; }
     public function getImagen(): ?string { return $this->imagen; }
 }

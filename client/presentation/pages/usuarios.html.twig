@@ -5,6 +5,9 @@
 
 {% block content %}
 
+<!-- Awesomplete CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/awesomplete@1.1.5/awesomplete.css" />
+
 <!-- ── Tabs de navegación ── -->
 <ul class="nav nav-pills flex-wrap gap-1 mb-4" id="usuarios-tabs-nav" role="tablist">
   <li class="nav-item" role="presentation">
@@ -40,9 +43,9 @@
         <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
           <div>
             <h6 class="fw-bold mb-1"><i class="bi bi-people-fill me-2" style="color:var(--brand-color);"></i>Usuarios del Sistema</h6>
-            <p class="text-muted small mb-0">Busca por nombre de usuario. Si no hay resultados, puedes crear un nuevo usuario directamente.</p>
+            <p class="text-muted small mb-0">Busca usuarios por nombre o crea uno nuevo con el botón.</p>
           </div>
-          <button type="button" class="btn btn-brand btn-sm flex-shrink-0 d-none" id="btn-nuevo-usuario" aria-hidden="true" tabindex="-1">
+          <button type="button" class="btn btn-brand btn-sm flex-shrink-0" id="btn-nuevo-usuario">
             <i class="bi bi-person-plus-fill me-1"></i>Nuevo Usuario
           </button>
         </div>
@@ -82,7 +85,7 @@
             <thead class="table-light">
               <tr>
                 <th class="ps-4" style="width:60px;">ID</th>
-                <th>Username</th>
+                <th>Usuario / Persona</th>
                 <th>Tipo</th>
                 <th>Estado</th>
                 <th class="text-end pe-4">Acciones</th>
@@ -114,7 +117,7 @@
         </div>
         <form id="form-crear-usuario" novalidate>
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Username *</label>
               <input type="text" class="form-control" id="c-username" name="username"
                 placeholder="Ej: jperez" autocomplete="off" required>
@@ -130,19 +133,20 @@
                 </button>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Tipo de Usuario *</label>
               <select class="form-select" id="c-tipo-user" name="tipo_user" required>
                 <option value="">— Seleccionar —</option>
-                <option value="DEV_USER">Desarrollador</option>
-                <option value="ADMIN">Administrador</option>
-                <option value="ESTUDIANTE">Estudiante</option>
-                <option value="PROFESOR">Entrenador / Profesor</option>
-                <option value="MEDICO">Personal Médico</option>
-                <option value="ADMINISTRATIVO">Administrativo</option>
               </select>
             </div>
-            <div class="col-md-8">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Vincular a Persona <span class="text-muted small">(opcional)</span></label>
+              <div class="position-relative">
+                <input type="text" class="form-control" id="c-persona-search" placeholder="Buscar por nombre o ID..." autocomplete="off">
+                <input type="hidden" id="c-persona-id" name="persona_id">
+              </div>
+            </div>
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Imagen <span class="text-muted small">(URL opcional)</span></label>
               <input type="url" class="form-control" id="c-imagen" name="imagen"
                 placeholder="https://example.com/avatar.jpg">
@@ -175,7 +179,7 @@
         <form id="form-editar-usuario" novalidate>
           <input type="hidden" id="e-user-id">
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Username *</label>
               <input type="text" class="form-control" id="e-username" name="username"
                 autocomplete="off" required>
@@ -191,19 +195,23 @@
                 </button>
               </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Tipo de Usuario *</label>
               <select class="form-select" id="e-tipo-user" name="tipo_user" required>
                 <option value="">— Seleccionar —</option>
-                <option value="DEV_USER">Desarrollador</option>
-                <option value="ADMIN">Administrador</option>
-                <option value="ESTUDIANTE">Estudiante</option>
-                <option value="PROFESOR">Entrenador / Profesor</option>
-                <option value="MEDICO">Personal Médico</option>
-                <option value="ADMINISTRATIVO">Administrativo</option>
               </select>
             </div>
-            <div class="col-md-8">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Vincular a Persona <span class="text-muted small">(opcional)</span></label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="e-persona-search" placeholder="Buscar por nombre o ID..." autocomplete="off">
+                <input type="hidden" id="e-persona-id" name="persona_id">
+                <button class="btn btn-outline-secondary d-none" type="button" id="btn-desvincular-persona" title="Desvincular persona" onclick="desvincularPersona()">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Imagen <span class="text-muted small">(URL opcional)</span></label>
               <input type="url" class="form-control" id="e-imagen" name="imagen"
                 placeholder="https://example.com/avatar.jpg">
@@ -248,42 +256,11 @@
                 <th>Icono</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="tipos-tbody">
               <tr>
-                <td class="ps-4"><code>DEV_USER</code></td>
-                <td class="fw-semibold">Desarrollador</td>
-                <td class="text-muted small">Acceso total al sistema, configuración y depuración.</td>
-                <td><i class="bi bi-code-slash fs-5" style="color:var(--brand-color);"></i></td>
-              </tr>
-              <tr>
-                <td class="ps-4"><code>ADMIN</code></td>
-                <td class="fw-semibold">Administrador</td>
-                <td class="text-muted small">Gestión completa del club: personal, finanzas y reportes.</td>
-                <td><i class="bi bi-person-gear fs-5 text-primary"></i></td>
-              </tr>
-              <tr>
-                <td class="ps-4"><code>ESTUDIANTE</code></td>
-                <td class="fw-semibold">Estudiante</td>
-                <td class="text-muted small">Jugador o alumno inscrito. Acceso a su perfil y matrículas.</td>
-                <td><i class="bi bi-mortarboard-fill fs-5 text-info"></i></td>
-              </tr>
-              <tr>
-                <td class="ps-4"><code>PROFESOR</code></td>
-                <td class="fw-semibold">Entrenador / Profesor</td>
-                <td class="text-muted small">Responsable de asignaturas, horarios y asistencias.</td>
-                <td><i class="bi bi-person-badge-fill fs-5 text-success"></i></td>
-              </tr>
-              <tr>
-                <td class="ps-4"><code>MEDICO</code></td>
-                <td class="fw-semibold">Personal Médico</td>
-                <td class="text-muted small">Acceso a fichas médicas, historial clínico y actividades.</td>
-                <td><i class="bi bi-heart-pulse-fill fs-5 text-danger"></i></td>
-              </tr>
-              <tr>
-                <td class="ps-4"><code>ADMINISTRATIVO</code></td>
-                <td class="fw-semibold">Administrativo</td>
-                <td class="text-muted small">Gestión de pagos, facturas, matrículas y cuentas por cobrar.</td>
-                <td><i class="bi bi-briefcase-fill fs-5 text-warning"></i></td>
+                <td colspan="4" class="text-center text-muted py-5">
+                  <span class="spinner-border spinner-border-sm me-2"></span>Cargando tipos de usuario...
+                </td>
               </tr>
             </tbody>
           </table>
@@ -320,12 +297,6 @@
             <label class="form-label fw-semibold small mb-1">Tipo de usuario</label>
             <select class="form-select" id="permisos-tipo-select">
               <option value="">— Seleccionar tipo —</option>
-              <option value="DEV_USER">Desarrollador</option>
-              <option value="ADMIN">Administrador</option>
-              <option value="ESTUDIANTE">Estudiante</option>
-              <option value="PROFESOR">Entrenador / Profesor</option>
-              <option value="MEDICO">Personal Médico</option>
-              <option value="ADMINISTRATIVO">Administrativo</option>
             </select>
           </div>
         </div>
@@ -398,12 +369,6 @@
               <label class="form-label fw-semibold">Tipo de Usuario *</label>
               <select class="form-select" id="nb-tipo-user" name="tipo_user" required>
                 <option value="">— Seleccionar —</option>
-                <option value="DEV_USER">Desarrollador</option>
-                <option value="ADMIN">Administrador</option>
-                <option value="ESTUDIANTE">Estudiante</option>
-                <option value="PROFESOR">Entrenador / Profesor</option>
-                <option value="MEDICO">Personal Médico</option>
-                <option value="ADMINISTRATIVO">Administrativo</option>
               </select>
             </div>
             <div class="col-md-4 d-none">
@@ -439,6 +404,9 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Awesomplete JS -->
+<script src="https://cdn.jsdelivr.net/npm/awesomplete@1.1.5/awesomplete.min.js"></script>
+
 <script>
 /* ════════════════════════════════════════════════════════════
    HELPERS GLOBALES
@@ -501,8 +469,131 @@ var TIPO_LABELS = {
   'ADMINISTRATIVO': 'Administrativo',
 };
 
+/* ── Cargar y popular los tipos de usuario para los selects ── */
+function populateUserTypeSelects(userTypes) {
+  var selects = [
+    document.getElementById('c-tipo-user'),
+    document.getElementById('e-tipo-user')
+  ];
+
+  var optionsHtml = userTypes.map(function(type) {
+    return '<option value="' + esc(type.nemonico) + '">' + esc(type.nombre) + '</option>';
+  }).join('');
+
+  selects.forEach(function(select) {
+    if (select) {
+      select.innerHTML += optionsHtml;
+    }
+  });
+}
+
+function loadUserTypes() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'types', null, null)
+    .then(function(data) {
+      populateUserTypeSelects(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      console.error("Error al cargar los tipos de usuario:", err);
+    });
+}
+
+/* ── Cargar y popular los tipos de usuario para los selects de PERMISOS ── */
+function populatePermissionSelects(userTypes) {
+  var selects = [
+    document.getElementById('permisos-tipo-select'),
+    document.getElementById('nb-tipo-user')
+  ];
+
+  var optionsHtml = userTypes.map(function(type) {
+    return '<option value="' + esc(type.nemonico) + '">' + esc(type.nombre) + '</option>';
+  }).join('');
+
+  selects.forEach(function(select) {
+    if (select) {
+      // Limpiar opciones viejas, excepto la primera
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+      select.innerHTML += optionsHtml;
+    }
+  });
+}
+
+function loadPermissionTypes() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'permission-types', null, null)
+    .then(function(data) {
+      populatePermissionSelects(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      console.error("Error al cargar los tipos de usuario para permisos:", err);
+    });
+}
+
 function tipoLabel(t) {
   return TIPO_LABELS[t] || t || '—';
+}
+
+/* ════════════════════════════════════════════════════════════
+   TAB 2: TIPOS DE USUARIO
+════════════════════════════════════════════════════════════ */
+
+function loadAllUserTypes() {
+  var tbody = document.getElementById('tipos-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'all-types', null, null)
+    .then(function(data) {
+      var items = Array.isArray(data) ? data : [];
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-5"><i class="bi bi-shield-exclamation fs-2 d-block mb-2 opacity-25"></i>No se encontraron tipos de usuario.</td></tr>';
+        return;
+      }
+
+      var iconMap = {
+        'DEV_USER':       { icon: 'code-slash',        color: 'var(--brand-color)' },
+        'ADMIN':          { icon: 'person-gear',       color: 'var(--bs-primary)' },
+        'ADMIN_USER':     { icon: 'person-gear',       color: 'var(--bs-primary)' },
+        'ESTUDIANTE':     { icon: 'mortarboard-fill',  color: 'var(--bs-info)' },
+        'PROFESOR':       { icon: 'person-badge-fill', color: 'var(--bs-success)' },
+        'MEDICO':         { icon: 'heart-pulse-fill',  color: 'var(--bs-danger)' },
+        'ADMINISTRATIVO': { icon: 'briefcase-fill',    color: 'var(--bs-warning)' },
+        'INACTIVO':       { icon: 'slash-circle',      color: 'var(--app-text-muted)' },
+      };
+
+      tbody.innerHTML = items.map(function(t) {
+        var nemonico = t.nemonico || '';
+        var iconInfo = iconMap[nemonico] || { icon: 'bi-shield-shaded', color: 'var(--app-text-soft)' };
+        // Usar el icono del mapa local, ignorando el valor de la base de datos por ahora.
+        var iconName = (iconInfo.icon || '').trim();
+        var iconColor = iconInfo.color;
+        
+        var finalIconClass;
+        if (!iconName) {
+          finalIconClass = 'bi bi-circle';
+        } else if (iconName.includes(' ')) { // Handles 'bi bi-x', 'fas fa-home'
+          finalIconClass = iconName;
+        } else if (iconName.startsWith('bi-')) { // Handles 'bi-x'
+          finalIconClass = 'bi ' + iconName;
+        } else if (iconName.startsWith('fa-')) { // Handles 'fa-home'
+          finalIconClass = 'fa ' + iconName;
+        } else { // Assumes a bare name like 'house-fill' should be a Bootstrap Icon
+          finalIconClass = 'bi bi-' + iconName;
+        }
+
+        var iconHtml = '<i class="' + esc(finalIconClass) + ' fs-5" style="color:' + esc(iconColor) + ';"></i>';
+        
+        return '<tr>' +
+          '<td class="ps-4"><code>' + esc(nemonico) + '</code></td>' +
+          '<td class="fw-semibold">' + esc(t.nombre) + '</td>' +
+          '<td class="text-muted small">' + esc(t.descripcion || '—') + '</td>' +
+          '<td>' + iconHtml + '</td>' +
+        '</tr>';
+      }).join('');
+    })
+    .catch(function(err) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-5"><i class="bi bi-exclamation-circle me-2"></i>Error al cargar los tipos de usuario.</td></tr>';
+      console.error("Error al cargar todos los tipos de usuario:", err);
+    });
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -510,33 +601,28 @@ function tipoLabel(t) {
 ════════════════════════════════════════════════════════════ */
 
 /* ── Estado ── */
-var allUsuarios   = [];   // cache de todos los usuarios cargados
 var searchTerm    = '';
-var apiListFailed = false;
-
-/* ── Fallback estático mientras la API no esté lista ── */
-var STATIC_USUARIOS = [
-  { id: 1, username: 'csoberon', type: 'DEV_USER', estado: 1, image: '' },
-];
 
 /* ── Cargar usuarios via API ── */
-function loadUsuarios() {
+function loadUsuarios(q) {
+  q = q || '';
   document.getElementById('usuarios-tbody').innerHTML =
     '<tr><td colspan="5" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
-  document.getElementById('usuarios-info').textContent = 'Cargando usuarios...';
+  document.getElementById('usuarios-info').textContent = q ? 'Buscando "' + esc(q) + '"...' : 'Cargando usuarios recientes...';
+  document.getElementById('user-search-spinner').classList.remove('d-none');
 
-  Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'list', null, null)
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'list', null, { q: q })
     .then(function(data) {
-      apiListFailed = false;
-      allUsuarios = Array.isArray(data) ? data : [];
-      renderUsuariosTable(allUsuarios);
+      renderUsuariosTable(Array.isArray(data) ? data : []);
     })
-    .catch(function() {
-      apiListFailed = true;
-      allUsuarios = STATIC_USUARIOS.slice();
-      renderUsuariosTable(allUsuarios);
+    .catch(function(err) {
       document.getElementById('usuarios-info').textContent =
-        'API de listado en desarrollo — mostrando datos locales.';
+        'Error al cargar usuarios: ' + (err.message || 'Error desconocido');
+      document.getElementById('usuarios-tbody').innerHTML =
+        '<tr><td colspan="5" class="text-center text-danger py-4"><i class="bi bi-exclamation-circle me-2"></i>Error al cargar.</td></tr>';
+    })
+    .finally(function() {
+      document.getElementById('user-search-spinner').classList.add('d-none');
     });
 }
 
@@ -551,43 +637,43 @@ function renderUsuariosTable(items) {
       '<i class="bi bi-person-x fs-2 d-block mb-2 opacity-25"></i>' +
       'No se encontraron usuarios.' +
       '</td></tr>';
-    if (info && !apiListFailed) info.textContent = '0 usuarios encontrados.';
-    // Mostrar formulario crear cuando búsqueda no da resultados
-    if (searchTerm.length >= 1) {
-      showCrearForm(searchTerm);
-    }
+    if (info) info.textContent = '0 usuarios encontrados.';
     return;
   }
 
-  // Ocultar form crear si había resultados
-  if (searchTerm.length >= 1) {
-    hideCrearForm();
+  if (info) {
+    if (searchTerm) {
+      info.textContent = items.length + ' resultado(s) para "' + esc(searchTerm) + '".';
+    } else {
+      info.textContent = 'Mostrando ' + items.length + ' usuarios más recientes.';
+    }
   }
-
-  if (info && !apiListFailed) info.textContent = items.length + ' usuario(s) encontrado(s).';
 
   tbody.innerHTML = items.map(function(u) {
     var estadoBadge = parseInt(u.estado) !== 0
       ? '<span class="badge bg-success rounded-pill">Activo</span>'
       : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
-    var avatarLetter = (u.username || 'U').charAt(0).toUpperCase();
+    var nombrePersona = u.nombre_completo || '— Sin persona vinculada —';
+    var avatarLetter = (u.nombre_completo || u.username || 'U').charAt(0).toUpperCase();
+    var isDevUser = u.type === 'DEV_USER';
     return '<tr>' +
       '<td class="ps-4"><code>#' + esc(u.id) + '</code></td>' +
       '<td>' +
-        '<div class="d-flex align-items-center gap-2">' +
-          '<div class="avatar-circle flex-shrink-0" style="width:34px;height:34px;font-size:.85rem;">' + esc(avatarLetter) + '</div>' +
-          '<span class="fw-semibold">' + esc(u.username) + '</span>' +
+        '<div class="d-flex align-items-center gap-3">' +
+          '<div class="avatar-circle flex-shrink-0" style="width:38px;height:38px;font-size:.9rem;">' + esc(avatarLetter) + '</div>' +
+          '<div>' +
+            '<div class="fw-semibold">' + esc(u.username) + '</div>' +
+            '<div class="text-muted small">' + esc(nombrePersona) + '</div>' +
+          '</div>' +
         '</div>' +
       '</td>' +
       '<td><span class="badge rounded-pill" style="background:var(--app-surface-soft);color:var(--app-text-soft);border:1px solid var(--app-border);">' + esc(tipoLabel(u.type)) + '</span></td>' +
       '<td>' + estadoBadge + '</td>' +
       '<td class="text-end pe-3">' +
         '<div class="d-flex gap-1 justify-content-end">' +
-          '<button type="button" class="btn btn-sm btn-outline-primary" ' +
-            'onclick="openEditarUsuario(' + u.id + ',\'' + esc(u.username) + '\',\'' + esc(u.type) + '\',\'' + esc(u.image || '') + '\')">' +
+          '<button type="button" class="btn btn-sm btn-outline-primary" ' + (isDevUser ? 'disabled title="No se puede editar un desarrollador"' : 'onclick="openEditarUsuario(' + u.id + ',\'' + esc(u.username) + '\',\'' + esc(u.type) + '\',\'' + esc(u.image || '') + '\',' + (u.persona_id || 'null') + ',\'' + esc(u.nombre_completo || '') + '\')"') + '>' +
             '<i class="bi bi-pencil me-1"></i>Editar</button>' +
-          '<button type="button" class="btn btn-sm btn-outline-danger" ' +
-            'onclick="deshabilitarUsuario(' + u.id + ',\'' + esc(u.username) + '\',' + (parseInt(u.estado) !== 0 ? 1 : 0) + ')">' +
+          '<button type="button" class="btn btn-sm btn-outline-danger" ' + (isDevUser ? 'disabled title="No se puede deshabilitar un desarrollador"' : 'onclick="deshabilitarUsuario(' + u.id + ',\'' + esc(u.username) + '\',' + (parseInt(u.estado) !== 0 ? 1 : 0) + ')"') + '>' +
             (parseInt(u.estado) !== 0
               ? '<i class="bi bi-slash-circle me-1"></i>Deshabilitar'
               : '<i class="bi bi-check-circle me-1"></i>Habilitar') +
@@ -601,20 +687,8 @@ function renderUsuariosTable(items) {
 /* ── Búsqueda con debounce ── */
 var doUserSearch = debounce(function(q) {
   searchTerm = q;
-  if (q.length === 0) {
-    renderUsuariosTable(allUsuarios);
-    hideCrearForm();
-    document.getElementById('usuarios-info').textContent = allUsuarios.length + ' usuario(s) registrado(s).';
-    return;
-  }
-
-  document.getElementById('user-search-spinner').classList.remove('d-none');
-  var filtered = allUsuarios.filter(function(u) {
-    return (u.username || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
-  });
-  document.getElementById('user-search-spinner').classList.add('d-none');
-  renderUsuariosTable(filtered);
-}, 350);
+  loadUsuarios(q);
+}, 400);
 
 /* ── Formulario crear: mostrar / ocultar ── */
 function showCrearForm(prefillUsername) {
@@ -633,11 +707,24 @@ function hideCrearForm() {
 }
 
 /* ── Formulario editar: mostrar / ocultar ── */
-function openEditarUsuario(id, username, tipo, imagen) {
+function openEditarUsuario(id, username, tipo, imagen, persona_id, nombre_completo) {
+  if (tipo === 'DEV_USER') {
+    showToast('No se permite editar usuarios de tipo Desarrollador.', 'warning');
+    return;
+  }
+  hideCrearForm();
   document.getElementById('e-user-id').value    = id;
   document.getElementById('e-username').value   = username || '';
   document.getElementById('e-password').value   = '';
   document.getElementById('e-imagen').value     = imagen || '';
+  document.getElementById('e-persona-id').value = persona_id || '';
+  document.getElementById('e-persona-search').value = nombre_completo || '';
+
+  var btnDesvincular = document.getElementById('btn-desvincular-persona');
+  if (btnDesvincular) {
+    btnDesvincular.classList.toggle('d-none', !persona_id);
+  }
+
   // Tipo de usuario select
   var sel = document.getElementById('e-tipo-user');
   for (var i = 0; i < sel.options.length; i++) {
@@ -652,6 +739,17 @@ function openEditarUsuario(id, username, tipo, imagen) {
 function hideEditarForm() {
   document.getElementById('form-editar-usuario-card').classList.add('d-none');
   document.getElementById('form-editar-usuario').reset();
+}
+
+/* ── Desvincular persona del formulario de edición ── */
+function desvincularPersona() {
+  document.getElementById('e-persona-search').value = '';
+  document.getElementById('e-persona-id').value = '';
+  document.getElementById('e-persona-search').focus();
+  var btn = document.getElementById('btn-desvincular-persona');
+  if (btn) {
+    btn.classList.add('d-none');
+  }
 }
 
 /* ── Deshabilitar / habilitar usuario ── */
@@ -682,6 +780,7 @@ document.getElementById('form-crear-usuario').addEventListener('submit', functio
   var password  = document.getElementById('c-password').value;
   var tipo_user = document.getElementById('c-tipo-user').value;
   var imagen    = document.getElementById('c-imagen').value.trim();
+  var persona_id = document.getElementById('c-persona-id').value;
 
   if (!username || !password || !tipo_user) {
     showToast('Completa los campos requeridos.', 'warning');
@@ -691,6 +790,7 @@ document.getElementById('form-crear-usuario').addEventListener('submit', functio
   }
 
   var body = { username: username, password: password, tipo_user: tipo_user };
+  if (persona_id) body.persona_id = persona_id;
   if (imagen) body.imagen = imagen;
 
   Cuspide.api.call('POST', CONFIG.ENDPOINTS.usuarios, 'save', body, null)
@@ -722,6 +822,7 @@ document.getElementById('form-editar-usuario').addEventListener('submit', functi
   var password  = document.getElementById('e-password').value;
   var tipo_user = document.getElementById('e-tipo-user').value;
   var imagen    = document.getElementById('e-imagen').value.trim();
+  var persona_id = document.getElementById('e-persona-id').value;
 
   if (!username || !tipo_user) {
     showToast('Username y Tipo de Usuario son requeridos.', 'warning');
@@ -733,6 +834,7 @@ document.getElementById('form-editar-usuario').addEventListener('submit', functi
   var body = { username: username, tipo_user: tipo_user };
   if (password) body.password = password;
   if (imagen)   body.imagen   = imagen;
+  if (persona_id) body.persona_id = persona_id;
 
   Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'save', body, { id: id })
     .then(function() {
@@ -766,13 +868,55 @@ document.getElementById('usuario-search').addEventListener('input', function() {
 document.getElementById('btn-limpiar-usuarios').addEventListener('click', function() {
   document.getElementById('usuario-search').value = '';
   searchTerm = '';
-  renderUsuariosTable(allUsuarios);
+  loadUsuarios('');
   hideCrearForm();
   hideEditarForm();
-  document.getElementById('usuarios-info').textContent = allUsuarios.length + ' usuario(s) registrado(s).';
   document.getElementById('usuario-search').focus();
 });
 
+/* ── Autocompletado de Personas ── */
+function setupPersonaAutocomplete(inputId, hiddenId) {
+  var input = document.getElementById(inputId);
+  var hidden = document.getElementById(hiddenId);
+  if (!input) return;
+
+  var awesomplete = new Awesomplete(input, {
+    minChars: 2,
+    list: [],
+    data: function(item, input) {
+      return {
+        label: item.primer_nombre + ' ' + item.primer_apellido + ' (' + item.identificacion + ')',
+        value: item.id
+      };
+    },
+    replace: function(suggestion) {
+      this.input.value = suggestion.label;
+    }
+  });
+
+  input.addEventListener('awesomplete-selectcomplete', function(e) {
+    hidden.value = e.text.value;
+  });
+
+  input.addEventListener('input', debounce(function() {
+    var q = input.value.trim();
+    if (q.length < 2) {
+      awesomplete.list = [];
+      return;
+    }
+    Cuspide.api.call('GET', CONFIG.ENDPOINTS.usuarios, 'search-personas', null, { q: q })
+      .then(function(data) {
+        awesomplete.list = data || [];
+      });
+  }, 400));
+
+  // Limpiar hidden input si el texto se borra
+  input.addEventListener('change', function() {
+    if (input.value === '') {
+      hidden.value = '';
+    }
+  });
+}
 
 /* ════════════════════════════════════════════════════════════
    TAB 3: PERMISOS DE MENÚ
@@ -825,7 +969,7 @@ function renderPermisosTable(items, tipo) {
   }
 
   tbody.innerHTML = items.map(function(b) {
-    var checked = parseInt(b.estado) !== 0;
+    var checked = parseInt(b.estado) === 1;
     var iconEl  = b.icono
       ? '<i class="bi ' + esc(b.icono) + ' fs-5"></i>'
       : '<span class="text-muted small">—</span>';
@@ -838,17 +982,17 @@ function renderPermisosTable(items, tipo) {
       '<td>' +
         '<div class="form-check form-switch mb-0">' +
           '<input class="form-check-input" type="checkbox" role="switch" ' +
-            'id="toggle-btn-' + esc(b.id) + '" ' +
+            'id="toggle-permiso-btn-' + esc(b.id) + '" ' +
             (checked ? 'checked' : '') + ' ' +
-            'onchange="toggleBoton(' + b.id + ', this.checked)">' +
-          '<label class="form-check-label small" for="toggle-btn-' + esc(b.id) + '">' +
+            'onchange="togglePermisoBoton(' + b.id + ', this.checked)">' +
+          '<label class="form-check-label small" for="toggle-permiso-btn-' + esc(b.id) + '">' +
             (checked ? 'Activo' : 'Inactivo') +
           '</label>' +
         '</div>' +
       '</td>' +
       '<td class="text-end pe-3">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger" ' +
-          'onclick="toggleBoton(' + b.id + ', false, true)">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger" title="Deshabilitar botón globalmente" ' +
+          'onclick="softDeleteBoton(' + b.id + ', \'' + esc(b.nombre) + '\')">' +
           '<i class="bi bi-trash"></i>' +
         '</button>' +
       '</td>' +
@@ -856,23 +1000,50 @@ function renderPermisosTable(items, tipo) {
   }).join('');
 }
 
-/* ── Toggle estado de botón ── */
-function toggleBoton(id, estadoActivo, forceOff) {
-  var estado = forceOff ? 0 : (estadoActivo ? 1 : 0);
-  var label  = document.querySelector('label[for="toggle-btn-' + id + '"]');
+/* ── Toggle permiso de botón para un tipo de usuario ── */
+function togglePermisoBoton(buttonId, isChecked) {
+  var estado = isChecked ? 1 : 0;
+  var label  = document.querySelector('label[for="toggle-permiso-btn-' + buttonId + '"]');
 
-  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'button', { estado: estado }, { id: id })
+  var body = {
+    button_id: buttonId,
+    tipo_user: currentPermisosTipo,
+    institucion_id: institucionId,
+    estado: estado
+  };
+
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'button-permission', body, null)
     .then(function() {
-      showToast('Botón ' + (estado ? 'activado' : 'desactivado') + ' correctamente.', 'success');
+      showToast('Permiso ' + (estado ? 'activado' : 'desactivado') + ' correctamente.', 'success');
       if (label) label.textContent = estado ? 'Activo' : 'Inactivo';
-      if (currentPermisosTipo) loadPermisos(currentPermisosTipo);
     })
     .catch(function(err) {
-      showToast(err.message || 'Error al actualizar el botón.', 'danger');
+      showToast(err.message || 'Error al actualizar el permiso.', 'danger');
       // Revertir el toggle visual
-      var inp = document.getElementById('toggle-btn-' + id);
-      if (inp) inp.checked = !estadoActivo;
-      if (currentPermisosTipo) loadPermisos(currentPermisosTipo);
+      var inp = document.getElementById('toggle-permiso-btn-' + buttonId);
+      if (inp) inp.checked = !isChecked;
+      if (label) label.textContent = !isChecked ? 'Activo' : 'Inactivo';
+    });
+}
+
+/* ── Deshabilitar un botón globalmente (soft delete) ── */
+async function softDeleteBoton(buttonId, buttonName) {
+  var r = await swConfirm(
+    'Deshabilitar Botón',
+    '¿Estás seguro de deshabilitar el botón "' + buttonName + '"? Esta acción lo ocultará para TODOS los tipos de usuario.',
+    'Sí, deshabilitar'
+  );
+  if (!r.isConfirmed) return;
+
+  Cuspide.api.call('DELETE', CONFIG.ENDPOINTS.usuarios, 'button', null, { id: buttonId })
+    .then(function() {
+      showToast('Botón "' + buttonName + '" deshabilitado correctamente.', 'success');
+      if (currentPermisosTipo) {
+        loadPermisos(currentPermisosTipo); // Recargar la lista
+      }
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al deshabilitar el botón.', 'danger');
     });
 }
 
@@ -962,11 +1133,25 @@ document.getElementById('tab-permisos-btn').addEventListener('click', function()
 ════════════════════════════════════════════════════════════ */
 function init() {
   loadUsuarios();
+  loadUserTypes();
+  loadPermissionTypes();
+  setupPersonaAutocomplete('c-persona-search', 'c-persona-id');
+  setupPersonaAutocomplete('e-persona-search', 'e-persona-id');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   checkAuth();
   init();
+
+  var tiposTabBtn = document.getElementById('tab-tipos-btn');
+  if (tiposTabBtn) {
+    tiposTabBtn.addEventListener('shown.bs.tab', function () {
+      if (!document.getElementById('tipos-tbody').dataset.loaded) {
+        loadAllUserTypes();
+        document.getElementById('tipos-tbody').dataset.loaded = 'true';
+      }
+    });
+  }
 });
 </script>
 {% endblock %}
