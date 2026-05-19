@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Services;
@@ -76,7 +77,7 @@ class InstitucionServices implements InstitucionServiceInterface
             'razon_social' => $inst->getRazonSocial(),
             'nombre'       => $inst->getNombre(),
             'logotipo'     => $inst->getLogotipo(),
-            'estado'       => (int)$inst->getEstado(),
+            'estado'       => (int)$inst->getEstado()?->getId(),
         ];
     }
 
@@ -94,7 +95,7 @@ class InstitucionServices implements InstitucionServiceInterface
                 'razon_social' => $inst->getRazonSocial(),
                 'nombre'       => $inst->getNombre(),
                 'logotipo'     => $inst->getLogotipo(),
-                'estado'       => (int)$inst->getEstado(),
+                'estado'       => (int)$inst->getEstado()?->getId(),
             ];
         }
         return $result;
@@ -143,7 +144,7 @@ class InstitucionServices implements InstitucionServiceInterface
             'razon_social' => $saved->getRazonSocial(),
             'nombre'       => $saved->getNombre(),
             'logotipo'     => $saved->getLogotipo(),
-            'estado'       => (int)$saved->getEstado(),
+            'estado'       => (int)$saved->getEstado()?->getId(),
         ];
     }
 }
