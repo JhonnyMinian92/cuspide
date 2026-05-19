@@ -18,15 +18,15 @@ class Persona
   private ?string $segundo_nombre;
   private string $primer_apellido;
   private ?string $segundo_apellido;
-  private int $nacionalidad;
-  private int $genero;
-  private int $etnia;
-  private string $fecha_nacimiento;
-  private int $ciudad;
-  private string $direccion;
-  private int $user;
+  private ?int $nacionalidad;
+  private ?int $genero;
+  private ?int $etnia;
+  private ?string $fecha_nacimiento;
+  private ?int $ciudad;
+  private ?string $direccion;
+  private ?int $user;
 
-  public function __construct(?int $id, string $identificacion, string $primer_nombre, ?string $segundo_nombre, string $primer_apellido, ?string $segundo_apellido, mixed $nacionalidad, mixed $genero, mixed $etnia, string $fecha_nacimiento, mixed $ciudad, string $direccion, mixed $user)
+  public function __construct(?int $id, string $identificacion, string $primer_nombre, ?string $segundo_nombre, string $primer_apellido, ?string $segundo_apellido, mixed $nacionalidad, mixed $genero, mixed $etnia, mixed $fecha_nacimiento, mixed $ciudad, mixed $direccion, mixed $user)
   {
     $this->id = $id;
     $this->identificacion = $identificacion;
@@ -37,9 +37,9 @@ class Persona
     $this->nacionalidad = $this->extractId($nacionalidad);
     $this->genero = $this->extractId($genero);
     $this->etnia = $this->extractId($etnia);
-    $this->fecha_nacimiento = $fecha_nacimiento;
+    $this->fecha_nacimiento = ($fecha_nacimiento !== null && $fecha_nacimiento !== '') ? (string)$fecha_nacimiento : null;
     $this->ciudad = $this->extractId($ciudad);
-    $this->direccion = $direccion;
+    $this->direccion = ($direccion !== null && $direccion !== '') ? (string)$direccion : null;
     $this->user = $this->extractId($user);
   }
 
@@ -75,37 +75,37 @@ class Persona
 
   public function getNacionalidad(): ?Nacionalidad
   {
-    return Nacionalidad::from($this->nacionalidad);
+    return $this->nacionalidad ? Nacionalidad::from($this->nacionalidad) : null;
   }
 
   public function getGenero(): ?Genero
   {
-    return Genero::from($this->genero);
+    return $this->genero ? Genero::from($this->genero) : null;
   }
 
   public function getEtnia(): ?Etnia
   {
-    return Etnia::from($this->etnia);
+    return $this->etnia ? Etnia::from($this->etnia) : null;
   }
 
-  public function getFechaNacimiento(): string
+  public function getFechaNacimiento(): ?string
   {
     return $this->fecha_nacimiento;
   }
 
   public function getCiudad(): ?Ciudad
   {
-    return Ciudad::from($this->ciudad);
+    return $this->ciudad ? Ciudad::from($this->ciudad) : null;
   }
 
-  public function getDireccion(): string
+  public function getDireccion(): ?string
   {
     return $this->direccion;
   }
 
   public function getUser(): ?User
   {
-    return User::from($this->user);
+    return $this->user ? User::from($this->user) : null;
   }
 
   public function setId(?int $id): void
@@ -153,9 +153,9 @@ class Persona
     $this->etnia = $this->extractId($etnia);
   }
 
-  public function setFechaNacimiento(string $fecha_nacimiento): void
+  public function setFechaNacimiento(mixed $fecha_nacimiento): void
   {
-    $this->fecha_nacimiento = $fecha_nacimiento;
+    $this->fecha_nacimiento = ($fecha_nacimiento !== null && $fecha_nacimiento !== '') ? (string)$fecha_nacimiento : null;
   }
 
   public function setCiudad(mixed $ciudad): void
@@ -163,9 +163,9 @@ class Persona
     $this->ciudad = $this->extractId($ciudad);
   }
 
-  public function setDireccion(string $direccion): void
+  public function setDireccion(mixed $direccion): void
   {
-    $this->direccion = $direccion;
+    $this->direccion = ($direccion !== null && $direccion !== '') ? (string)$direccion : null;
   }
 
   public function setUser(mixed $user): void
@@ -173,24 +173,32 @@ class Persona
     $this->user = $this->extractId($user);
   }
 
-  private function extractId(mixed $value): int
+  private function extractId(mixed $value): ?int
   {
-    if (is_object($value) && method_exists($value, 'getId')) {
-      return $value->getId();
+    if ($value === null || $value === '' || $value === '0') {
+      return null;
     }
-    return $value;
+    if (is_object($value) && method_exists($value, 'getId')) {
+      $id = $value->getId();
+      return ($id !== null && (int)$id > 0) ? (int)$id : null;
+    }
+    $int = (int)$value;
+    return $int > 0 ? $int : null;
   }
 
   public static function from($id): ?self
   {
+    if ($id === null || $id === 0 || $id === '') {
+      return null;
+    }
     try {
       $repositorio = new \Repositories\PersonaRepository();
-      $persona = $repositorio->findById($id);
+      $persona = $repositorio->findById((int)$id);
       if ($persona) {
         return $persona;
       }
     } catch (\Exception $e) {
     }
-    return new self($id, '', '', '', '', '', 0, 0, 0, '', '', '', 0);
+    return null;
   }
 }

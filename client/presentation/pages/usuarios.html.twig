@@ -461,12 +461,12 @@ var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitu
    CATÁLOGOS LOCALES
 ════════════════════════════════════════════════════════════ */
 var TIPO_LABELS = {
-  'DEV_USER':       'Desarrollador',
-  'ADMIN':          'Administrador',
-  'ESTUDIANTE':     'Estudiante',
-  'PROFESOR':       'Entrenador / Profesor',
-  'MEDICO':         'Personal Médico',
-  'ADMINISTRATIVO': 'Administrativo',
+  'TIPO_DEV':       'Desarrollador',
+  'TIPO_ADMIN':          'Administrador',
+  'TIPO_EST':     'Estudiante',
+  'TIPO_PROF':       'Entrenador / Profesor',
+  'TIPO_MED':         'Personal Médico',
+  'TIPO_ADM_OPER': 'Administrativo',
 };
 
 /* ── Cargar y popular los tipos de usuario para los selects ── */
@@ -555,13 +555,13 @@ function loadAllUserTypes() {
       }
 
       var iconMap = {
-        'DEV_USER':       { icon: 'code-slash',        color: 'var(--brand-color)' },
-        'ADMIN':          { icon: 'person-gear',       color: 'var(--bs-primary)' },
-        'ADMIN_USER':     { icon: 'person-gear',       color: 'var(--bs-primary)' },
-        'ESTUDIANTE':     { icon: 'mortarboard-fill',  color: 'var(--bs-info)' },
-        'PROFESOR':       { icon: 'person-badge-fill', color: 'var(--bs-success)' },
-        'MEDICO':         { icon: 'heart-pulse-fill',  color: 'var(--bs-danger)' },
-        'ADMINISTRATIVO': { icon: 'briefcase-fill',    color: 'var(--bs-warning)' },
+        'TIPO_DEV':       { icon: 'code-slash',        color: 'var(--brand-color)' },
+        'TIPO_ADMIN':          { icon: 'person-gear',       color: 'var(--bs-primary)' },
+        'TIPO_ADMIN':     { icon: 'person-gear',       color: 'var(--bs-primary)' },
+        'TIPO_EST':     { icon: 'mortarboard-fill',  color: 'var(--bs-info)' },
+        'TIPO_PROF':       { icon: 'person-badge-fill', color: 'var(--bs-success)' },
+        'TIPO_MED':         { icon: 'heart-pulse-fill',  color: 'var(--bs-danger)' },
+        'TIPO_ADM_OPER': { icon: 'briefcase-fill',    color: 'var(--bs-warning)' },
         'INACTIVO':       { icon: 'slash-circle',      color: 'var(--app-text-muted)' },
       };
 
@@ -660,7 +660,7 @@ function renderUsuariosTable(items) {
       : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
     var nombrePersona = u.nombre_completo || '— Sin persona vinculada —';
     var avatarLetter = (u.nombre_completo || u.username || 'U').charAt(0).toUpperCase();
-    var isDevUser = u.type === 'DEV_USER';
+    var isDevUser = u.type === 'TIPO_DEV';
     return '<tr>' +
       '<td class="ps-4"><code>#' + esc(u.id) + '</code></td>' +
       '<td>' +
@@ -713,7 +713,7 @@ function hideCrearForm() {
 
 /* ── Formulario editar: mostrar / ocultar ── */
 function openEditarUsuario(id, username, tipo, imagen, persona_id, nombre_completo) {
-  if (tipo === 'DEV_USER') {
+  if (tipo === 'TIPO_DEV') {
     showToast('No se permite editar usuarios de tipo Desarrollador.', 'warning');
     return;
   }
@@ -942,7 +942,7 @@ function loadPermisos(tipo) {
 
   // Mostrar/ocultar form nuevo botón
   var formCard = document.getElementById('form-nuevo-boton-card');
-  if (currentUserType === 'DEV_USER') {
+  if (currentUserType === 'TIPO_DEV') {
     formCard.classList.remove('d-none');
   } else {
     formCard.classList.add('d-none');

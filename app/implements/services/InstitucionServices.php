@@ -196,7 +196,7 @@ class InstitucionServices implements InstitucionServiceInterface
             $adminPassword = '123456789';
             $hashedPassword = password_hash($adminPassword, PASSWORD_DEFAULT);
 
-            $stmt = $db->prepare("INSERT INTO users (username, password, type) VALUES (:username, :password, 'ADMIN_USER')");
+            $stmt = $db->prepare("INSERT INTO users (username, password, type) VALUES (:username, :password, 'TIPO_ADMIN')");
             $stmt->execute([':username' => $ruc, ':password' => $hashedPassword]);
             $userId = (int)$db->lastInsertId();
 
@@ -209,7 +209,7 @@ class InstitucionServices implements InstitucionServiceInterface
             $stmt->execute();
             $adminTipoPersonaId = $stmt->fetchColumn();
             if (!$adminTipoPersonaId) {
-                throw new \RuntimeException("No se encontró el 'tipo_persona' con nemónico 'ADMIN_USER' para asociar al usuario.");
+                throw new \RuntimeException("No se encontró el 'tipo_persona' con nemónico 'TIPO_ADMIN' para asociar al usuario.");
             }
 
             $stmt = $db->prepare("INSERT INTO persona_institucion (id_persona, id_institucion, tipo, estado) VALUES (:personaId, :instId, :tipo, 1)");

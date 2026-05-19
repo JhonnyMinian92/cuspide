@@ -3,7 +3,11 @@
 namespace Repositories;
 
 require_once __DIR__ . '/../conexion/Database.php';
+require_once __DIR__ . '/../entitys/Persona.php';
 require_once __DIR__ . '/../entitys/PersonaInstitucion.php';
+require_once __DIR__ . '/../entitys/Institucion.php';
+require_once __DIR__ . '/../entitys/TipoPersona.php';
+require_once __DIR__ . '/../entitys/Estado.php';
 
 use Core\Database;
 use Entitys\PersonaInstitucion;
@@ -54,6 +58,38 @@ class PersonaInstitucionRepository
     }
 
     return null;
+  }
+
+  public function findByPersonaAndInstitucion(int $personaId, int $institucionId): ?PersonaInstitucion
+  {
+    $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id_persona = :personaId AND id_institucion = :institucionId LIMIT 1');
+    $stmt->execute([':personaId' => $personaId, ':institucionId' => $institucionId]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($result) {
+      return new PersonaInstitucion(
+        $result['id'],
+        $result['id_persona'],
+        $result['id_institucion'],
+        $result['tipo'],
+        $result['estado']
+      );
+    }
+    return null;
+  }
+
+  public function saveOrUpdate(int $personaId, int $institucionId, int $tipoPersonaId, int $estado): PersonaInstitucion
+  {
+    $existingId = $this->findByPersonaAndInstitucion($personaId, $institucionId)?->getId();
+
+    $personaInstitucion = new PersonaInstitucion(
+      $existingId,
+      $personaId,
+      $institucionId,
+      $tipoPersonaId,
+      $estado
+    );
+    return $this->save($personaInstitucion);
   }
 
   public function findById($id): ?PersonaInstitucion

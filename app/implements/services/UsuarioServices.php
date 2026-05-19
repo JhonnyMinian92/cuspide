@@ -211,7 +211,7 @@ class UsuarioServices implements UsuarioServiceInterface
     {
         $db = Database::getInstance();
         $stmt = $db->prepare(
-            "SELECT nemonico, nombre FROM type_users WHERE nemonico != 'DEV_USER' ORDER BY nombre ASC"
+            "SELECT nemonico, nombre FROM type_users WHERE nemonico != 'TIPO_DEV' ORDER BY nombre ASC"
         );
         $stmt->execute();
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -243,8 +243,8 @@ class UsuarioServices implements UsuarioServiceInterface
 
         $sql = "SELECT nemonico, nombre FROM type_users";
 
-        if ($currentUserNemonico !== 'DEV_USER') {
-            $sql .= " WHERE nemonico != 'DEV_USER'";
+        if ($currentUserNemonico !== 'TIPO_DEV') {
+            $sql .= " WHERE nemonico != 'TIPO_DEV'";
         }
 
         $sql .= " ORDER BY nombre ASC";
@@ -390,7 +390,7 @@ class UsuarioServices implements UsuarioServiceInterface
             if (!$existing) {
                 throw new \RuntimeException('Usuario no encontrado para actualizar.', 404);
             }
-            if ($existing->getType() === 'DEV_USER') {
+            if ($existing->getType() === 'TIPO_DEV') {
                 throw new \RuntimeException('No se permite modificar usuarios de tipo Desarrollador.', 403);
             }
 
@@ -421,7 +421,7 @@ class UsuarioServices implements UsuarioServiceInterface
                 throw new \RuntimeException('El nombre de usuario ya existe.', 400);
             }
 
-            $tipoUser = $data['tipo_user'] ?? $data['type'] ?? 'ESTUDIANTE';
+            $tipoUser = $data['tipo_user'] ?? $data['type'] ?? 'TIPO_EST';
             $imagen   = $data['imagen']    ?? $data['image'] ?? null;
 
             $user  = new User(null, $username, $data['password'], $tipoUser, $imagen);
@@ -469,13 +469,11 @@ class UsuarioServices implements UsuarioServiceInterface
         if (!$existing) {
             throw new \RuntimeException('Usuario no encontrado.', 404);
         }
-        if ($existing->getType() === 'DEV_USER') {
+        if ($existing->getType() === 'TIPO_DEV') {
             throw new \RuntimeException('No se permite deshabilitar usuarios de tipo Desarrollador.', 403);
         }
 
-        // The users table has no estado column — disable by setting type = 'INACTIVO'
         $this->userRepo->disableById($id);
-
         return [
             'id'      => $id,
             'message' => 'Usuario desactivado correctamente.',

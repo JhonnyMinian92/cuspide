@@ -109,4 +109,22 @@ class UserRepository
     $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
     $stmt->execute();
   }
+
+  public function findByPersonaId(int $personaId): ?User
+  {
+    $stmt = $this->db->prepare("SELECT u.* FROM users u JOIN personas p ON u.id = p.user WHERE p.id = :personaId LIMIT 1");
+    $stmt->execute([':personaId' => $personaId]);
+    $data = $stmt->fetch();
+
+    if (!$data) return null;
+
+    // Assuming TypeUser can be constructed from nemonico string
+    return new User(
+      $data['id'],
+      $data['username'],
+      $data['password'],
+      $data['type'], // This is the nemonico string
+      $data['image'] ?? null
+    );
+  }
 }

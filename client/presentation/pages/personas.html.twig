@@ -307,11 +307,6 @@
                   <label class="form-label fw-semibold">Rol de Usuario</label>
                   <select class="form-select" id="p-tipo-user">
                     <option value="">— Seleccionar rol —</option>
-                    <option value="PROFESOR">Profesor / Entrenador</option>
-                    <option value="SECRETARIA">Secretaria</option>
-                    <option value="CONTADOR">Contador</option>
-                    <option value="MEDICO">Personal Médico</option>
-                    <option value="ADMINISTRADOR">Administrador</option>
                   </select>
                 </div>
               </div>
@@ -374,6 +369,7 @@ var catalogGeneros    = [];
 var catalogEtnias     = [];
 var catalogNacs       = [];
 var catalogCiudades   = [];
+var catalogTypeUsers  = [];
 var catalogTipos      = [];
 var institucionId     = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
 
@@ -383,15 +379,17 @@ var institucionId     = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentIns
 async function loadCatalogs() {
   try {
     var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'catalogs', null, null);
-    catalogGeneros  = data.generos        || [];
-    catalogEtnias   = data.etnias         || [];
-    catalogNacs     = data.nacionalidades || [];
-    catalogCiudades = data.ciudades       || [];
-    catalogTipos    = data.tipos_persona  || [];
+    catalogGeneros   = data.generos        || [];
+    catalogEtnias    = data.etnias         || [];
+    catalogNacs      = data.nacionalidades || [];
+    catalogCiudades  = data.ciudades       || [];
+    catalogTipos     = data.tipos_persona  || [];
+    catalogTypeUsers = data.type_users     || [];
 
-    populateSelect('p-genero',       catalogGeneros, 'Sin especificar');
-    populateSelect('p-etnia',        catalogEtnias,  'Sin especificar');
-    populateSelect('p-nacionalidad', catalogNacs,    'Sin especificar');
+    populateSelect('p-genero',       catalogGeneros,   'Sin especificar');
+    populateSelect('p-etnia',        catalogEtnias,    'Sin especificar');
+    populateSelect('p-nacionalidad', catalogNacs,      'Sin especificar');
+    populateSelect('p-tipo-user',    catalogTypeUsers, '— Seleccionar rol —', 'nemonico', 'nombre');
     // Filtrar "Estudiante" (ID 1) del selector de tipo de persona
     var employeeTypes = catalogTipos.filter(function(t) { return t.id != 1; });
     populateSelect('p-tipo-persona', employeeTypes,   'Seleccionar rol');
@@ -401,11 +399,12 @@ async function loadCatalogs() {
   }
 }
 
-function populateSelect(id, items, placeholder) {
+function populateSelect(id, items, placeholder, valueKey = 'id', textKey = 'nombre') {
   var sel = document.getElementById(id);
   if (!sel) return;
   sel.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
-    items.map(function(i) { return '<option value="' + esc(i.id) + '">' + esc(i.nombre) + '</option>'; }).join('');
+    items.map(function(i) { return '<option value="' + esc(i[valueKey]) + '">' + esc(i[textKey]) + '</option>'; }).join('');
+  sel.value = ''; // Reset selected value
 }
 
 function populateCiudadSelect(ciudades) {
