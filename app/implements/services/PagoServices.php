@@ -10,6 +10,7 @@ require_once __DIR__ . '/../persistence/repository/PagoDetalleRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
+require_once __DIR__ . '/../persistence/repository/FormaPagoRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Pago.php';
 require_once __DIR__ . '/../persistence/entitys/PagoDetalle.php';
 require_once __DIR__ . '/../persistence/conexion/Database.php';
@@ -22,6 +23,7 @@ use Repositories\PagoDetalleRepository;
 use Repositories\VentaRepository;
 use Repositories\PersonaRepository;
 use Repositories\PersonaInstitucionRepository;
+use Repositories\FormaPagoRepository;
 use Entitys\Pago;
 use Entitys\PagoDetalle;
 use RuntimeException;
@@ -34,6 +36,7 @@ final class PagoServices implements PagoServiceInterface
     private PagoDetalleRepository $pagoDetalleRepo;
     private VentaRepository       $ventaRepo;
     private PersonaRepository     $personaRepo;
+    private FormaPagoRepository   $formaPagoRepo;
 
     public function __construct()
     {
@@ -46,6 +49,7 @@ final class PagoServices implements PagoServiceInterface
         $this->pagoDetalleRepo = new PagoDetalleRepository();
         $this->ventaRepo       = new VentaRepository();
         $this->personaRepo     = new PersonaRepository();
+        $this->formaPagoRepo   = new FormaPagoRepository();
     }
 
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
@@ -58,7 +62,10 @@ final class PagoServices implements PagoServiceInterface
         return match (true) {
             $method === 'GET'  && $resource === 'pending'        => $this->fetchPendientes($queryParams, $userId),
             $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams),
+            $method === 'GET'  && $resource === 'formas'         => $this->fetchFormasPago(),
+            $method === 'GET'  && $resource === 'detail'         => $this->fetchDetalle($queryParams),
             $method === 'POST' && $resource === 'register'       => $this->registrarPago($userId),
+            $method === 'POST' && $resource === 'anular'         => $this->anularPago($userId),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
         };
     }
@@ -281,6 +288,157 @@ final class PagoServices implements PagoServiceInterface
         } catch (\Throwable $e) {
             $db->rollBack();
             throw new RuntimeException('Error al registrar pago: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchFormasPago
+    // -------------------------------------------------------------------------
+
+    private function fetchFormasPago(): array
+    {
+        $formas = $this->formaPagoRepo->findAll();
+        return array_map(fn($f) => [
+            'id'          => (int) $f->getId(),
+            'nombre'      => $f->getNombre(),
+            'nemonico'    => $f->getNemonico(),
+            'descripcion' => $f->getDescripcion(),
+        ], $formas);
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchDetalle
+    // -------------------------------------------------------------------------
+
+    private function fetchDetalle(array $queryParams): array
+    {
+        $pagoId = (int) ($queryParams['id'] ?? 0);
+        if ($pagoId <= 0) {
+            throw new RuntimeException('Debe proporcionar el id del pago.', 400);
+        }
+
+        $pago = $this->pagoRepo->findById($pagoId);
+        if ($pago === null) {
+            throw new RuntimeException('Pago no encontrado.', 404);
+        }
+
+        $detalles = $this->pagoDetalleRepo->findByPago($pagoId);
+        $db       = Database::getInstance();
+
+        $detallesData = array_map(function ($d) use ($db) {
+            $ventaNumero = null;
+            if ($d->getVenta() !== null) {
+                $stmt = $db->prepare('SELECT numero FROM ventas WHERE id = :id');
+                $stmt->execute([':id' => $d->getVenta()->getId()]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $ventaNumero = $row ? $row['numero'] : null;
+            }
+            return [
+                'id'             => (int) $d->getId(),
+                'venta_id'       => $d->getVenta() !== null ? (int) $d->getVenta()->getId() : null,
+                'venta_numero'   => $ventaNumero,
+                'cuota_id'       => $d->getCuotaMatricula() !== null ? (int) $d->getCuotaMatricula()->getId() : null,
+                'valor'          => (float) $d->getValor(),
+            ];
+        }, $detalles);
+
+        $formaNombre = null;
+        if ($pago->getFormaPago() !== null) {
+            $forma = $this->formaPagoRepo->findById((int) $pago->getFormaPago()->getId());
+            $formaNombre = $forma ? $forma->getNombre() : null;
+        }
+
+        $estadoNombre = match ((int) ($pago->getEstado()?->getId() ?? 1)) {
+            1 => 'ACTIVO',
+            4 => 'ANULADO',
+            default => 'OTRO',
+        };
+
+        return [
+            'id'          => (int) $pago->getId(),
+            'numero'      => $pago->getNumero(),
+            'fecha'       => $pago->getFecha(),
+            'monto'       => (float) $pago->getMonto(),
+            'referencia'  => $pago->getReferencia(),
+            'observacion' => $pago->getObservacion(),
+            'forma_pago'  => $formaNombre,
+            'estado'      => $estadoNombre,
+            'estado_id'   => (int) ($pago->getEstado()?->getId() ?? 1),
+            'detalles'    => $detallesData,
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // anularPago
+    // -------------------------------------------------------------------------
+
+    private function anularPago(int $userId): array
+    {
+        $body = json_decode((string) file_get_contents('php://input'), true);
+        if (!is_array($body)) {
+            throw new RuntimeException('Cuerpo de la solicitud inválido.', 400);
+        }
+
+        $pagoId = (int) ($body['pago_id'] ?? 0);
+        if ($pagoId <= 0) {
+            throw new RuntimeException('Debe proporcionar pago_id.', 400);
+        }
+
+        $pago = $this->pagoRepo->findById($pagoId);
+        if ($pago === null) {
+            throw new RuntimeException('Pago no encontrado.', 404);
+        }
+
+        $estadoId = (int) ($pago->getEstado()?->getId() ?? 0);
+        if ($estadoId === 4) {
+            throw new RuntimeException('Este pago ya está anulado.', 400);
+        }
+        if ($estadoId !== 1) {
+            throw new RuntimeException('Solo se pueden anular pagos en estado ACTIVO.', 400);
+        }
+
+        $db = Database::getInstance();
+
+        try {
+            $db->beginTransaction();
+
+            $detalles = $this->pagoDetalleRepo->findByPago($pagoId);
+
+            foreach ($detalles as $det) {
+                if ($det->getVenta() === null) {
+                    continue;
+                }
+                $ventaId = (int) $det->getVenta()->getId();
+                $valor   = (float) $det->getValor();
+
+                // Restore venta saldo
+                $stmt = $db->prepare('SELECT saldo, estado FROM ventas WHERE id = :id');
+                $stmt->execute([':id' => $ventaId]);
+                $ventaRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                if ($ventaRow) {
+                    $nuevoSaldo = (float) $ventaRow['saldo'] + $valor;
+                    // Reactivate venta if it was marked as paid (estado=2)
+                    $nuevoEstado = (int) $ventaRow['estado'] === 2 ? 1 : (int) $ventaRow['estado'];
+                    $stmt2 = $db->prepare('UPDATE ventas SET saldo = :saldo, estado = :estado WHERE id = :id');
+                    $stmt2->execute([':saldo' => $nuevoSaldo, ':estado' => $nuevoEstado, ':id' => $ventaId]);
+                }
+            }
+
+            // Mark pago as ANULADO (estado 4)
+            $pago->setEstado(4);
+            $this->pagoRepo->save($pago);
+
+            $db->commit();
+
+            return [
+                'numero'  => $pago->getNumero(),
+                'mensaje' => 'Pago ' . $pago->getNumero() . ' anulado correctamente. Saldos restaurados en las facturas correspondientes.',
+            ];
+
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw new RuntimeException('Error al anular pago: ' . $e->getMessage(), 500);
         }
     }
 

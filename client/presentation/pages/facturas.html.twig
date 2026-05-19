@@ -413,8 +413,9 @@ function loadDetalle(facturaId) {
 /* ────────────────────────────────────────────────
    ANULAR FACTURA
 ──────────────────────────────────────────────── */
-function anularFactura(id, numero) {
-  if (!confirm('¿Anular la factura ' + numero + '? Esta acción no se puede deshacer.')) return;
+async function anularFactura(id, numero) {
+  var r = await swConfirm('¿Anular factura ' + numero + '?', 'Esta acción no se puede deshacer.', 'Sí, anular');
+  if (!r.isConfirmed) return;
   Cuspide.api.call('PUT', CONFIG.ENDPOINTS.facturas, 'cancel', null, { id: id })
     .then(function() {
       showToast('Factura ' + numero + ' anulada correctamente.', 'success');

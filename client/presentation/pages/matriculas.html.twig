@@ -544,14 +544,16 @@ function toggleItemsRow(btn, id) {
 }
 
 /* ── Anular ── */
-function anularMatricula(id) {
-  if (!confirm('¿Anular esta matrícula? Esta acción no se puede deshacer.')) return;
+async function anularMatricula(id) {
+  var r = await swConfirm('¿Anular matrícula?', 'Esta acción no se puede deshacer.', 'Sí, anular');
+  if (!r.isConfirmed) return;
   apiPut(CONFIG.ENDPOINTS.matriculas, 'cancel', {}, { id: id })
     .then(function() { showToast('Matrícula anulada.', 'success'); loadMatriculas(); })
     .catch(function(err) { showToast(err.message || 'Error al anular.', 'danger'); });
 }
-function anularItem(id, tipo) {
-  if (!confirm('¿Anular este ítem ('+tipo+')?')) return;
+async function anularItem(id, tipo) {
+  var r = await swConfirm('¿Anular ítem?', 'Se anulará el ítem de tipo "' + tipo + '".', 'Sí, anular');
+  if (!r.isConfirmed) return;
   apiPut(CONFIG.ENDPOINTS.matriculas, 'removeitem', {}, { id: id, tipo: tipo })
     .then(function() { showToast('Ítem anulado.', 'success'); loadMatriculas(); })
     .catch(function(err) { showToast(err.message || 'Error al anular ítem.', 'danger'); });

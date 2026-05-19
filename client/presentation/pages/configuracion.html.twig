@@ -129,7 +129,7 @@
   </div>
 
   <!-- ===== SECCIÓN 4: Personalización de Botones ===== -->
-  <div class="col-12">
+  {# <div class="col-12">
     <div class="card chart-card">
       <div class="card-body p-4">
         <h6 class="fw-bold mb-2"><i class="bi bi-palette-fill me-2 text-primary"></i>🎨 Personalización de Botones Corporativos</h6>
@@ -168,7 +168,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </div> #}
 
 </div><!-- /row -->
 
@@ -258,8 +258,8 @@
    */
   async function loadPerfil() {
     try {
-      const data = await window.Cuspide.api.profile();
-      if (data && data.identificacion) {
+      const data = await window.Cuspide.api.users('find');
+      if (data) {
         document.getElementById('perfil-identificacion').value = data.identificacion || '—';
         document.getElementById('perfil-nombre').value    = data.primer_nombre   || '—';
         document.getElementById('perfil-apellido').value  = data.primer_apellido || '—';

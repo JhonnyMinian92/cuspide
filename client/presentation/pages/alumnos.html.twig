@@ -442,7 +442,7 @@ function renderTable(items, q) {
     return '<tr>' +
       '<td><code>' + esc(a.identificacion || '') + '</code></td>' +
       '<td>' + esc(a.nombre_completo || '') + '</td>' +
-      '<td><span class="badge bg-primary bg-opacity-10 text-primary">' + esc(a.tipo || 'Estudiante') + '</span></td>' +
+      '<td><span class="badge bg-primary">' + esc(a.tipo || 'Estudiante') + '</span></td>' +
       '<td>' + badge + '</td>' +
       '<td class="text-end">' +
         '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="verAlumno(' + a.id + ')">' +

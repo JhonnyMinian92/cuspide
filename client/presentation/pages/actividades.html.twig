@@ -581,8 +581,9 @@ function editarActividad(id) {
 }
 
 /* ── Desactivar actividad ── */
-function desactivarActividad(id) {
-  if (!confirm('¿Desactivar esta actividad?')) return;
+async function desactivarActividad(id) {
+  var r = await swConfirm('¿Desactivar actividad?', 'La actividad quedará inactiva.', 'Sí, desactivar');
+  if (!r.isConfirmed) return;
   apiCall('PUT', 'actividades', 'delete', null, { id: id })
     .then(function() {
       showToast('Actividad desactivada.', 'success');
@@ -916,8 +917,9 @@ function editarCategoria(id) {
   document.getElementById('form-cat-card').scrollIntoView({ behavior: 'smooth' });
 }
 
-function eliminarCategoria(id) {
-  if (!confirm('¿Está seguro de que desea eliminar esta categoría? Esta acción la marcará como inactiva.')) return;
+async function eliminarCategoria(id) {
+  var r = await swConfirm('¿Eliminar categoría?', 'Esta acción la marcará como inactiva.', 'Sí, eliminar');
+  if (!r.isConfirmed) return;
   apiCall('DELETE', 'categorias', 'delete', null, { id: id })
     .then(function() {
       showToast('Categoría eliminada.', 'success');

@@ -4,96 +4,319 @@
 {% block page_title %}Inventario{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-  <div class="col-12 col-xl-8">
-    <div class="card chart-card">
-      <div class="card-body p-4">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-          <div class="d-flex align-items-center gap-3">
-            <div>
-              <h6 class="fw-bold mb-1">Control de Inventario</h6>
-              <p class="text-muted small mb-0" id="inv-info">Cargando inventario...</p>
-            </div>
-            <a href="/productos" class="btn btn-sm btn-outline-primary" title="Ir al Catálogo de Productos">
-              <i class="bi bi-box-seam me-1"></i> Catálogo
-            </a>
-          </div>
-          <div class="input-group" style="max-width:340px;">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="search" class="form-control" id="inv-search" placeholder="Producto, código o categoría">
-          </div>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr><th>Código</th><th>Producto</th><th>Categoría</th><th class="text-end">Stock</th><th class="text-end">Mínimo</th><th>Alerta</th><th class="text-end">Acciones</th></tr>
-            </thead>
-            <tbody id="inventario-tbody">
-              <tr><td colspan="7" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+
+<!-- Cabecera -->
+<div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4">
+  <p class="text-muted small mb-0" id="inv-info">Cargando inventario...</p>
+  <div class="d-flex align-items-center gap-2">
+    <div class="input-group input-group-sm" style="max-width:280px;">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="search" class="form-control" id="inv-search" placeholder="Buscar producto o categoría...">
     </div>
-  </div>
-  <div class="col-12 col-xl-4">
-    <div class="card chart-card d-none" id="inv-form-card">
-      <div class="card-body p-4">
-        <h6 class="fw-bold mb-1">Ajustar Stock</h6>
-        <p class="text-muted small" id="inv-product-label">Seleccione un producto.</p>
-        <form id="inv-form">
-          <input type="hidden" id="inv-producto">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Movimiento</label>
-            <select class="form-select" id="inv-tipo">
-              <option value="ENTRADA">Entrada</option>
-              <option value="SALIDA">Salida</option>
-              <option value="AJUSTE">Ajuste exacto</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Cantidad</label>
-            <input type="number" min="1" step="1" class="form-control" id="inv-cantidad" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Referencia</label>
-            <input class="form-control" id="inv-referencia" placeholder="Compra, conteo, devolución...">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Observación</label>
-            <textarea class="form-control" id="inv-observacion" rows="3"></textarea>
-          </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-brand" type="submit"><i class="bi bi-check-lg me-1"></i>Guardar</button>
-            <button class="btn btn-outline-secondary" type="button" id="inv-cancel">Cancelar</button>
-          </div>
-        </form>
-      </div>
-    </div>
-    <div class="alert alert-info" id="inv-empty-form">Usa el botón ajustar de un producto para registrar entradas, salidas o conteos.</div>
+    <a href="/productos" class="btn btn-sm btn-outline-secondary" title="Ir al Catálogo">
+      <i class="bi bi-box-seam me-1"></i><span class="d-none d-sm-inline">Catálogo</span>
+    </a>
   </div>
 </div>
 
+<!-- Tabla de inventario -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-0">
+    <table class="table table-hover align-middle mb-0" style="min-width:unset;">
+      <thead class="table-light">
+        <tr>
+          <th style="padding-left:1.25rem;">Producto</th>
+          <th class="text-center" style="width:110px;">Stock</th>
+          <th class="text-center d-none d-md-table-cell" style="width:90px;">Mínimo</th>
+          <th class="text-center" style="width:100px;">Estado</th>
+          <th class="text-end" style="width:80px;padding-right:1.25rem;">Acción</th>
+        </tr>
+      </thead>
+      <tbody id="inventario-tbody">
+        <tr>
+          <td colspan="5" class="text-center text-muted py-5">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Ajuste de Stock — aparece debajo de la tabla al seleccionar un producto -->
+<div class="card chart-card d-none" id="inv-form-card">
+  <div class="card-body p-4">
+    <div class="d-flex align-items-start justify-content-between mb-3">
+      <div>
+        <h6 class="fw-bold mb-1"><i class="bi bi-pencil-square me-2" style="color:var(--brand-color);"></i>Ajustar Stock</h6>
+        <p class="text-muted small mb-0" id="inv-product-label">—</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="inv-cancel" title="Cerrar">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <form id="inv-form">
+      <input type="hidden" id="inv-producto">
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <label class="form-label fw-semibold">Tipo de movimiento *</label>
+          <div class="d-flex gap-2">
+            <input type="radio" name="inv-tipo-radio" value="ENTRADA" class="btn-check" id="tipo-entrada" checked>
+            <label class="btn btn-outline-success flex-fill" for="tipo-entrada">
+              <i class="bi bi-arrow-down-circle-fill me-1"></i>Entrada
+            </label>
+            <input type="radio" name="inv-tipo-radio" value="SALIDA" class="btn-check" id="tipo-salida">
+            <label class="btn btn-outline-danger flex-fill" for="tipo-salida">
+              <i class="bi bi-arrow-up-circle-fill me-1"></i>Salida
+            </label>
+          </div>
+        </div>
+        <div class="col-sm-2">
+          <label class="form-label fw-semibold">Cantidad *</label>
+          <input type="number" min="1" step="1" class="form-control" id="inv-cantidad" required placeholder="0">
+          <div class="invalid-feedback d-none" id="inv-stock-error"></div>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label fw-semibold">Referencia</label>
+          <input class="form-control" id="inv-referencia" placeholder="Compra, devolución...">
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label fw-semibold">Observación</label>
+          <input class="form-control" id="inv-observacion" placeholder="Nota opcional...">
+        </div>
+      </div>
+
+      <!-- Vista previa del impacto -->
+      <div class="mt-3 p-3 rounded d-none" id="inv-preview" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+        <div class="d-flex gap-4 align-items-center small">
+          <span class="text-muted">Stock actual: <strong id="prev-actual">—</strong></span>
+          <i class="bi bi-arrow-right text-muted"></i>
+          <span>Stock resultante: <strong id="prev-nuevo" class="fw-bold">—</strong></span>
+        </div>
+      </div>
+
+      <div class="mt-3 d-flex gap-2">
+        <button class="btn btn-brand px-4" type="submit" id="inv-submit-btn">
+          <i class="bi bi-check-lg me-1"></i>Guardar movimiento
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
+
 <script>
-(function(){
-  var institucionId=(window.CUSPIDE_STATE&&window.CUSPIDE_STATE.currentInstitucionId)||1, items=[];
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
-  function api(m,e,a,b,p){return Cuspide.api.call(m,CONFIG.ENDPOINTS[e],a,b,p);}
-  function render(){
-    var q=document.getElementById('inv-search').value.toLowerCase();
-    var rows=items.filter(function(i){return !q||[i.codigo,i.nombre,i.categoria].join(' ').toLowerCase().indexOf(q)>-1;});
-    document.getElementById('inv-info').textContent=rows.length+' producto(s) con control de stock.';
-    document.getElementById('inventario-tbody').innerHTML=rows.length?rows.map(function(i){
-      return '<tr><td><code>'+esc(i.codigo)+'</code></td><td class="fw-semibold">'+esc(i.nombre)+'</td><td>'+esc(i.categoria||'—')+'</td><td class="text-end">'+esc(i.stock_actual)+'</td><td class="text-end">'+esc(i.stock_minimo)+'</td><td>'+(i.alerta_stock?'<span class="badge bg-warning text-dark">Bajo stock</span>':'<span class="badge bg-success">OK</span>')+'</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" data-adjust="'+i.id+'" data-name="'+esc(i.nombre)+'"><i class="bi bi-pencil-square me-1"></i>Ajustar</button></td></tr>';
-    }).join(''):'<tr><td colspan="7" class="text-center text-muted py-4">Sin resultados.</td></tr>';
+(function () {
+  var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+  var items = [];
+  var selectedItem = null;
+
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
-  function load(){
-    api('GET','inventario','list',null,{institucion:institucionId}).then(function(data){items=Array.isArray(data)?data:[];render();}).catch(function(err){document.getElementById('inventario-tbody').innerHTML='<tr><td colspan="7" class="text-center text-danger py-4">'+esc(err.message||'Error al cargar inventario')+'</td></tr>';});
+
+  function showToast(msg, type) {
+    type = type || 'success';
+    var icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill' };
+    var el = document.createElement('div');
+    el.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+    el.role = 'alert';
+    el.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type] || 'info-circle') + ' me-2"></i>' + esc(msg) + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest(\'.toast\').remove()"></button></div>';
+    var c = document.getElementById('toast-container');
+    if (c) c.appendChild(el);
+    setTimeout(function () { el.remove(); }, 5000);
   }
-  document.getElementById('inv-search').addEventListener('input',render);
-  document.addEventListener('click',function(e){var b=e.target.closest('[data-adjust]');if(!b)return;document.getElementById('inv-producto').value=b.dataset.adjust;document.getElementById('inv-product-label').textContent=b.dataset.name;document.getElementById('inv-form-card').classList.remove('d-none');document.getElementById('inv-empty-form').classList.add('d-none');});
-  document.getElementById('inv-cancel').addEventListener('click',function(){document.getElementById('inv-form-card').classList.add('d-none');document.getElementById('inv-empty-form').classList.remove('d-none');document.getElementById('inv-form').reset();});
-  document.getElementById('inv-form').addEventListener('submit',function(e){e.preventDefault();var body={producto:parseInt(document.getElementById('inv-producto').value,10),tipo_movimiento:document.getElementById('inv-tipo').value,cantidad:parseInt(document.getElementById('inv-cantidad').value,10),institucion:institucionId,referencia:document.getElementById('inv-referencia').value.trim()||null,observacion:document.getElementById('inv-observacion').value.trim()};api('POST','inventario','adjust',body,null).then(function(){alert('Inventario actualizado.');document.getElementById('inv-cancel').click();load();}).catch(function(err){alert(err.message||'Error al ajustar inventario.');});});
+
+  function api(m, e, a, b, p) {
+    return Cuspide.api.call(m, CONFIG.ENDPOINTS[e], a, b, p);
+  }
+
+  function render() {
+    var q = document.getElementById('inv-search').value.toLowerCase();
+    var rows = q
+      ? items.filter(function (i) {
+          return [i.codigo, i.nombre, i.categoria].join(' ').toLowerCase().indexOf(q) > -1;
+        })
+      : items;
+
+    document.getElementById('inv-info').textContent = rows.length + ' producto(s) con control de stock.';
+
+    if (!rows.length) {
+      document.getElementById('inventario-tbody').innerHTML =
+        '<tr><td colspan="5" class="text-center text-muted py-5">Sin resultados.</td></tr>';
+      return;
+    }
+
+    document.getElementById('inventario-tbody').innerHTML = rows.map(function (i) {
+      var alerta = i.alerta_stock;
+      var estadoBadge = alerta
+        ? '<span class="badge" style="background:var(--warning-bg);color:var(--warning-text);border:1px solid var(--warning-border);">Bajo stock</span>'
+        : '<span class="badge" style="background:var(--success-bg);color:var(--success-text);border:1px solid var(--success-border);">OK</span>';
+
+      var stockColor = alerta ? 'color:var(--warning-text);' : '';
+
+      return '<tr>' +
+        '<td style="padding-left:1.25rem;">' +
+          '<div class="fw-semibold" style="font-size:.88rem;">' + esc(i.nombre) + '</div>' +
+          '<div class="d-flex align-items-center gap-2 mt-1">' +
+            '<code style="font-size:.72rem;">' + esc(i.codigo || '—') + '</code>' +
+            (i.categoria ? '<span class="badge bg-secondary rounded-pill" style="font-size:.65rem;">' + esc(i.categoria) + '</span>' : '') +
+          '</div>' +
+        '</td>' +
+        '<td class="text-center fw-bold" style="font-size:1rem;' + stockColor + '">' + esc(i.stock_actual) + '</td>' +
+        '<td class="text-center text-muted d-none d-md-table-cell" style="font-size:.85rem;">' + esc(i.stock_minimo) + '</td>' +
+        '<td class="text-center">' + estadoBadge + '</td>' +
+        '<td class="text-end" style="padding-right:1.25rem;">' +
+          '<button class="btn btn-sm btn-outline-secondary" data-adjust="' + i.id + '" data-name="' + esc(i.nombre) + '" data-stock="' + i.stock_actual + '">' +
+            '<i class="bi bi-arrows-expand-vertical"></i>' +
+          '</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function load() {
+    api('GET', 'inventario', 'list', null, { institucion: institucionId })
+      .then(function (data) {
+        items = Array.isArray(data) ? data : [];
+        render();
+      })
+      .catch(function (err) {
+        document.getElementById('inventario-tbody').innerHTML =
+          '<tr><td colspan="5" class="text-center text-danger py-5">' + esc(err.message || 'Error al cargar inventario') + '</td></tr>';
+      });
+  }
+
+  /* ── Filtro de búsqueda ── */
+  document.getElementById('inv-search').addEventListener('input', render);
+
+  /* ── Seleccionar producto para ajustar ── */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-adjust]');
+    if (!btn) return;
+    selectedItem = { id: btn.dataset.adjust, nombre: btn.dataset.name, stock: parseInt(btn.dataset.stock, 10) };
+    document.getElementById('inv-producto').value = selectedItem.id;
+    document.getElementById('inv-product-label').textContent = selectedItem.nombre + '  ·  Stock actual: ' + selectedItem.stock;
+    document.getElementById('inv-form-card').classList.remove('d-none');
+    document.getElementById('inv-form').reset();
+    document.getElementById('inv-preview').classList.add('d-none');
+    document.getElementById('inv-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('inv-cantidad').focus();
+  });
+
+  /* ── Preview + validación en tiempo real ── */
+  var cantidadInput = document.getElementById('inv-cantidad');
+  var submitBtn     = document.getElementById('inv-submit-btn');
+  var stockError    = document.getElementById('inv-stock-error');
+
+  function updatePreview() {
+    if (!selectedItem) return;
+
+    var cant = parseInt(cantidadInput.value, 10);
+    var tipo = document.querySelector('input[name="inv-tipo-radio"]:checked');
+    var esSalida = tipo && tipo.value === 'SALIDA';
+
+    // Limpiar error anterior
+    cantidadInput.classList.remove('is-invalid');
+    stockError.classList.add('d-none');
+    stockError.textContent = '';
+    submitBtn.disabled = false;
+
+    if (isNaN(cant) || cant <= 0) {
+      document.getElementById('inv-preview').classList.add('d-none');
+      return;
+    }
+
+    var nuevo = esSalida ? selectedItem.stock - cant : selectedItem.stock + cant;
+
+    // Validar stock insuficiente para SALIDA
+    if (esSalida && nuevo < 0) {
+      cantidadInput.classList.add('is-invalid');
+      stockError.textContent = 'Stock insuficiente. Máximo a retirar: ' + selectedItem.stock + ' unidades.';
+      stockError.classList.remove('d-none');
+      submitBtn.disabled = true;
+      // Forzar max dinámico
+      cantidadInput.max = selectedItem.stock;
+    } else {
+      cantidadInput.removeAttribute('max');
+    }
+
+    document.getElementById('prev-actual').textContent = selectedItem.stock;
+    document.getElementById('prev-nuevo').textContent  = Math.max(0, nuevo);
+    document.getElementById('prev-nuevo').style.color  =
+      nuevo < 0  ? 'var(--danger-text)'  :
+      nuevo === 0 ? 'var(--warning-text)' :
+                    'var(--success-text)';
+    document.getElementById('inv-preview').classList.remove('d-none');
+  }
+
+  cantidadInput.addEventListener('input', updatePreview);
+  document.querySelectorAll('input[name="inv-tipo-radio"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      // Al cambiar de tipo limpiar max y re-validar
+      cantidadInput.removeAttribute('max');
+      updatePreview();
+    });
+  });
+
+  /* ── Cancelar ── */
+  document.getElementById('inv-cancel').addEventListener('click', function () {
+    document.getElementById('inv-form-card').classList.add('d-none');
+    document.getElementById('inv-form').reset();
+    document.getElementById('inv-preview').classList.add('d-none');
+    selectedItem = null;
+  });
+
+  /* ── Submit ── */
+  document.getElementById('inv-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var tipoInput = document.querySelector('input[name="inv-tipo-radio"]:checked');
+    var cantidad  = parseInt(cantidadInput.value, 10);
+
+    if (!tipoInput || isNaN(cantidad) || cantidad <= 0) {
+      showToast('Ingresa una cantidad mayor a 0.', 'warning');
+      return;
+    }
+
+    if (tipoInput.value === 'SALIDA' && selectedItem && cantidad > selectedItem.stock) {
+      showToast('Stock insuficiente. Solo hay ' + selectedItem.stock + ' unidad(es) disponibles.', 'danger');
+      cantidadInput.focus();
+      return;
+    }
+
+    var body = {
+      producto:         parseInt(document.getElementById('inv-producto').value, 10),
+      tipo_movimiento:  tipoInput.value,
+      cantidad:         cantidad,
+      institucion:      institucionId,
+      referencia:       document.getElementById('inv-referencia').value.trim() || null,
+      observacion:      document.getElementById('inv-observacion').value.trim() || null,
+    };
+
+    var btn = document.getElementById('inv-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+    api('POST', 'inventario', 'adjust', body, null)
+      .then(function () {
+        showToast('Movimiento registrado correctamente.', 'success');
+        document.getElementById('inv-cancel').click();
+        load();
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Error al ajustar inventario.', 'danger');
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar movimiento';
+      });
+  });
+
   load();
 })();
 </script>

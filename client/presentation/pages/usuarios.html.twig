@@ -655,10 +655,11 @@ function hideEditarForm() {
 }
 
 /* ── Deshabilitar / habilitar usuario ── */
-function deshabilitarUsuario(id, username, currentEstado) {
-  var accion  = currentEstado === 1 ? 'deshabilitar' : 'habilitar';
-  var confirm = window.confirm('¿' + (accion.charAt(0).toUpperCase() + accion.slice(1)) + ' al usuario "' + username + '"?');
-  if (!confirm) return;
+async function deshabilitarUsuario(id, username, currentEstado) {
+  var accion = currentEstado === 1 ? 'deshabilitar' : 'habilitar';
+  var titulo = accion.charAt(0).toUpperCase() + accion.slice(1) + ' usuario';
+  var r = await swConfirm(titulo, '¿Deseas ' + accion + ' al usuario "' + username + '"?', 'Sí, ' + accion);
+  if (!r.isConfirmed) return;
 
   Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'disable', null, { id: id })
     .then(function() {

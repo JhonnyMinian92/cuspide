@@ -443,9 +443,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function anularVenta(ventaId) {
-  if (!confirm('¿Estás seguro de que deseas anular esta venta? Esta acción no se puede deshacer, anulará los pagos asociados y revertirá el stock de los productos.')) {
-    return;
-  }
+  var r = await swConfirm(
+    '¿Anular venta?',
+    'Esta acción no se puede deshacer. Se anularán los pagos asociados y se revertirá el stock de los productos.',
+    'Sí, anular'
+  );
+  if (!r.isConfirmed) return;
   try {
     showToast('Anulando venta...', 'info');
     await api('POST', 'ventas', 'cancel', null, { id: ventaId });
