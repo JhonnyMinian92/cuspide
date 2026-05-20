@@ -2,3 +2,4 @@ vendor/
 var/cache/
 .env
 *.log
+.claude
