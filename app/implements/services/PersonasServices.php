@@ -107,6 +107,9 @@ class PersonasServices implements PersonaServiceInterface
       case $method === 'GET' && $resource === 'employees':
         return $this->fetchEmployees($userId, $queryParams);
 
+      case $method === 'GET' && $resource === 'cumpleanos':
+        return $this->fetchCumpleanos($userId);
+
       case in_array($method, ['POST', 'PUT'], true) && $resource === 'save':
         return $this->savePersona($method, $queryParams);
 
@@ -389,6 +392,58 @@ class PersonasServices implements PersonaServiceInterface
     ], $rows);
 
     return ['total' => $total, 'items' => $items];
+  }
+
+  // -------------------------------------------------------------------------
+  // fetchCumpleanos — cumpleaños del mes actual (desde hoy) por institución
+  // -------------------------------------------------------------------------
+  private function fetchCumpleanos(int $userId): array
+  {
+    $instId = $this->getInstitucionByUserId($userId);
+    $db     = \Core\Database::getInstance();
+
+    $stmt = $db->prepare(
+      "SELECT p.id,
+              TRIM(CONCAT(COALESCE(p.primer_nombre,''),' ',COALESCE(p.primer_apellido,''))) AS nombre,
+              p.fecha_nacimiento,
+              tp.nombre   AS tipo,
+              tp.nemonico AS tipo_nemonico,
+              DAY(p.fecha_nacimiento) AS dia,
+              DATEDIFF(
+                STR_TO_DATE(
+                  CONCAT(YEAR(CURDATE()),'-',LPAD(MONTH(p.fecha_nacimiento),2,'0'),'-',LPAD(DAY(p.fecha_nacimiento),2,'0')),
+                  '%Y-%m-%d'
+                ),
+                CURDATE()
+              ) AS dias_para_cumple
+       FROM personas p
+       JOIN persona_institucion pi ON pi.id_persona = p.id
+                                   AND pi.id_institucion = :inst
+                                   AND pi.estado = 1
+       JOIN tipo_persona tp ON tp.id = pi.tipo
+                            AND tp.nemonico = 'TIPO_EST'
+       WHERE p.fecha_nacimiento IS NOT NULL
+         AND MONTH(p.fecha_nacimiento) = MONTH(CURDATE())
+         AND DAY(p.fecha_nacimiento)   >= DAY(CURDATE())
+       ORDER BY DAY(p.fecha_nacimiento) ASC"
+    );
+    $stmt->execute([':inst' => $instId]);
+    $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+    return array_map(function (array $r): array {
+      $dias = (int) $r['dias_para_cumple'];
+      return [
+        'id'               => (int) $r['id'],
+        'nombre'           => $r['nombre'],
+        'fecha_nacimiento' => $r['fecha_nacimiento'],
+        'tipo'             => $r['tipo'],
+        'tipo_nemonico'    => $r['tipo_nemonico'],
+        'dia'              => (int) $r['dia'],
+        'dias_para_cumple' => $dias,
+        'es_hoy'           => $dias === 0,
+        'es_semana'        => $dias > 0 && $dias <= 7,
+      ];
+    }, $rows);
   }
 
   // -------------------------------------------------------------------------

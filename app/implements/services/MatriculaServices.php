@@ -409,37 +409,27 @@ final class MatriculaServices implements MatriculaServiceInterface
                 $planRepo->save($plan);
                 $planId = (int) $plan->getId();
 
-                // Generar cuotas según periodo
+                // Generar cuotas usando intervalos reales de calendario
                 $startDt    = new \DateTime($fechaInicio);
                 $endDt      = new \DateTime($fechaFin);
-                $totalDays  = max(1, (int) $startDt->diff($endDt)->days);
-                $periodDays = $this->periodoToDays($periodo);
-                $numCuotas  = max(1, (int) ceil($totalDays / $periodDays));
+                $interval   = new \DateInterval($this->periodoToInterval($periodo));
+                $datePeriod = new \DatePeriod($startDt, $interval, $endDt);
+                $numCuotas  = max(1, iterator_count($datePeriod));
                 $valorBase  = round($total / $numCuotas, 2);
                 $cuotaRepo  = new CuotaMatriculaRepository();
+                $currentDue = clone $startDt;
 
                 for ($i = 0; $i < $numCuotas; $i++) {
-                    $isLast = ($i === $numCuotas - 1);
-                    $valorC = $isLast ? round($total - $valorBase * ($numCuotas - 1), 2) : $valorBase;
-                    $dueDate = (clone $startDt)->modify('+' . (($i + 1) * $periodDays) . ' days')->format('Y-m-d');
-                    $cuota  = new CuotaMatricula(null, $planId, $i + 1, $dueDate, $valorC, $valorC, 1);
+                    $currentDue->add($interval);
+                    $isLast  = ($i === $numCuotas - 1);
+                    $valorC  = $isLast ? round($total - $valorBase * ($numCuotas - 1), 2) : $valorBase;
+                    $dueDate = $currentDue->format('Y-m-d');
+                    $cuota   = new CuotaMatricula(null, $planId, $i + 1, $dueDate, $valorC, $valorC, 1);
                     $cuotaRepo->save($cuota);
                     $cuotasData[] = ['id' => (int) $cuota->getId(), 'numero' => $i + 1, 'fecha_vencimiento' => $dueDate, 'valor' => $valorC];
                 }
 
-                // 7. Registro de pago pendiente (cuota 1)
-                if (!empty($cuotasData)) {
-                    $formaDefault = $this->getDefaultFormaPago($db);
-                    $numeroPago   = 'PAG-' . date('Ymd') . '-' . str_pad((string) $matriculaId, 6, '0', STR_PAD_LEFT);
-                    $pagoEntity   = new Pago(null, $numeroPago, date('Y-m-d'), $persona, $matriculaId, $ventaId, $formaDefault, $instId, 0.0, null, 'Pendiente cuota 1 — matrícula #' . $matriculaId, 1);
-                    $pagoRepo     = new PagoRepository();
-                    $pagoRepo->save($pagoEntity);
-                    $pagoId       = (int) $pagoEntity->getId();
-
-                    $detalleRepo  = new PagoDetalleRepository();
-                    $detalle      = new PagoDetalle(null, $pagoId, $cuotasData[0]['id'], $ventaId, (float) $cuotasData[0]['valor']);
-                    $detalleRepo->save($detalle);
-                }
+                // Las cuotas quedan pendientes de cobro; el pago se registra desde el tab Cobrar.
             }
 
             $db->commit();
@@ -478,13 +468,13 @@ final class MatriculaServices implements MatriculaServiceInterface
         return $row2 ? (int) $row2['id'] : 1;
     }
 
-    private function periodoToDays(string $periodo): int
+    private function periodoToInterval(string $periodo): string
     {
         return match ($periodo) {
-            'semanal'    => 7,
-            'trimestral' => 90,
-            'anual'      => 365,
-            default      => 30,
+            'semanal'    => 'P1W',
+            'trimestral' => 'P3M',
+            'anual'      => 'P1Y',
+            default      => 'P1M',
         };
     }
 
