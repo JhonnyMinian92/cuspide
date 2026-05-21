@@ -227,6 +227,10 @@
           <div id="rev-observacion-row" class="mb-3 text-muted small d-none">
             <i class="bi bi-chat-left-text me-1"></i><span id="rev-observacion"></span>
           </div>
+          <div id="rev-motivo-anulacion-row" class="mb-3 d-none">
+            <div class="text-muted small fw-semibold mb-1 text-uppercase" style="letter-spacing:.05em;">Motivo de Anulación</div>
+            <div class="p-2 rounded" style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);font-size:.85rem;" id="rev-motivo-anulacion-text"></div>
+          </div>
           <!-- Botón anular -->
           <div id="rev-anular-section" class="d-none">
             <div class="alert alert-warning py-2 px-3 mb-3" style="font-size:.83rem;">
@@ -275,7 +279,7 @@
       </div>
       <div id="pendientes-container" class="d-none">
         <div class="table-responsive" style="max-height:520px;overflow-y:auto;">
-          <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+          <table class="table table-hover align-middle mb-0" style="font-size:.85rem;min-width:520px;">
             <thead class="table-light sticky-top">
               <tr>
                 <th>Cliente</th>
@@ -300,6 +304,52 @@
 
 </div>
 
+<!-- Modal: Motivo de Anulación -->
+<div class="modal fade" id="modal-anulacion" tabindex="-1" aria-labelledby="modal-anulacion-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-anulacion-label">
+          <i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Pago
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <div class="fw-semibold small text-muted mb-1">Número de pago</div>
+          <code id="modal-anulacion-numero">—</code>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="modal-motivo-select">Motivo de anulación *</label>
+          <select class="form-select" id="modal-motivo-select">
+            <option value="">— Seleccionar motivo —</option>
+            <option value="falta_pago">Falta de pago</option>
+            <option value="cancelacion">Cancelación solicitada por el cliente</option>
+            <option value="error_registro">Error en el registro del pago</option>
+            <option value="vencimiento">Vencimiento del plazo de pago</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="modal-motivo-texto">Descripción <span class="text-muted fw-normal small">(se guardará en el registro)</span></label>
+          <textarea class="form-control" id="modal-motivo-texto" rows="4" maxlength="255" placeholder="Ingrese o edite el motivo..."></textarea>
+          <div class="form-text text-end"><span id="modal-motivo-contador">0</span>/255 caracteres</div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 mb-0" style="font-size:.83rem;">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          <strong>Atención:</strong> Esta acción es irreversible. El saldo de todas las facturas cubiertas por este pago será restaurado.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger fw-bold" id="btn-modal-anular-confirmar">
+          <i class="bi bi-x-circle-fill me-2"></i>Anular Pago
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
 
@@ -313,6 +363,8 @@ var facturasPendientes  = [];
 var allPendientes       = [];
 var formasPago          = [];
 var selectedPagoId      = null;
+var selectedVentaId     = null;
+var modalAnularMode     = 'pago';
 var reversoCliente      = null;
 
 /* ── Helpers ── */
@@ -456,6 +508,10 @@ function renderPendientes(items) {
           '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' +
             'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')">' +
             '<i class="bi bi-cash"></i>' +
+          '</button>' +
+          '<button type="button" class="btn btn-xs btn-outline-danger btn-sm" title="Anular factura" ' +
+            'onclick="abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\')">' +
+            '<i class="bi bi-x-circle"></i>' +
           '</button>' +
         '</div>' +
       '</td>' +
@@ -669,6 +725,20 @@ function cobrarDesdeTabla(cedula, nombre) {
   }, 100);
 }
 
+/* ── Ir a reverso desde tabla de pendientes ── */
+function reversoDesdeTabla(cedula, nombre) {
+  document.querySelectorAll('[data-tab]').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelector('[data-tab="reverso"]').classList.add('active');
+  ['cobrar','reverso','pendientes'].forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('d-none', t !== 'reverso');
+  });
+  document.getElementById('reverso-cliente-search').value = cedula;
+  doReversoClienteSearch(cedula);
+  setTimeout(function() {
+    document.getElementById('reverso-cliente-search').scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+}
+
 /* ════════════════════════════════════════
    TAB REVERSO
 ═══════════════════════════════════════ */
@@ -817,6 +887,15 @@ function renderDetallePago(det) {
     obsRow.classList.add('d-none');
   }
 
+  var motivoRow  = document.getElementById('rev-motivo-anulacion-row');
+  var motivoText = document.getElementById('rev-motivo-anulacion-text');
+  if (esAnulado && det.motivo_anulacion) {
+    motivoText.textContent = det.motivo_anulacion;
+    motivoRow.classList.remove('d-none');
+  } else {
+    motivoRow.classList.add('d-none');
+  }
+
   var detallesList = document.getElementById('rev-detalles-list');
   var detalles = det.detalles || [];
   if (detalles.length) {
@@ -846,33 +925,100 @@ function renderDetallePago(det) {
   document.getElementById('reverso-detalle-card').scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ── Anular pago ── */
-document.getElementById('btn-anular-pago').addEventListener('click', async function() {
+/* ── Anular pago (reverso) — abre modal ── */
+document.getElementById('btn-anular-pago').addEventListener('click', function() {
   if (!selectedPagoId) { showToast('No hay pago seleccionado.', 'warning'); return; }
+  modalAnularMode = 'pago';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Pago';
   var numero = document.getElementById('rev-numero').textContent;
-  var r = await swConfirm(
-    '¿Anular el pago ' + numero + '?',
-    'Esta acción es irreversible. Los saldos de las facturas afectadas serán restaurados.',
-    'Sí, anular'
-  );
-  if (!r.isConfirmed) return;
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+});
 
-  var btn = this;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+/* ── Anular factura pendiente — abre modal ── */
+function abrirAnularVenta(ventaId, numero) {
+  selectedVentaId = ventaId;
+  modalAnularMode = 'venta';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Factura';
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+}
 
-  apiPost(CONFIG.ENDPOINTS.pagos, 'anular', { pago_id: selectedPagoId })
-    .then(function(data) {
-      showToast(data.mensaje || 'Pago anulado correctamente.', 'success');
-      cargarDetallePago(selectedPagoId);
-      allPendientes = [];
-      if (reversoCliente) selectReversoCliente(reversoCliente.id, reversoCliente.nombre);
-    })
-    .catch(function(err) { showToast(err.message || 'Error al anular el pago.', 'danger'); })
-    .finally(function() {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
-    });
+/* ════════════════════════════════════════
+   MODAL ANULACIÓN — Motivo
+═══════════════════════════════════════ */
+var MOTIVOS = {
+  falta_pago:     'Se ha anulado el pago por motivo de falta de pago por parte del cliente.',
+  cancelacion:    'Se ha anulado el pago debido a una cancelación solicitada por el cliente.',
+  error_registro: 'Se ha anulado el pago debido a un error en el registro de la transacción.',
+  vencimiento:    'Se ha anulado el pago por vencimiento del plazo establecido para el cobro.',
+  otro:           ''
+};
+
+document.getElementById('modal-motivo-select').addEventListener('change', function() {
+  var texto = MOTIVOS[this.value] !== undefined ? MOTIVOS[this.value] : '';
+  var ta = document.getElementById('modal-motivo-texto');
+  ta.value = texto;
+  document.getElementById('modal-motivo-contador').textContent = texto.length;
+});
+
+document.getElementById('modal-motivo-texto').addEventListener('input', function() {
+  document.getElementById('modal-motivo-contador').textContent = this.value.length;
+});
+
+document.getElementById('btn-modal-anular-confirmar').addEventListener('click', function() {
+  var motivo = document.getElementById('modal-motivo-select').value;
+  var texto  = document.getElementById('modal-motivo-texto').value.trim();
+
+  if (!motivo) { showToast('Selecciona un motivo de anulación.', 'warning'); return; }
+  if (!texto)  { showToast('Ingresa una descripción para el motivo.', 'warning'); return; }
+
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).hide();
+
+  var confirmBtn = this;
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+
+  if (modalAnularMode === 'venta') {
+    apiPost(CONFIG.ENDPOINTS.ventas, 'cancel', { id: selectedVentaId, motivo_anulacion: texto })
+      .then(function(data) {
+        showToast(data.mensaje || 'Factura anulada correctamente.', 'success');
+        allPendientes = [];
+        loadPendientes();
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular la factura.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
+  } else {
+    var pagoBtn = document.getElementById('btn-anular-pago');
+    pagoBtn.disabled = true;
+    pagoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+
+    apiPost(CONFIG.ENDPOINTS.pagos, 'anular', { pago_id: selectedPagoId, motivo_anulacion: texto })
+      .then(function(data) {
+        showToast(data.mensaje || 'Pago anulado correctamente.', 'success');
+        cargarDetallePago(selectedPagoId);
+        allPendientes = [];
+        if (reversoCliente) selectReversoCliente(reversoCliente.id, reversoCliente.nombre);
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular el pago.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+        pagoBtn.disabled = false;
+        pagoBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
+  }
 });
 
 /* ── Búsqueda cobrar ── */

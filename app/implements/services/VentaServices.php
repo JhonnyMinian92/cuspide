@@ -93,10 +93,14 @@ class VentaServices
                 return $this->createVenta();
 
             case $method === 'POST' && $resource === 'cancel':
-                if (empty($queryParams['id'])) {
+                $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
+                $ventaId = !empty($queryParams['id']) ? (int)$queryParams['id'] : (!empty($body['id']) ? (int)$body['id'] : 0);
+                if ($ventaId <= 0) {
                     throw new \RuntimeException('El parámetro id es requerido.', 400);
                 }
-                return $this->cancelVenta((int)$queryParams['id']);
+                $motivo = isset($body['motivo_anulacion']) ? substr(trim((string)$body['motivo_anulacion']), 0, 255) : null;
+                if ($motivo === '') $motivo = null;
+                return $this->cancelVenta($ventaId, $motivo);
 
             case $method === 'GET' && $resource === 'formas_pago':
                 return $this->fetchFormasPago();
@@ -409,14 +413,14 @@ class VentaServices
     // -------------------------------------------------------------------------
     // cancelVenta
     // -------------------------------------------------------------------------
-    private function cancelVenta(int $ventaId): array
+    private function cancelVenta(int $ventaId, ?string $motivo = null): array
     {
         $venta = $this->ventaRepo->findById($ventaId);
         if (!$venta) {
             throw new \RuntimeException('Venta no encontrada.', 404);
         }
-        if ($venta->getEstado()?->getId() !== 1) { // 1 = Activo
-            throw new \RuntimeException('La venta ya ha sido anulada.', 409);
+        if ($venta->getEstado()?->getId() !== 1) { // 1 = Activo/Pendiente
+            throw new \RuntimeException('La venta ya ha sido anulada o saldada.', 409);
         }
 
         try {
@@ -463,9 +467,9 @@ class VentaServices
                 }
             }
 
-            // 2. Anular pagos asociados
-            $stmtPagos = $this->db->prepare('UPDATE pagos SET estado = 2 WHERE venta = :venta_id');
-            $stmtPagos->execute([':venta_id' => $ventaId]);
+            // 2. Anular pagos asociados (registra motivo si viene)
+            $stmtPagos = $this->db->prepare('UPDATE pagos SET estado = 2, motivo_anulacion = :motivo WHERE venta = :venta_id');
+            $stmtPagos->execute([':motivo' => $motivo, ':venta_id' => $ventaId]);
 
             // 3. Anular la venta (actualiza estado y pone saldo a 0)
             $this->ventaRepo->cancel($ventaId);
@@ -476,7 +480,7 @@ class VentaServices
             throw new \RuntimeException('Error al anular la venta: ' . $e->getMessage(), 500);
         }
 
-        return ['id' => $ventaId, 'status' => 'ANULADO'];
+        return ['id' => $ventaId, 'status' => 'ANULADO', 'mensaje' => 'Factura anulada correctamente.'];
     }
 
     // -------------------------------------------------------------------------

@@ -24,8 +24,9 @@ class Pago
   private ?string $referencia;
   private string $observacion;
   private int $estado;
+  private ?string $motivoAnulacion;
 
-  public function __construct(?int $id, string $numero, string $fecha, mixed $persona, mixed $matricula, mixed $venta, mixed $forma_pago, mixed $institucion, float $monto, ?string $referencia, string $observacion, mixed $estado)
+  public function __construct(?int $id, string $numero, string $fecha, mixed $persona, mixed $matricula, mixed $venta, mixed $forma_pago, mixed $institucion, float $monto, ?string $referencia, string $observacion, mixed $estado, ?string $motivoAnulacion = null)
   {
     $this->id = $id;
     $this->numero = $numero;
@@ -39,6 +40,7 @@ class Pago
     $this->referencia = $referencia;
     $this->observacion = $observacion;
     $this->estado = $this->extractId($estado);
+    $this->motivoAnulacion = $motivoAnulacion;
   }
 
   public function getId(): ?int { return $this->id; }
@@ -53,6 +55,7 @@ class Pago
   public function getReferencia(): ?string { return $this->referencia; }
   public function getObservacion(): string { return $this->observacion; }
   public function getEstado(): ?Estado { return $this->estado === null ? null : Estado::from($this->estado); }
+  public function getMotivoAnulacion(): ?string { return $this->motivoAnulacion; }
 
   public function setId(?int $id): void { $this->id = $id; }
   public function setNumero(string $numero): void { $this->numero = $numero; }
@@ -66,6 +69,7 @@ class Pago
   public function setReferencia(?string $referencia): void { $this->referencia = $referencia; }
   public function setObservacion(string $observacion): void { $this->observacion = $observacion; }
   public function setEstado(mixed $estado): void { $this->estado = $this->extractId($estado); }
+  public function setMotivoAnulacion(?string $motivo): void { $this->motivoAnulacion = $motivo; }
 
   private function extractId(mixed $value): ?int
   {

@@ -355,16 +355,17 @@ final class PagoServices implements PagoServiceInterface
         };
 
         return [
-            'id'          => (int) $pago->getId(),
-            'numero'      => $pago->getNumero(),
-            'fecha'       => $pago->getFecha(),
-            'monto'       => (float) $pago->getMonto(),
-            'referencia'  => $pago->getReferencia(),
-            'observacion' => $pago->getObservacion(),
-            'forma_pago'  => $formaNombre,
-            'estado'      => $estadoNombre,
-            'estado_id'   => (int) ($pago->getEstado()?->getId() ?? 1),
-            'detalles'    => $detallesData,
+            'id'                => (int) $pago->getId(),
+            'numero'            => $pago->getNumero(),
+            'fecha'             => $pago->getFecha(),
+            'monto'             => (float) $pago->getMonto(),
+            'referencia'        => $pago->getReferencia(),
+            'observacion'       => $pago->getObservacion(),
+            'forma_pago'        => $formaNombre,
+            'estado'            => $estadoNombre,
+            'estado_id'         => (int) ($pago->getEstado()?->getId() ?? 1),
+            'motivo_anulacion'  => $pago->getMotivoAnulacion(),
+            'detalles'          => $detallesData,
         ];
     }
 
@@ -382,6 +383,13 @@ final class PagoServices implements PagoServiceInterface
         $pagoId = (int) ($body['pago_id'] ?? 0);
         if ($pagoId <= 0) {
             throw new RuntimeException('Debe proporcionar pago_id.', 400);
+        }
+
+        $motivoAnulacion = isset($body['motivo_anulacion'])
+            ? substr(trim((string) $body['motivo_anulacion']), 0, 255)
+            : null;
+        if ($motivoAnulacion === '') {
+            $motivoAnulacion = null;
         }
 
         $pago = $this->pagoRepo->findById($pagoId);
@@ -427,6 +435,7 @@ final class PagoServices implements PagoServiceInterface
 
             // Mark pago as ANULADO (estado 4)
             $pago->setEstado(4);
+            $pago->setMotivoAnulacion($motivoAnulacion);
             $this->pagoRepo->save($pago);
 
             $db->commit();
