@@ -135,6 +135,14 @@
       <!-- Resultado del pago -->
       <div id="pago-resultado" class="d-none mt-4"></div>
 
+      <!-- Paso 3: Pagos realizados -->
+      <div id="pago-historial-section" class="d-none mt-4 pt-3" style="border-top:1px solid var(--app-border);">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          3 · Pagos realizados
+        </label>
+        <div id="pago-historial-list" class="d-flex flex-column gap-2"></div>
+      </div>
+
     </div>
   </div>
 
@@ -227,6 +235,10 @@
           <div id="rev-observacion-row" class="mb-3 text-muted small d-none">
             <i class="bi bi-chat-left-text me-1"></i><span id="rev-observacion"></span>
           </div>
+          <div id="rev-motivo-anulacion-row" class="mb-3 d-none">
+            <div class="text-muted small fw-semibold mb-1 text-uppercase" style="letter-spacing:.05em;">Motivo de Anulación</div>
+            <div class="p-2 rounded" style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);font-size:.85rem;" id="rev-motivo-anulacion-text"></div>
+          </div>
           <!-- Botón anular -->
           <div id="rev-anular-section" class="d-none">
             <div class="alert alert-warning py-2 px-3 mb-3" style="font-size:.83rem;">
@@ -275,7 +287,7 @@
       </div>
       <div id="pendientes-container" class="d-none">
         <div class="table-responsive" style="max-height:520px;overflow-y:auto;">
-          <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+          <table class="table table-hover align-middle mb-0" style="font-size:.85rem;min-width:520px;">
             <thead class="table-light sticky-top">
               <tr>
                 <th>Cliente</th>
@@ -300,6 +312,76 @@
 
 </div>
 
+<!-- Modal: Motivo de Anulación -->
+<div class="modal fade" id="modal-anulacion" tabindex="-1" aria-labelledby="modal-anulacion-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-anulacion-label">
+          <i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Pago
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <div class="fw-semibold small text-muted mb-1">Número de pago</div>
+          <code id="modal-anulacion-numero">—</code>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="modal-motivo-select">Motivo de anulación *</label>
+          <select class="form-select" id="modal-motivo-select">
+            <option value="">— Seleccionar motivo —</option>
+            <option value="falta_pago">Falta de pago</option>
+            <option value="cancelacion">Cancelación solicitada por el cliente</option>
+            <option value="error_registro">Error en el registro del pago</option>
+            <option value="vencimiento">Vencimiento del plazo de pago</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="modal-motivo-texto">Descripción <span class="text-muted fw-normal small">(se guardará en el registro)</span></label>
+          <textarea class="form-control" id="modal-motivo-texto" rows="4" maxlength="255" placeholder="Ingrese o edite el motivo..."></textarea>
+          <div class="form-text text-end"><span id="modal-motivo-contador">0</span>/255 caracteres</div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 mb-0" style="font-size:.83rem;">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          <strong>Atención:</strong> Esta acción es irreversible. El saldo de todas las facturas cubiertas por este pago será restaurado.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger fw-bold" id="btn-modal-anular-confirmar">
+          <i class="bi bi-x-circle-fill me-2"></i>Anular Pago
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Comprobante de Pago -->
+<div class="modal fade" id="modal-pago-detalle" tabindex="-1" aria-labelledby="modal-pago-detalle-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-pago-detalle-label">Comprobante de Pago</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="modal-pago-detalle-body">
+        <!-- JS injected -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-outline-secondary" id="btn-imprimir-pago" onclick="imprimirTicketPago()" disabled>
+          <i class="bi bi-printer me-1"></i>Imprimir Ticket
+        </button>
+        <button type="button" class="btn btn-brand" id="btn-descargar-pago-pdf" onclick="descargarPDFPago()" disabled>
+          <i class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
 
@@ -313,6 +395,9 @@ var facturasPendientes  = [];
 var allPendientes       = [];
 var formasPago          = [];
 var selectedPagoId      = null;
+var selectedVentaId     = null;
+var modalAnularMode     = 'pago';
+var currentPagoDetalle  = null;
 var reversoCliente      = null;
 
 /* ── Helpers ── */
@@ -457,6 +542,10 @@ function renderPendientes(items) {
             'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')">' +
             '<i class="bi bi-cash"></i>' +
           '</button>' +
+          '<button type="button" class="btn btn-xs btn-outline-danger btn-sm" title="Anular factura" ' +
+            'onclick="abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\')">' +
+            '<i class="bi bi-x-circle"></i>' +
+          '</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
@@ -519,11 +608,13 @@ function loadFacturasPendientesCliente() {
   document.getElementById('pago-total-adeudado').classList.add('d-none');
   document.getElementById('pago-sin-deuda').classList.add('d-none');
   document.getElementById('pago-form-section').classList.add('d-none');
+  document.getElementById('pago-historial-section').classList.add('d-none');
 
   apiGet(CONFIG.ENDPOINTS.pagos, 'history', { persona_id: pagoCliente.id })
     .then(function(data) {
       var facturas = (data.facturas || []).filter(function(f) { return parseFloat(f.saldo || 0) > 0; });
       renderFacturasCliente(facturas);
+      renderPagosRealizados(data.pagos || []);
     })
     .catch(function(err) {
       document.getElementById('pago-facturas-loading').innerHTML = '<div class="text-danger small">' + esc(err.message) + '</div>';
@@ -543,6 +634,9 @@ function renderFacturasCliente(facturas) {
   }
 
   var totalSaldo = facturas.reduce(function(acc, f) { return acc + parseFloat(f.saldo || 0); }, 0);
+  var totalCuotasSig = facturas
+    .filter(function(f) { return f.cuota_siguiente != null; })
+    .reduce(function(acc, f) { return acc + parseFloat(f.cuota_siguiente || 0); }, 0);
   var sorted = facturas.slice().sort(function(a, b) { return new Date(a.fecha) - new Date(b.fecha); });
 
   list.innerHTML = sorted.map(function(f, idx) {
@@ -555,6 +649,10 @@ function renderFacturasCliente(facturas) {
       : days > 30 ? '<span class="badge bg-warning text-dark ms-1">' + days + 'd</span>'
       : '<span class="badge bg-secondary ms-1">' + days + 'd</span>';
     var fifo = idx === 0 ? '<span class="badge ms-1" style="background:var(--brand-color);color:var(--brand-text);">FIFO</span>' : '';
+    var cuotaBadge = f.cuota_siguiente != null
+      ? '<div class="mt-1"><span class="badge rounded-pill" style="background:var(--brand-color);color:var(--brand-text);font-size:.68rem;">' +
+        '<i class="bi bi-calendar2-check me-1"></i>Cuota del período: ' + fmt(f.cuota_siguiente) + '</span></div>'
+      : '';
 
     return '<div class="p-3 mb-2 rounded d-flex justify-content-between align-items-start" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">' +
       '<div>' +
@@ -566,6 +664,7 @@ function renderFacturasCliente(facturas) {
           '</div>' +
           '<div class="text-muted" style="font-size:.72rem;">Pagado ' + pct + '%</div>' +
         '</div>' +
+        cuotaBadge +
       '</div>' +
       '<div class="text-end">' +
         '<div class="text-muted small text-decoration-line-through">' + fmt(total) + '</div>' +
@@ -578,9 +677,41 @@ function renderFacturasCliente(facturas) {
   document.getElementById('pago-total-valor').textContent = fmt(totalSaldo);
   document.getElementById('pago-total-adeudado').classList.remove('d-none');
   document.getElementById('pago-form-section').classList.remove('d-none');
-  document.getElementById('pago-monto').value = totalSaldo.toFixed(2);
-  document.getElementById('pago-monto-hint').textContent =
-    'El sistema aplica FIFO: cubre la factura más antigua primero. Máximo sugerido: ' + fmt(totalSaldo);
+
+  var montoSugerido = totalCuotasSig > 0 ? totalCuotasSig : totalSaldo;
+  document.getElementById('pago-monto').value = montoSugerido.toFixed(2);
+  document.getElementById('pago-monto-hint').textContent = totalCuotasSig > 0
+    ? 'Cuota(s) del período: ' + fmt(totalCuotasSig) + ' · Saldo total: ' + fmt(totalSaldo) + ' · Máximo: ' + fmt(totalSaldo)
+    : 'El sistema aplica FIFO: cubre la factura más antigua primero. Máximo sugerido: ' + fmt(totalSaldo);
+}
+
+function renderPagosRealizados(pagos) {
+  var section = document.getElementById('pago-historial-section');
+  var list    = document.getElementById('pago-historial-list');
+  if (!pagos.length) { section.classList.add('d-none'); return; }
+
+  var sorted = pagos.slice().sort(function(a, b) { return new Date(b.fecha) - new Date(a.fecha); });
+  section.classList.remove('d-none');
+  list.innerHTML = sorted.map(function(p) {
+    var esAnulado  = parseInt(p.estado || 1) === 4;
+    var badgeStyle = esAnulado
+      ? 'background:var(--danger-bg);color:var(--danger-text);border:1px solid var(--danger-border);'
+      : 'background:var(--success-bg);color:var(--success-text);border:1px solid var(--success-border);';
+    var estadoText = esAnulado ? 'Anulado' : 'Activo';
+    return '<div class="p-3 rounded d-flex justify-content-between align-items-center" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">'
+      + '<div>'
+      + '<div class="fw-semibold small">' + esc(p.numero) + '</div>'
+      + '<div class="text-muted" style="font-size:.75rem;">' + esc(p.fecha) + '</div>'
+      + '</div>'
+      + '<div class="d-flex align-items-center gap-2">'
+      + '<span class="fw-bold">' + fmt(p.monto) + '</span>'
+      + '<span class="badge rounded-pill" style="font-size:.68rem;' + badgeStyle + '">' + estadoText + '</span>'
+      + '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="verDetallePagoModal(' + p.id + ')">'
+      + '<i class="bi bi-eye me-1"></i>Ver'
+      + '</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
 }
 
 /* ── Registrar pago ── */
@@ -635,6 +766,7 @@ function renderPagoResultado(data, monto) {
       '<div class="col-sm-6"><strong>Monto aplicado:</strong> <span class="fw-bold">' + fmt(data.monto_aplicado) + '</span></div>' +
       (saldoRestante > 0 ? '<div class="col-12 text-warning"><strong>Saldo sobrante (abono):</strong> ' + fmt(saldoRestante) + '</div>' : '') +
     '</div>' + items +
+    (data.pago_id ? '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,.25);"><button type="button" class="btn btn-sm btn-outline-light fw-semibold" onclick="verDetallePagoModal(' + data.pago_id + ')"><i class="bi bi-eye me-2"></i>Ver Comprobante</button></div>' : '') +
   '</div>';
 
   var res = document.getElementById('pago-resultado');
@@ -652,6 +784,7 @@ document.getElementById('btn-cambiar-cliente').addEventListener('click', functio
   document.getElementById('pago-facturas-section').classList.add('d-none');
   document.getElementById('pago-form-section').classList.add('d-none');
   document.getElementById('pago-resultado').classList.add('d-none');
+  document.getElementById('pago-historial-section').classList.add('d-none');
   document.getElementById('pago-search').focus();
 });
 
@@ -666,6 +799,20 @@ function cobrarDesdeTabla(cedula, nombre) {
   doSearch(cedula);
   setTimeout(function() {
     document.getElementById('pago-search').scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+}
+
+/* ── Ir a reverso desde tabla de pendientes ── */
+function reversoDesdeTabla(cedula, nombre) {
+  document.querySelectorAll('[data-tab]').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelector('[data-tab="reverso"]').classList.add('active');
+  ['cobrar','reverso','pendientes'].forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('d-none', t !== 'reverso');
+  });
+  document.getElementById('reverso-cliente-search').value = cedula;
+  doReversoClienteSearch(cedula);
+  setTimeout(function() {
+    document.getElementById('reverso-cliente-search').scrollIntoView({ behavior: 'smooth' });
   }, 100);
 }
 
@@ -817,6 +964,15 @@ function renderDetallePago(det) {
     obsRow.classList.add('d-none');
   }
 
+  var motivoRow  = document.getElementById('rev-motivo-anulacion-row');
+  var motivoText = document.getElementById('rev-motivo-anulacion-text');
+  if (esAnulado && det.motivo_anulacion) {
+    motivoText.textContent = det.motivo_anulacion;
+    motivoRow.classList.remove('d-none');
+  } else {
+    motivoRow.classList.add('d-none');
+  }
+
   var detallesList = document.getElementById('rev-detalles-list');
   var detalles = det.detalles || [];
   if (detalles.length) {
@@ -846,33 +1002,100 @@ function renderDetallePago(det) {
   document.getElementById('reverso-detalle-card').scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ── Anular pago ── */
-document.getElementById('btn-anular-pago').addEventListener('click', async function() {
+/* ── Anular pago (reverso) — abre modal ── */
+document.getElementById('btn-anular-pago').addEventListener('click', function() {
   if (!selectedPagoId) { showToast('No hay pago seleccionado.', 'warning'); return; }
+  modalAnularMode = 'pago';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Pago';
   var numero = document.getElementById('rev-numero').textContent;
-  var r = await swConfirm(
-    '¿Anular el pago ' + numero + '?',
-    'Esta acción es irreversible. Los saldos de las facturas afectadas serán restaurados.',
-    'Sí, anular'
-  );
-  if (!r.isConfirmed) return;
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+});
 
-  var btn = this;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+/* ── Anular factura pendiente — abre modal ── */
+function abrirAnularVenta(ventaId, numero) {
+  selectedVentaId = ventaId;
+  modalAnularMode = 'venta';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Factura';
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+}
 
-  apiPost(CONFIG.ENDPOINTS.pagos, 'anular', { pago_id: selectedPagoId })
-    .then(function(data) {
-      showToast(data.mensaje || 'Pago anulado correctamente.', 'success');
-      cargarDetallePago(selectedPagoId);
-      allPendientes = [];
-      if (reversoCliente) selectReversoCliente(reversoCliente.id, reversoCliente.nombre);
-    })
-    .catch(function(err) { showToast(err.message || 'Error al anular el pago.', 'danger'); })
-    .finally(function() {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
-    });
+/* ════════════════════════════════════════
+   MODAL ANULACIÓN — Motivo
+═══════════════════════════════════════ */
+var MOTIVOS = {
+  falta_pago:     'Se ha anulado el pago por motivo de falta de pago por parte del cliente.',
+  cancelacion:    'Se ha anulado el pago debido a una cancelación solicitada por el cliente.',
+  error_registro: 'Se ha anulado el pago debido a un error en el registro de la transacción.',
+  vencimiento:    'Se ha anulado el pago por vencimiento del plazo establecido para el cobro.',
+  otro:           ''
+};
+
+document.getElementById('modal-motivo-select').addEventListener('change', function() {
+  var texto = MOTIVOS[this.value] !== undefined ? MOTIVOS[this.value] : '';
+  var ta = document.getElementById('modal-motivo-texto');
+  ta.value = texto;
+  document.getElementById('modal-motivo-contador').textContent = texto.length;
+});
+
+document.getElementById('modal-motivo-texto').addEventListener('input', function() {
+  document.getElementById('modal-motivo-contador').textContent = this.value.length;
+});
+
+document.getElementById('btn-modal-anular-confirmar').addEventListener('click', function() {
+  var motivo = document.getElementById('modal-motivo-select').value;
+  var texto  = document.getElementById('modal-motivo-texto').value.trim();
+
+  if (!motivo) { showToast('Selecciona un motivo de anulación.', 'warning'); return; }
+  if (!texto)  { showToast('Ingresa una descripción para el motivo.', 'warning'); return; }
+
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).hide();
+
+  var confirmBtn = this;
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+
+  if (modalAnularMode === 'venta') {
+    apiPost(CONFIG.ENDPOINTS.ventas, 'cancel', { id: selectedVentaId, motivo_anulacion: texto })
+      .then(function(data) {
+        showToast(data.mensaje || 'Factura anulada correctamente.', 'success');
+        allPendientes = [];
+        loadPendientes();
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular la factura.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
+  } else {
+    var pagoBtn = document.getElementById('btn-anular-pago');
+    pagoBtn.disabled = true;
+    pagoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+
+    apiPost(CONFIG.ENDPOINTS.pagos, 'anular', { pago_id: selectedPagoId, motivo_anulacion: texto })
+      .then(function(data) {
+        showToast(data.mensaje || 'Pago anulado correctamente.', 'success');
+        cargarDetallePago(selectedPagoId);
+        allPendientes = [];
+        if (reversoCliente) selectReversoCliente(reversoCliente.id, reversoCliente.nombre);
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular el pago.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+        pagoBtn.disabled = false;
+        pagoBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
+  }
 });
 
 /* ── Búsqueda cobrar ── */
@@ -882,6 +1105,146 @@ document.getElementById('pago-search').addEventListener('input', function() {
 document.getElementById('pago-search').addEventListener('keydown', function(e) {
   if (e.key === 'Escape') document.getElementById('pago-search-results').classList.add('d-none');
 });
+
+/* ════════════════════════════════════════
+   MODAL COMPROBANTE DE PAGO
+═══════════════════════════════════════ */
+function verDetallePagoModal(pagoId) {
+  var modalEl = document.getElementById('modal-pago-detalle');
+  var body    = document.getElementById('modal-pago-detalle-body');
+  var lbl     = document.getElementById('modal-pago-detalle-label');
+
+  currentPagoDetalle = null;
+  document.getElementById('btn-imprimir-pago').disabled = true;
+  document.getElementById('btn-descargar-pago-pdf').disabled = true;
+  body.innerHTML = '<div class="text-center py-5"><span class="spinner-border text-primary"></span><p class="mt-2 text-muted">Cargando comprobante...</p></div>';
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'detail', { id: pagoId })
+    .then(function(det) {
+      lbl.innerHTML = 'Comprobante: <code>' + esc(det.numero) + '</code>';
+      currentPagoDetalle = det;
+      body.innerHTML = buildPagoDetalleHTML(det);
+      document.getElementById('btn-imprimir-pago').disabled = false;
+      document.getElementById('btn-descargar-pago-pdf').disabled = false;
+    })
+    .catch(function(err) {
+      body.innerHTML = '<div class="alert alert-danger">' + esc(err.message || 'Error al cargar el comprobante.') + '</div>';
+    });
+}
+
+function buildPagoDetalleHTML(det) {
+  var cliente   = pagoCliente || {};
+  var esActivo  = det.estado_id === 1;
+  var esAnulado = det.estado_id === 4;
+  var badgeCls  = esAnulado ? 'bg-danger' : esActivo ? 'bg-success' : 'bg-secondary';
+
+  var detallesRows = (det.detalles || []).map(function(d) {
+    return '<tr>'
+      + '<td class="ps-3">' + esc(d.venta_numero || '#' + d.venta_id) + '</td>'
+      + '<td class="text-end pe-3 fw-semibold">' + fmt(d.valor) + '</td>'
+      + '</tr>';
+  }).join('') || '<tr><td colspan="2" class="text-center text-muted ps-3">Sin facturas asociadas.</td></tr>';
+
+  return '<div class="row mb-3">'
+    + '<div class="col-md-6">'
+    + '<strong>Cliente:</strong><br>' + esc(cliente.nombre || '—') + '<br>'
+    + '<small class="text-muted">CI: ' + esc(cliente.cedula || '—') + '</small>'
+    + '</div>'
+    + '<div class="col-md-6 text-md-end">'
+    + '<strong>Fecha:</strong><br>' + esc(new Date(det.fecha).toLocaleDateString()) + '<br>'
+    + '<span class="badge ' + badgeCls + ' mt-1">' + esc(det.estado) + '</span>'
+    + '</div>'
+    + '</div>'
+    + '<div class="row g-3 mb-4">'
+    + '<div class="col-sm-4"><div class="text-muted small">Forma de Pago</div><div class="fw-semibold">' + esc(det.forma_pago || '—') + '</div></div>'
+    + '<div class="col-sm-4"><div class="text-muted small">Referencia</div><div>' + esc(det.referencia || '—') + '</div></div>'
+    + (det.observacion ? '<div class="col-sm-4"><div class="text-muted small">Observación</div><div>' + esc(det.observacion) + '</div></div>' : '')
+    + '</div>'
+    + '<h6 class="fw-bold">Facturas Cubiertas</h6>'
+    + '<div class="table-responsive border rounded mb-3">'
+    + '<table class="table table-sm table-striped mb-0">'
+    + '<thead class="table-light"><tr><th class="ps-3">N° Factura</th><th class="text-end pe-3">Monto Aplicado</th></tr></thead>'
+    + '<tbody>' + detallesRows + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '<div class="d-flex justify-content-end mt-1">'
+    + '<table class="table table-sm mb-0" style="width:auto;min-width:230px;">'
+    + '<tbody>'
+    + '<tr style="border-top:2px solid var(--app-border);">'
+    + '<td class="fw-bold fs-5 pt-2">Total Pagado:</td>'
+    + '<td class="text-end ps-4 fw-bold fs-5 pt-2">' + fmt(det.monto) + '</td>'
+    + '</tr>'
+    + '</tbody>'
+    + '</table>'
+    + '</div>';
+}
+
+function buildPagoTicketHTML(det, isPDF) {
+  var cliente = pagoCliente || {};
+  var e2 = function(v) { return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); };
+  var m2 = function(v) { return '$'+parseFloat(v||0).toFixed(2); };
+
+  var detRows = (det.detalles||[]).map(function(d) {
+    return '<tr><td class="desc">'+e2(d.venta_numero||'#'+d.venta_id)+'</td><td class="amt">'+m2(d.valor)+'</td></tr>';
+  }).join('');
+
+  var fs = isPDF ? '13px' : '11px';
+  var w  = isPDF ? '155mm' : '72mm';
+  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:80mm auto;margin:4mm;}';
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(det.numero)+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'4mm 3mm')+';}'
+    +'.center{text-align:center;}.title{font-size:'+(isPDF?'18px':'14px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'11px':'9px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
+    +'.row2{display:flex;justify-content:space-between;margin:2px 0;}'
+    +'table{width:100%;border-collapse:collapse;}td{padding:2px 0;vertical-align:top;}'
+    +'.desc{width:65%;}.amt{width:35%;text-align:right;}'
+    +'.total-row td{font-size:'+(isPDF?'16px':'13px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'9px')+';}'
+    +pg+'@media print{button{display:none!important;}}</style>'
+    +'</head><body><div class="ticket">'
+    +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">COMPROBANTE DE PAGO</div></div>'
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>N°:</b></span><span>'+e2(det.numero)+'</span></div>'
+    +'<div class="row2"><span><b>Fecha:</b></span><span>'+e2(new Date(det.fecha).toLocaleDateString())+'</span></div>'
+    +'<div class="row2"><span><b>Cliente:</b></span><span>'+e2(cliente.nombre||'—')+'</span></div>'
+    +'<div class="row2"><span><b>CI:</b></span><span>'+e2(cliente.cedula||'—')+'</span></div>'
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>Forma de Pago:</b></span><span>'+e2(det.forma_pago||'—')+'</span></div>'
+    +(det.referencia?'<div class="row2"><span><b>Referencia:</b></span><span>'+e2(det.referencia)+'</span></div>':'')
+    +(det.observacion?'<div class="row2"><span><b>Obs:</b></span><span>'+e2(det.observacion)+'</span></div>':'')
+    +'<hr class="div">'
+    +'<table><tbody>'+detRows+'</tbody></table>'
+    +'<hr class="div">'
+    +'<table><tbody>'
+    +'<tr class="total-row"><td>TOTAL PAGADO</td><td style="text-align:right;">'+m2(det.monto)+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="footer">&#9474; ¡Gracias por su pago! &#9474;</div>'
+    +'</div></body></html>';
+}
+
+function imprimirTicketPago() {
+  if (!currentPagoDetalle) return;
+  var win = window.open('', '_blank', 'width=420,height=700,scrollbars=yes');
+  win.document.write(buildPagoTicketHTML(currentPagoDetalle, false));
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 350);
+}
+
+function descargarPDFPago() {
+  if (!currentPagoDetalle) return;
+  var win = window.open('', '_blank', 'width=700,height=900,scrollbars=yes');
+  win.document.write(buildPagoTicketHTML(currentPagoDetalle, true));
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 350);
+}
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', function() {

@@ -166,15 +166,34 @@ final class PagoServices implements PagoServiceInterface
             'estado'     => $p->getEstado() !== null ? $p->getEstado()->getId() : null,
         ], $pagos);
 
-        $ventasData = array_map(fn($v) => [
-            'id'       => $v->getId(),
-            'numero'   => $v->getNumero(),
-            'fecha'    => $v->getFecha(),
-            'total'    => $v->getTotal(),
-            'saldo'    => $v->getSaldo(),
-            'tipo'     => $v->getTipo(),
-            'estado'   => $v->getEstado() !== null ? $v->getEstado()->getId() : null,
-        ], $ventas);
+        $db = Database::getInstance();
+        $stmtCuotaSig = $db->prepare(
+            'SELECT cm.saldo FROM cuotas_matricula cm
+             JOIN plan_pago_matricula ppm ON cm.plan_pago = ppm.id
+             JOIN ventas v ON ppm.matricula = v.matricula
+             WHERE v.id = :vid AND cm.saldo > 0
+             ORDER BY cm.fecha_vencimiento ASC LIMIT 1'
+        );
+
+        $ventasData = [];
+        foreach ($ventas as $v) {
+            $cuotaSiguiente = null;
+            if ($v->getTipo() === 'MATRICULA' && (float) $v->getSaldo() > 0) {
+                $stmtCuotaSig->execute([':vid' => $v->getId()]);
+                $cuotaRow = $stmtCuotaSig->fetch(\PDO::FETCH_ASSOC);
+                $cuotaSiguiente = $cuotaRow ? (float) $cuotaRow['saldo'] : null;
+            }
+            $ventasData[] = [
+                'id'              => $v->getId(),
+                'numero'          => $v->getNumero(),
+                'fecha'           => $v->getFecha(),
+                'total'           => $v->getTotal(),
+                'saldo'           => $v->getSaldo(),
+                'tipo'            => $v->getTipo(),
+                'estado'          => $v->getEstado() !== null ? $v->getEstado()->getId() : null,
+                'cuota_siguiente' => $cuotaSiguiente,
+            ];
+        }
 
         return [
             'persona_id' => $personaId,
@@ -225,6 +244,16 @@ final class PagoServices implements PagoServiceInterface
             $ventasSaldadas = [];
             $detalles       = [];
 
+            $stmtPlanPago = $db->prepare(
+                'SELECT id FROM plan_pago_matricula WHERE matricula = :mid ORDER BY id ASC LIMIT 1'
+            );
+            $stmtCuotasPend = $db->prepare(
+                'SELECT id, saldo FROM cuotas_matricula
+                 WHERE plan_pago = :pid AND saldo > 0
+                 ORDER BY fecha_vencimiento ASC, numero ASC'
+            );
+            $stmtUpdCuota = $db->prepare('UPDATE cuotas_matricula SET saldo = :s WHERE id = :id');
+
             foreach ($pendientes as $ven) {
                 if ($montoRestante <= 0) {
                     break;
@@ -244,6 +273,27 @@ final class PagoServices implements PagoServiceInterface
 
                 $montoRestante -= $aplicado;
                 $detalles[]     = ['venta_id' => $venId, 'aplicado' => $aplicado];
+
+                // Actualizar saldos de cuotas si esta venta tiene plan de pago
+                $venMatriculaId = isset($ven['matricula']) ? (int) $ven['matricula'] : 0;
+                if ($venMatriculaId > 0) {
+                    $stmtPlanPago->execute([':mid' => $venMatriculaId]);
+                    $planRow = $stmtPlanPago->fetch(\PDO::FETCH_ASSOC);
+                    if ($planRow) {
+                        $restanteCuotas = $aplicado;
+                        $stmtCuotasPend->execute([':pid' => (int) $planRow['id']]);
+                        foreach ($stmtCuotasPend->fetchAll(\PDO::FETCH_ASSOC) as $cuota) {
+                            if ($restanteCuotas <= 0) break;
+                            $cuotaSaldo   = (float) $cuota['saldo'];
+                            $aplicarCuota = min($restanteCuotas, $cuotaSaldo);
+                            $stmtUpdCuota->execute([
+                                ':s'  => round($cuotaSaldo - $aplicarCuota, 2),
+                                ':id' => $cuota['id'],
+                            ]);
+                            $restanteCuotas -= $aplicarCuota;
+                        }
+                    }
+                }
             }
 
             $montoAplicado = $monto - max(0.0, $montoRestante);
@@ -279,6 +329,7 @@ final class PagoServices implements PagoServiceInterface
             $db->commit();
 
             return [
+                'pago_id'         => $pagoId,
                 'numero_pago'     => $numeroPago,
                 'monto_aplicado'  => $montoAplicado,
                 'ventas_saldadas' => $ventasSaldadas,
@@ -355,16 +406,17 @@ final class PagoServices implements PagoServiceInterface
         };
 
         return [
-            'id'          => (int) $pago->getId(),
-            'numero'      => $pago->getNumero(),
-            'fecha'       => $pago->getFecha(),
-            'monto'       => (float) $pago->getMonto(),
-            'referencia'  => $pago->getReferencia(),
-            'observacion' => $pago->getObservacion(),
-            'forma_pago'  => $formaNombre,
-            'estado'      => $estadoNombre,
-            'estado_id'   => (int) ($pago->getEstado()?->getId() ?? 1),
-            'detalles'    => $detallesData,
+            'id'                => (int) $pago->getId(),
+            'numero'            => $pago->getNumero(),
+            'fecha'             => $pago->getFecha(),
+            'monto'             => (float) $pago->getMonto(),
+            'referencia'        => $pago->getReferencia(),
+            'observacion'       => $pago->getObservacion(),
+            'forma_pago'        => $formaNombre,
+            'estado'            => $estadoNombre,
+            'estado_id'         => (int) ($pago->getEstado()?->getId() ?? 1),
+            'motivo_anulacion'  => $pago->getMotivoAnulacion(),
+            'detalles'          => $detallesData,
         ];
     }
 
@@ -382,6 +434,13 @@ final class PagoServices implements PagoServiceInterface
         $pagoId = (int) ($body['pago_id'] ?? 0);
         if ($pagoId <= 0) {
             throw new RuntimeException('Debe proporcionar pago_id.', 400);
+        }
+
+        $motivoAnulacion = isset($body['motivo_anulacion'])
+            ? substr(trim((string) $body['motivo_anulacion']), 0, 255)
+            : null;
+        if ($motivoAnulacion === '') {
+            $motivoAnulacion = null;
         }
 
         $pago = $this->pagoRepo->findById($pagoId);
@@ -404,6 +463,14 @@ final class PagoServices implements PagoServiceInterface
 
             $detalles = $this->pagoDetalleRepo->findByPago($pagoId);
 
+            $stmtRestPlan  = $db->prepare('SELECT id FROM plan_pago_matricula WHERE matricula = :mid ORDER BY id ASC LIMIT 1');
+            $stmtRestCuota = $db->prepare(
+                'SELECT id, saldo, valor FROM cuotas_matricula
+                 WHERE plan_pago = :pid AND saldo < valor
+                 ORDER BY fecha_vencimiento DESC, numero DESC'
+            );
+            $stmtRestUpd   = $db->prepare('UPDATE cuotas_matricula SET saldo = :s WHERE id = :id');
+
             foreach ($detalles as $det) {
                 if ($det->getVenta() === null) {
                     continue;
@@ -412,7 +479,7 @@ final class PagoServices implements PagoServiceInterface
                 $valor   = (float) $det->getValor();
 
                 // Restore venta saldo
-                $stmt = $db->prepare('SELECT saldo, estado FROM ventas WHERE id = :id');
+                $stmt = $db->prepare('SELECT saldo, estado, matricula FROM ventas WHERE id = :id');
                 $stmt->execute([':id' => $ventaId]);
                 $ventaRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
@@ -422,11 +489,35 @@ final class PagoServices implements PagoServiceInterface
                     $nuevoEstado = (int) $ventaRow['estado'] === 2 ? 1 : (int) $ventaRow['estado'];
                     $stmt2 = $db->prepare('UPDATE ventas SET saldo = :saldo, estado = :estado WHERE id = :id');
                     $stmt2->execute([':saldo' => $nuevoSaldo, ':estado' => $nuevoEstado, ':id' => $ventaId]);
+
+                    // Restaurar saldos de cuotas (las más recientes primero)
+                    $matriculaId = isset($ventaRow['matricula']) ? (int) $ventaRow['matricula'] : 0;
+                    if ($matriculaId > 0) {
+                        $stmtRestPlan->execute([':mid' => $matriculaId]);
+                        $planRow = $stmtRestPlan->fetch(\PDO::FETCH_ASSOC);
+                        if ($planRow) {
+                            $aRestaurar = $valor;
+                            $stmtRestCuota->execute([':pid' => (int) $planRow['id']]);
+                            foreach ($stmtRestCuota->fetchAll(\PDO::FETCH_ASSOC) as $cuota) {
+                                if ($aRestaurar <= 0) break;
+                                $cuotaSaldo  = (float) $cuota['saldo'];
+                                $cuotaValor  = (float) $cuota['valor'];
+                                $espacio     = $cuotaValor - $cuotaSaldo;
+                                $restaurar   = min($aRestaurar, $espacio);
+                                $stmtRestUpd->execute([
+                                    ':s'  => round($cuotaSaldo + $restaurar, 2),
+                                    ':id' => $cuota['id'],
+                                ]);
+                                $aRestaurar -= $restaurar;
+                            }
+                        }
+                    }
                 }
             }
 
             // Mark pago as ANULADO (estado 4)
             $pago->setEstado(4);
+            $pago->setMotivoAnulacion($motivoAnulacion);
             $this->pagoRepo->save($pago);
 
             $db->commit();

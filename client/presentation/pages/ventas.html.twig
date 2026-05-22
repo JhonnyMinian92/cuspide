@@ -87,6 +87,12 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-outline-secondary" id="btn-imprimir-ticket" onclick="imprimirTicket()" disabled>
+          <i class="bi bi-printer me-1"></i>Imprimir Ticket
+        </button>
+        <button type="button" class="btn btn-brand" id="btn-descargar-pdf" onclick="descargarPDF()" disabled>
+          <i class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
+        </button>
       </div>
     </div>
   </div>
@@ -170,7 +176,8 @@
 </div>
 
 <script>
-var detalleVentaModal; // Declare globally so verDetalleVenta can access it
+var detalleVentaModal;
+var currentDetalleData = null;
 
 /* --- Global Helper Functions --- */
 function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]; }); }
@@ -464,7 +471,10 @@ async function verDetalleVenta(ventaId) {
   var modalTitle = document.getElementById('modal-detalle-label');
   modalBody.innerHTML = '<div class="text-center py-5"><span class="spinner-border text-primary"></span><p class="mt-2">Cargando detalle...</p></div>';
   modalTitle.innerHTML = 'Detalle de Venta';
-  
+  currentDetalleData = null;
+  document.getElementById('btn-imprimir-ticket').disabled = true;
+  document.getElementById('btn-descargar-pdf').disabled = true;
+
   if (!detalleVentaModal) {
     console.error("El modal de detalle no está inicializado.");
     return;
@@ -504,20 +514,16 @@ async function verDetalleVenta(ventaId) {
         </table>
       </div>
 
-      <div class="row" style="text-align: right; margin-left: 20px;">
-        <div class="col-md-6 col-lg-5">
-          <div class="table-responsive">
-          <table class="table table-sm">
-            <tbody>
-              <tr><td>Subtotal:</td><td class="text-end">${money(data.venta.subtotal)}</td></tr>
-              <tr><td>Descuento:</td><td class="text-end text-danger">-${money(data.venta.descuento)}</td></tr>
-              <tr><td>Impuesto:</td><td class="text-end">${money(data.venta.impuesto)}</td></tr>
-              <tr><td class="fw-bold fs-5">Total:</td><td class="text-end fw-bold fs-5">${money(data.venta.total)}</td></tr>
-              <tr><td class="fw-bold">Saldo Pendiente:</td><td class="text-end fw-bold text-warning">${money(data.venta.saldo)}</td></tr>
-            </tbody>
-          </table>
-          </div>
-        </div>
+      <div class="d-flex justify-content-end mt-1">
+        <table class="table table-sm mb-0" style="width:auto;min-width:260px;">
+          <tbody>
+            <tr><td class="text-muted">Subtotal:</td><td class="text-end ps-4">${money(data.venta.subtotal)}</td></tr>
+            <tr><td class="text-muted">Descuento:</td><td class="text-end ps-4 text-danger">-${money(data.venta.descuento)}</td></tr>
+            <tr><td class="text-muted">Impuesto:</td><td class="text-end ps-4">${money(data.venta.impuesto)}</td></tr>
+            <tr style="border-top:2px solid var(--app-border);"><td class="fw-bold fs-5 pt-2">Total:</td><td class="text-end ps-4 fw-bold fs-5 pt-2">${money(data.venta.total)}</td></tr>
+            <tr><td class="fw-semibold">Saldo Pendiente:</td><td class="text-end ps-4 fw-semibold ${parseFloat(data.venta.saldo) > 0 ? 'text-warning' : 'text-success'}">${parseFloat(data.venta.saldo) > 0 ? money(data.venta.saldo) : '✓ Pagado'}</td></tr>
+          </tbody>
+        </table>
       </div>
     `;
 
@@ -542,10 +548,96 @@ async function verDetalleVenta(ventaId) {
         </div>
       `;
     }
+    currentDetalleData = data;
+    document.getElementById('btn-imprimir-ticket').disabled = false;
+    document.getElementById('btn-descargar-pdf').disabled = false;
     modalBody.innerHTML = html;
   } catch (err) {
     modalBody.innerHTML = '<div class="alert alert-danger">' + esc(err.message || 'Error al cargar el detalle.') + '</div>';
   }
+}
+
+function buildTicketHTML(d, isPDF) {
+  var e2 = function(v) { return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); };
+  var m2 = function(v) { return '$'+parseFloat(v||0).toFixed(2); };
+
+  var itemsRows = (d.detalles||[]).map(function(it) {
+    return '<tr><td class="desc">'+e2(it.descripcion)+'</td><td class="qty">x'+it.cantidad+'</td><td class="amt">'+m2(it.subtotal)+'</td></tr>';
+  }).join('');
+
+  var descLine = parseFloat(d.venta.descuento) > 0
+    ? '<tr><td class="lbl">Descuento</td><td class="val">-'+m2(d.venta.descuento)+'</td></tr>' : '';
+
+  var saldoLine = parseFloat(d.venta.saldo) > 0
+    ? '<tr><td class="lbl warn">Saldo Pendiente</td><td class="val warn">'+m2(d.venta.saldo)+'</td></tr>'
+    : '<tr><td colspan="2" style="text-align:center;color:#166534;font-weight:bold;padding-top:4px;">&#10003; PAGADO</td></tr>';
+
+  var pagosHTML = '';
+  if (d.pagos_aplicados && d.pagos_aplicados.length) {
+    pagosHTML = '<hr class="div">'
+      + d.pagos_aplicados.map(function(p) {
+          return '<div class="row2"><span>'+e2(new Date(p.fecha).toLocaleDateString())+' · '+e2(p.forma_pago)+'</span><span>'+m2(p.monto)+'</span></div>';
+        }).join('');
+  }
+
+  var fs = isPDF ? '13px' : '11px';
+  var w  = isPDF ? '155mm' : '72mm';
+  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:80mm auto;margin:4mm;}';
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(d.venta.numero)+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'4mm 3mm')+';}'
+    +'.center{text-align:center;} .title{font-size:'+(isPDF?'18px':'14px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'11px':'9px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
+    +'.row2{display:flex;justify-content:space-between;margin:2px 0;}'
+    +'table{width:100%;border-collapse:collapse;}'
+    +'.desc{width:55%;} .qty{width:12%;text-align:center;} .amt{width:33%;text-align:right;}'
+    +'td{padding:2px 0;vertical-align:top;}'
+    +'.lbl{text-align:left;} .val{text-align:right;}'
+    +'.total-row td{font-size:'+(isPDF?'16px':'13px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.warn{color:#92400e;font-weight:bold;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'9px')+';}'
+    +pg+'@media print{button{display:none!important;}}</style>'
+    +'</head><body><div class="ticket">'
+    +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">TICKET DE VENTA</div></div>'
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>N°:</b></span><span>'+e2(d.venta.numero)+'</span></div>'
+    +'<div class="row2"><span><b>Fecha:</b></span><span>'+e2(new Date(d.venta.fecha).toLocaleDateString())+'</span></div>'
+    +'<div class="row2"><span><b>Cliente:</b></span><span>'+e2(d.cliente.nombre)+'</span></div>'
+    +'<div class="row2"><span><b>CI:</b></span><span>'+e2(d.cliente.identificacion)+'</span></div>'
+    +'<hr class="div">'
+    +'<table><tbody>'+itemsRows+'</tbody></table>'
+    +'<hr class="div">'
+    +'<table><tbody>'
+    +'<tr><td class="lbl">Subtotal</td><td class="val">'+m2(d.venta.subtotal)+'</td></tr>'
+    +descLine
+    +'<tr><td class="lbl">Impuesto</td><td class="val">'+m2(d.venta.impuesto)+'</td></tr>'
+    +'<tr class="total-row"><td class="lbl">TOTAL</td><td class="val">'+m2(d.venta.total)+'</td></tr>'
+    +saldoLine
+    +'</tbody></table>'
+    +pagosHTML
+    +'<div class="footer">&#9474; ¡Gracias por su compra! &#9474;</div>'
+    +'</div></body></html>';
+}
+
+function imprimirTicket() {
+  if (!currentDetalleData) return;
+  var win = window.open('', '_blank', 'width=420,height=700,scrollbars=yes');
+  win.document.write(buildTicketHTML(currentDetalleData, false));
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 350);
+}
+
+function descargarPDF() {
+  if (!currentDetalleData) return;
+  var win = window.open('', '_blank', 'width=700,height=900,scrollbars=yes');
+  win.document.write(buildTicketHTML(currentDetalleData, true));
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 350);
 }
 </script>
 {% endblock %}

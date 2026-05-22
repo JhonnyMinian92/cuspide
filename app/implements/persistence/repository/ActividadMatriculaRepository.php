@@ -23,28 +23,28 @@ class ActividadMatriculaRepository
     if ($actividadMatricula->getId() === null) {
       $stmt = $this->db->prepare("INSERT INTO actividades_matricula (actividad, matricula, modalidad, categoria_deportiva, horario, fecha_inicio, fecha_fin, estado) VALUES (:actividad, :matricula, :modalidad, :categoria_deportiva, :horario, :fecha_inicio, :fecha_fin, :estado)");
       $stmt->execute([
-        ':actividad' => $actividadMatricula->getActividad()?->getId(),
-        ':matricula' => $actividadMatricula->getMatricula()?->getId(),
-        ':modalidad' => $actividadMatricula->getModalidad()?->getId(),
+        ':actividad'           => $actividadMatricula->getActividad()?->getId(),
+        ':matricula'           => $actividadMatricula->getMatricula()?->getId(),
+        ':modalidad'           => $actividadMatricula->getModalidad()?->getId(),
         ':categoria_deportiva' => $actividadMatricula->getCategoriaDeportiva()?->getId(),
-        ':horario' => $actividadMatricula->getHorario()?->getId(),
-        ':fecha_inicio' => $actividadMatricula->getFechaInicio(),
-        ':fecha_fin' => $actividadMatricula->getFechaFin(),
-        ':estado' => $actividadMatricula->getEstado()?->getId(),
+        ':horario'             => $actividadMatricula->getHorario()?->getId(),
+        ':fecha_inicio'        => $actividadMatricula->getFechaInicio(),
+        ':fecha_fin'           => $actividadMatricula->getFechaFin(),
+        ':estado'              => $actividadMatricula->getEstado()?->getId(),
       ]);
       $actividadMatricula->setId($this->db->lastInsertId());
     } else {
       $stmt = $this->db->prepare("UPDATE actividades_matricula SET actividad = :actividad, matricula = :matricula, modalidad = :modalidad, categoria_deportiva = :categoria_deportiva, horario = :horario, fecha_inicio = :fecha_inicio, fecha_fin = :fecha_fin, estado = :estado WHERE id = :id");
       $stmt->execute([
-        ':id' => $actividadMatricula->getId(),
-        ':actividad' => $actividadMatricula->getActividad()?->getId(),
-        ':matricula' => $actividadMatricula->getMatricula()?->getId(),
-        ':modalidad' => $actividadMatricula->getModalidad()?->getId(),
+        ':id'                  => $actividadMatricula->getId(),
+        ':actividad'           => $actividadMatricula->getActividad()?->getId(),
+        ':matricula'           => $actividadMatricula->getMatricula()?->getId(),
+        ':modalidad'           => $actividadMatricula->getModalidad()?->getId(),
         ':categoria_deportiva' => $actividadMatricula->getCategoriaDeportiva()?->getId(),
-        ':horario' => $actividadMatricula->getHorario()?->getId(),
-        ':fecha_inicio' => $actividadMatricula->getFechaInicio(),
-        ':fecha_fin' => $actividadMatricula->getFechaFin(),
-        ':estado' => $actividadMatricula->getEstado()?->getId(),
+        ':horario'             => $actividadMatricula->getHorario()?->getId(),
+        ':fecha_inicio'        => $actividadMatricula->getFechaInicio(),
+        ':fecha_fin'           => $actividadMatricula->getFechaFin(),
+        ':estado'              => $actividadMatricula->getEstado()?->getId(),
       ]);
     }
 

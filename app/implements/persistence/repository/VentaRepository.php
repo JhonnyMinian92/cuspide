@@ -150,7 +150,7 @@ class VentaRepository
   public function findPendientesByPersona(int $personaId): array
   {
     $stmt = $this->db->prepare(
-      'SELECT id, saldo FROM ventas WHERE persona = :persona AND saldo > 0 AND estado = 1 ORDER BY fecha ASC'
+      'SELECT id, saldo, matricula FROM ventas WHERE persona = :persona AND saldo > 0 AND estado = 1 ORDER BY fecha ASC'
     );
     $stmt->execute([':persona' => $personaId]);
     return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
