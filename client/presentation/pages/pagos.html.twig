@@ -1,6 +1,6 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'pagos' %}
-{% block title %}Pagos — CUSPIDE{% endblock %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
 {% block page_title %}Gestión de Pagos{% endblock %}
 
 {% block content %}
@@ -37,7 +37,7 @@
 
       <!-- Paso 1 -->
       <div class="mb-4">
-        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">1 · Buscar cliente</label>
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">Buscar cliente</label>
         <div class="input-group">
           <span class="input-group-text"><i class="bi bi-search"></i></span>
           <input type="search" class="form-control" id="pago-search"
@@ -158,29 +158,10 @@
       <h6 class="fw-bold mb-1"><i class="bi bi-arrow-counterclockwise me-2 text-danger"></i>Reverso de Pago</h6>
       <p class="text-muted small mb-4">Busca un pago registrado, verifica su detalle y anúlalo. El saldo de las facturas afectadas se restaura automáticamente.</p>
 
-      <!-- Búsqueda por número de pago o cliente -->
-      <div class="mb-3">
-        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
-          Buscar pago
-        </label>
-        <div class="input-group">
-          <span class="input-group-text"><i class="bi bi-search"></i></span>
-          <input type="search" class="form-control" id="reverso-search"
-            placeholder="Número de pago (ej. PAG-20260518-...)" autocomplete="off">
-          <button class="btn btn-outline-secondary" type="button" id="btn-reverso-buscar">
-            <i class="bi bi-search me-1"></i>Buscar
-          </button>
-          <span class="input-group-text d-none" id="reverso-spinner">
-            <span class="spinner-border spinner-border-sm"></span>
-          </span>
-        </div>
-        <div class="form-text">También puedes buscar por cliente en la tabla de Historial del tab "Cobrar".</div>
-      </div>
-
       <!-- Buscar por cliente para ver historial de pagos -->
       <div class="mb-4">
         <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
-          O busca por cliente
+          Busca por cliente
         </label>
         <div class="input-group">
           <span class="input-group-text"><i class="bi bi-person-search"></i></span>
@@ -310,6 +291,47 @@
     </div>
   </div>
 
+</div>
+
+<!-- ══════════════════════════════════════════════
+     ÚLTIMOS 20 COBROS (siempre visible)
+═══════════════════════════════════════════════ -->
+<div class="card chart-card mt-4" id="card-recent-pagos">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h6 class="fw-bold mb-1"><i class="bi bi-clock-history me-2" style="color:var(--brand-color);"></i>Últimos 20 Cobros</h6>
+        <p class="text-muted small mb-0">Pagos más recientes registrados en la institución.</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-recent">
+        <i class="bi bi-arrow-repeat"></i>
+      </button>
+    </div>
+    <div id="recent-loading" class="text-center py-3 text-muted">
+      <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+    </div>
+    <div id="recent-container" class="d-none">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+          <thead class="table-light">
+            <tr>
+              <th>Fecha</th>
+              <th>N° Pago</th>
+              <th>Cliente</th>
+              <th class="text-end">Monto</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="recent-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="recent-empty" class="d-none text-center py-4 text-muted">
+      <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+      Sin cobros registrados.
+    </div>
+  </div>
 </div>
 
 <!-- Modal: Motivo de Anulación -->
@@ -742,6 +764,7 @@ document.getElementById('form-pago').addEventListener('submit', function(e) {
       renderPagoResultado(data, monto);
       loadFacturasPendientesCliente();
       allPendientes = [];
+      loadRecentPagos();
     })
     .catch(function(err) { showToast(err.message || 'Error al registrar pago.', 'danger'); })
     .finally(function() {
@@ -819,39 +842,6 @@ function reversoDesdeTabla(cedula, nombre) {
 /* ════════════════════════════════════════
    TAB REVERSO
 ═══════════════════════════════════════ */
-
-/* Buscar pago por número */
-function buscarPagoPorNumero(numero) {
-  if (!numero.trim()) return;
-  document.getElementById('reverso-spinner').classList.remove('d-none');
-  document.getElementById('reverso-detalle-card').classList.add('d-none');
-
-  apiGet(CONFIG.ENDPOINTS.pagos, 'history', { identificacion: numero.trim() })
-    .then(function(data) {
-      var pagos = (data.pagos || []);
-      if (!pagos.length) {
-        showToast('No se encontró ningún pago con ese número.', 'warning');
-        return;
-      }
-      var pago = pagos.find(function(p) { return p.numero === numero.trim(); }) || pagos[0];
-      cargarDetallePago(pago.id);
-    })
-    .catch(function() {
-      apiGet(CONFIG.ENDPOINTS.pagos, 'detail', { id: numero.trim() })
-        .then(function(det) { renderDetallePago(det); })
-        .catch(function(err) { showToast(err.message || 'No se encontró el pago.', 'danger'); });
-    })
-    .finally(function() {
-      document.getElementById('reverso-spinner').classList.add('d-none');
-    });
-}
-
-document.getElementById('btn-reverso-buscar').addEventListener('click', function() {
-  buscarPagoPorNumero(document.getElementById('reverso-search').value.trim());
-});
-document.getElementById('reverso-search').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') buscarPagoPorNumero(this.value.trim());
-});
 
 /* Buscar cliente para ver historial */
 var doReversoClienteSearch = debounce(function(q) {
@@ -932,12 +922,9 @@ function renderReversoHistorial(pagos) {
 
 function cargarDetallePago(pagoId) {
   selectedPagoId = pagoId;
-  document.getElementById('reverso-spinner').classList.remove('d-none');
-
   apiGet(CONFIG.ENDPOINTS.pagos, 'detail', { id: pagoId })
     .then(function(det) { renderDetallePago(det); })
-    .catch(function(err) { showToast(err.message || 'Error al cargar detalle.', 'danger'); })
-    .finally(function() { document.getElementById('reverso-spinner').classList.add('d-none'); });
+    .catch(function(err) { showToast(err.message || 'Error al cargar detalle.', 'danger'); });
 }
 
 function renderDetallePago(det) {
@@ -1246,11 +1233,74 @@ function descargarPDFPago() {
   setTimeout(function() { win.print(); }, 350);
 }
 
+/* ════════════════════════════════════════
+   ÚLTIMOS 20 COBROS
+═══════════════════════════════════════ */
+function loadRecentPagos() {
+  document.getElementById('recent-loading').classList.remove('d-none');
+  document.getElementById('recent-container').classList.add('d-none');
+  document.getElementById('recent-empty').classList.add('d-none');
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'recent', {})
+    .then(function(data) {
+      renderRecentPagos(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      var el = document.getElementById('recent-loading');
+      el.innerHTML = '<div class="text-danger small">' + esc(err.message || 'Error al cargar cobros.') + '</div>';
+      el.classList.remove('d-none');
+    })
+    .finally(function() {
+      document.getElementById('recent-loading').classList.add('d-none');
+    });
+}
+
+function renderRecentPagos(items) {
+  if (!items.length) {
+    document.getElementById('recent-empty').classList.remove('d-none');
+    return;
+  }
+  var tbody = document.getElementById('recent-tbody');
+  tbody.innerHTML = items.map(function(p) {
+    var esAnulado   = parseInt(p.estado_id || 1) === 4;
+    var estadoBadge = esAnulado
+      ? '<span class="badge bg-danger rounded-pill" style="font-size:.7rem;">Anulado</span>'
+      : '<span class="badge bg-success rounded-pill" style="font-size:.7rem;">Activo</span>';
+    return '<tr>'
+      + '<td style="font-size:.8rem;white-space:nowrap;">' + esc(p.fecha) + '</td>'
+      + '<td><code style="font-size:.78rem;">' + esc(p.numero) + '</code></td>'
+      + '<td>'
+      +   '<div class="fw-semibold" style="font-size:.82rem;">' + esc(p.nombre_cliente) + '</div>'
+      +   '<code style="font-size:.7rem;">' + esc(p.identificacion) + '</code>'
+      + '</td>'
+      + '<td class="text-end fw-bold">' + fmt(p.monto) + '</td>'
+      + '<td>' + estadoBadge + '</td>'
+      + '<td>'
+      +   '<button type="button" class="btn btn-sm btn-outline-secondary" title="Ver comprobante" '
+      +     'onclick="verDetallePagoFromRecent(' + p.id + ',\'' + esc(p.nombre_cliente) + '\',\'' + esc(p.identificacion) + '\')">'
+      +     '<i class="bi bi-eye"></i>'
+      +   '</button>'
+      + '</td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('recent-container').classList.remove('d-none');
+}
+
+function verDetallePagoFromRecent(pagoId, nombre, cedula) {
+  pagoCliente = { id: null, nombre: nombre, cedula: cedula, tipo: '' };
+  verDetallePagoModal(pagoId);
+}
+
+document.getElementById('btn-refresh-recent').addEventListener('click', function() {
+  loadRecentPagos();
+});
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', function() {
   checkAuth();
   loadFormasPago();
   loadPendientes();
+  loadRecentPagos();
 });
 </script>
 {% endblock %}

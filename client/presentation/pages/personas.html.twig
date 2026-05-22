@@ -1,6 +1,6 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'personas' %}
-{% block title %}Personal — SportAdmin{% endblock %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
 {% block page_title %}Gestión de Personal{% endblock %}
 
 {% block content %}
@@ -390,9 +390,8 @@ async function loadCatalogs() {
     populateSelect('p-etnia',        catalogEtnias,    'Sin especificar');
     populateSelect('p-nacionalidad', catalogNacs,      'Sin especificar');
     populateSelect('p-tipo-user',    catalogTypeUsers, '— Seleccionar rol —', 'nemonico', 'nombre');
-    // Filtrar "Estudiante" (ID 1) del selector de tipo de persona
-    var employeeTypes = catalogTipos.filter(function(t) { return t.id != 1; });
-    populateSelect('p-tipo-persona', employeeTypes,   'Seleccionar rol');
+    var employeeTypes = catalogTipos.filter(function(t) { return t.nemonico !== 'TIPO_EST' && t.nemonico !== 'TIPO_DEV' && t.nemonico !== 'TIPO_SOCIO'; });
+    populateSelect('p-tipo-persona', employeeTypes, 'Seleccionar rol');
     populateCiudadSelect(catalogCiudades);
   } catch (err) {
     console.warn('Catálogos no disponibles:', err);

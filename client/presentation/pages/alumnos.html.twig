@@ -1,7 +1,7 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'alumnos' %}
 
-{% block title %}Alumnos — SportAdmin{% endblock %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
 {% block page_title %}Alumnos{% endblock %}
 
 {% block content %}
@@ -354,7 +354,11 @@ async function loadCatalogs() {
     populateSelect('a-genero',       catalogGeneros, 'Sin especificar');
     populateSelect('a-etnia',        catalogEtnias,  'Sin especificar');
     populateSelect('a-nacionalidad', catalogNacs,    'Sin especificar');
-    populateSelect('a-tipo-persona', catalogTipos,   'Seleccionar tipo');
+    var studentTypes = catalogTipos.filter(function(t) { return t.nemonico === 'TIPO_EST'; });
+    populateSelect('a-tipo-persona', studentTypes, 'Seleccionar tipo');
+    if (studentTypes.length > 0) {
+      document.getElementById('a-tipo-persona').value = studentTypes[0].id;
+    }
     populateCiudadSelect(catalogCiudades);
   } catch (err) {
     console.warn('Catálogos no disponibles:', err);
@@ -553,11 +557,13 @@ function resetForm() {
   hideModalError();
   goToFirstTab();
   /* reset selects explícitamente (form.reset() puede no vaciar option value) */
-  ['a-genero','a-etnia','a-nacionalidad','a-ciudad','a-tipo-persona','a-grupo-sanguineo'].forEach(function(id) {
+  ['a-genero','a-etnia','a-nacionalidad','a-ciudad','a-grupo-sanguineo'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.getElementById('a-estado-pi').value = '1';
+  var tipoEl = document.getElementById('a-tipo-persona');
+  if (tipoEl && tipoEl.options.length > 1) tipoEl.selectedIndex = 1;
 }
 
 function fillFormFromProfile(profile, editMode) {

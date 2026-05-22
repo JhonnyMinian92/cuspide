@@ -170,7 +170,7 @@ class PersonaRepository
               pi.estado AS pi_estado
        FROM personas p
        JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.id_institucion = :inst
-       JOIN tipo_persona tp        ON tp.id = pi.tipo AND tp.nemonico != 'TIPO_EST'
+       JOIN tipo_persona tp        ON tp.id = pi.tipo AND tp.nemonico NOT IN ('TIPO_EST', 'TIPO_DEV', 'TIPO_SOCIO')
        ORDER BY p.primer_apellido ASC, p.primer_nombre ASC
        LIMIT :lim"
     );
@@ -184,7 +184,7 @@ class PersonaRepository
   {
     $stmt = $this->db->prepare(
       "SELECT COUNT(*) FROM persona_institucion pi
-       JOIN tipo_persona tp ON tp.id = pi.tipo AND tp.nemonico != 'TIPO_EST'
+       JOIN tipo_persona tp ON tp.id = pi.tipo AND tp.nemonico NOT IN ('TIPO_EST', 'TIPO_DEV', 'TIPO_SOCIO')
        WHERE pi.id_institucion = :inst"
     );
     $stmt->execute([':inst' => $institucionId]);
@@ -198,7 +198,7 @@ class PersonaRepository
     if ($tipoNemonico === 'TIPO_EST') {
       $tipoFilter = "AND tp.nemonico = 'TIPO_EST'";
     } elseif ($tipoNemonico !== null) {
-      $tipoFilter = "AND tp.nemonico != 'TIPO_EST'";
+      $tipoFilter = "AND tp.nemonico NOT IN ('TIPO_EST', 'TIPO_DEV', 'TIPO_SOCIO')";
     }
 
     $stmt = $this->db->prepare(

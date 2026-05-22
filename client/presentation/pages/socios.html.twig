@@ -1,0 +1,601 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'socios' %}
+
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Socios{% endblock %}
+
+{% block content %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+.dynamic-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem;}
+.dynamic-row input{flex:1;}
+#socio-tabs{border-bottom:1px solid var(--card-border,#dee2e6);}
+#socio-tabs .nav-link{color:var(--app-text,#495057);opacity:.65;border:none;border-bottom:2px solid transparent;border-radius:0;padding:.65rem 1.1rem;font-size:.88rem;transition:opacity .15s,border-color .15s;}
+#socio-tabs .nav-link:hover:not(.active){opacity:1;}
+#socio-tabs .nav-link.active{color:var(--brand-color,#e8b84b);opacity:1;border-bottom-color:var(--brand-color,#e8b84b);background:transparent;font-weight:600;}
+.tab-content>.tab-pane{padding:1.25rem 0 .25rem;}
+</style>
+
+<!-- Barra superior -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mb-4">
+      <div>
+        <h6 class="fw-bold mb-1">Socios Registrados</h6>
+        <p class="text-muted small mb-0">Total: <strong id="socios-count">—</strong> socios en tu institución.</p>
+      </div>
+      <div class="d-flex gap-2 flex-shrink-0">
+        <button type="button" class="btn btn-brand" id="btn-nuevo-socio">
+          <i class="bi bi-person-plus-fill me-1"></i>Nuevo Socio
+        </button>
+      </div>
+    </div>
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-10">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="socio-search"
+            placeholder="Buscar por nombre, apellido o identificación..." autocomplete="off">
+        </div>
+      </div>
+      <div class="col-12 col-lg-2">
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-busqueda">
+          <i class="bi bi-x-circle me-1"></i>Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de resultados -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Lista de Socios</h6>
+      <small class="text-muted" id="socios-result-info">Últimos 20 registros</small>
+    </div>
+    <div class="table-responsive table-container">
+      <table class="table table-hover align-middle mb-0" style="min-width:600px;">
+        <thead class="table-light">
+          <tr>
+            <th>Identificación</th>
+            <th>Nombre Completo</th>
+            <th>Membresía</th>
+            <th>Vigencia</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="socios-tbody">
+          <tr><td colspan="6" class="text-center text-muted py-4">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-msg" class="toast-notification" role="alert"></div>
+
+<!-- Modal Socio (tab-based) -->
+<div class="modal fade" id="modal-socio" tabindex="-1" aria-labelledby="modal-socio-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header border-bottom-0 pb-1">
+        <h5 class="modal-title" id="modal-socio-label">
+          <i class="bi bi-person-badge me-2"></i>Ficha del Socio
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body pt-0">
+
+        <div id="modal-spinner" class="text-center py-5 d-none">
+          <span class="spinner-border text-primary mb-2"></span>
+          <p class="text-muted small mb-0">Cargando ficha...</p>
+        </div>
+
+        <div id="modal-error" class="alert alert-danger mt-2 d-none" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <span id="modal-error-msg"></span>
+        </div>
+
+        <form id="form-socio" novalidate>
+          <input type="hidden" id="s-id">
+
+          <!-- ── Nav Tabs ── -->
+          <ul class="nav nav-tabs" id="socio-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab">
+                <i class="bi bi-person me-1"></i>Personal
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-contacto" type="button" role="tab">
+                <i class="bi bi-telephone me-1"></i>Contacto
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-membresia" type="button" role="tab">
+                <i class="bi bi-card-checklist me-1"></i>Membresía
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="socio-tabs-content">
+
+            <!-- ══ TAB 1: DATOS PERSONALES ══ -->
+            <div class="tab-pane fade show active" id="tab-personal" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Identificación <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="s-identificacion" placeholder="Ej: 0701234567" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Fecha de Nacimiento</label>
+                  <input type="date" class="form-control" id="s-fecha-nac">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Dirección</label>
+                  <input type="text" class="form-control" id="s-direccion" placeholder="Dirección de domicilio">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Primer Nombre <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="s-primer-nombre" placeholder="Ej: Juan" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Segundo Nombre</label>
+                  <input type="text" class="form-control" id="s-segundo-nombre">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Primer Apellido <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="s-primer-apellido" placeholder="Ej: Pérez" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Segundo Apellido</label>
+                  <input type="text" class="form-control" id="s-segundo-apellido">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Género</label>
+                  <select class="form-select" id="s-genero">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Etnia</label>
+                  <select class="form-select" id="s-etnia">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Nacionalidad</label>
+                  <select class="form-select" id="s-nacionalidad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Ciudad</label>
+                  <select class="form-select" id="s-ciudad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+              </div>
+            </div><!-- /tab-personal -->
+
+            <!-- ══ TAB 2: CONTACTO ══ -->
+            <div class="tab-pane fade" id="tab-contacto" role="tabpanel">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-phone me-1"></i>Teléfonos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-telefono">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="telefonos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="telefono-placeholder">Sin teléfonos registrados.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-envelope me-1"></i>Correos Electrónicos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-correo">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="correos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="correo-placeholder">Sin correos registrados.</p>
+                </div>
+              </div>
+            </div><!-- /tab-contacto -->
+
+            <!-- ══ TAB 3: MEMBRESÍA ══ -->
+            <div class="tab-pane fade" id="tab-membresia" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-12">
+                  <div class="alert alert-info d-flex align-items-center gap-2 py-2">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <span>Al guardar, se generan automáticamente las mensualidades de la membresía seleccionada. Estas aparecerán en el módulo de <strong>Pagos</strong> para su cobro.</span>
+                  </div>
+                </div>
+                <div class="col-md-12">
+                  <label class="form-label fw-semibold">Membresía <span class="text-danger">*</span></label>
+                  <select class="form-select" id="s-membresia" required>
+                    <option value="">Seleccionar membresía...</option>
+                  </select>
+                </div>
+                <div class="col-md-6" id="membresia-info-card" style="display:none;">
+                  <div class="card border">
+                    <div class="card-body py-3">
+                      <h6 class="fw-bold mb-1" id="mi-titulo">—</h6>
+                      <p class="mb-1 text-muted small"><i class="bi bi-cash me-1"></i>Precio: <strong id="mi-precio">—</strong></p>
+                      <p class="mb-1 text-muted small"><i class="bi bi-calendar-range me-1"></i>Vigencia: <span id="mi-vigencia">—</span></p>
+                      <p class="mb-0 text-muted small"><i class="bi bi-arrow-repeat me-1"></i>Periodo: <span id="mi-periodo">—</span></p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="row g-3">
+                    <div class="col-12">
+                      <label class="form-label fw-semibold">Fecha de inicio</label>
+                      <input type="date" class="form-control" id="s-fecha-inicio">
+                      <div class="form-text">Opcional. Si se omite, se usa la fecha de inicio de la membresía.</div>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label fw-semibold">Fecha de fin</label>
+                      <input type="date" class="form-control" id="s-fecha-fin">
+                      <div class="form-text">Opcional. Si se omite, se usa la fecha de fin de la membresía.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div><!-- /tab-membresia -->
+
+          </div><!-- /tab-content -->
+        </form>
+      </div>
+
+      <div class="modal-footer border-top pt-2">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-brand" id="btn-guardar-socio">
+          <span id="btn-guardar-spinner" class="spinner-border spinner-border-sm me-1 d-none"></span>
+          <i class="bi bi-floppy me-1" id="btn-guardar-icon"></i>Guardar
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var catalogData = { generos: [], etnias: [], nacionalidades: [], ciudades: [], membresias: [], tipo_socio: null };
+  var editingId   = null;
+
+  function toast(msg, type) {
+    var el = document.getElementById('toast-msg');
+    el.textContent = msg;
+    el.className   = 'toast-notification toast-' + (type || 'success') + ' show';
+    setTimeout(function () { el.classList.remove('show'); }, 3500);
+  }
+
+  function populateSelect(id, items, placeholder, valueKey, labelKey) {
+    valueKey    = valueKey    || 'id';
+    labelKey    = labelKey    || 'nombre';
+    placeholder = placeholder || 'Seleccionar...';
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '<option value="">' + placeholder + '</option>';
+    (items || []).forEach(function (item) {
+      var opt = document.createElement('option');
+      opt.value       = item[valueKey];
+      opt.textContent = item[labelKey];
+      el.appendChild(opt);
+    });
+  }
+
+  function loadCatalogs(cb) {
+    Cuspide.api.call('GET', CONFIG.ENDPOINTS.socios, 'catalogs', null, null)
+      .then(function (data) {
+        if (data) {
+          catalogData = data;
+          populateSelect('s-genero',       catalogData.generos,        'Sin especificar');
+          populateSelect('s-etnia',        catalogData.etnias,         'Sin especificar');
+          populateSelect('s-nacionalidad', catalogData.nacionalidades,  'Sin especificar');
+          populateSelect('s-ciudad',       catalogData.ciudades,       'Sin especificar');
+          populateSelect('s-membresia',    catalogData.membresias,     'Seleccionar membresía...', 'id', 'titulo');
+        }
+        if (typeof cb === 'function') cb();
+      })
+      .catch(function (err) {
+        toast('Error al cargar catálogos: ' + (err.message || err), 'error');
+        if (typeof cb === 'function') cb();
+      });
+  }
+
+  function loadList(q) {
+    var tbody = document.getElementById('socios-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+    Cuspide.api.call('GET', CONFIG.ENDPOINTS.socios, 'list', null, { q: q || '', limit: 20 })
+      .then(function (data) {
+        var items = (data && data.items) || [];
+        document.getElementById('socios-count').textContent      = (data && data.total) || 0;
+        document.getElementById('socios-result-info').textContent =
+          q ? ('Resultados para "' + q + '": ' + items.length) : 'Últimos 20 registros';
+
+        if (!items.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No se encontraron socios.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = items.map(function (s) {
+          var estadoBadge = s.estado === 1
+            ? '<span class="badge bg-success">Activo</span>'
+            : '<span class="badge bg-secondary">Inactivo</span>';
+          var fi = s.fecha_inicio ? s.fecha_inicio.substr(0, 10) : '—';
+          var ff = s.fecha_fin    ? s.fecha_fin.substr(0, 10)    : '—';
+          return '<tr>' +
+            '<td>' + (s.identificacion || '—') + '</td>' +
+            '<td>' + (s.nombre_completo || '—') + '</td>' +
+            '<td>' + (s.membresia_titulo || '—') +
+              ' <small class="text-muted">$' + parseFloat(s.membresia_precio || 0).toFixed(2) + '</small></td>' +
+            '<td><small>' + fi + ' → ' + ff + '</small></td>' +
+            '<td>' + estadoBadge + '</td>' +
+            '<td class="text-end">' +
+              '<button class="btn btn-sm btn-outline-primary btn-edit-socio" data-pid="' + s.persona_id + '" title="Editar">' +
+                '<i class="bi bi-pencil-square"></i>' +
+              '</button>' +
+            '</td></tr>';
+        }).join('');
+
+        document.querySelectorAll('.btn-edit-socio').forEach(function (btn) {
+          btn.addEventListener('click', function () { openEdit(parseInt(this.dataset.pid)); });
+        });
+      })
+      .catch(function () {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Error al cargar la lista.</td></tr>';
+      });
+  }
+
+  function resetForm() {
+    editingId = null;
+    document.getElementById('s-id').value = '';
+    ['s-identificacion','s-primer-nombre','s-segundo-nombre',
+     's-primer-apellido','s-segundo-apellido','s-fecha-nac','s-direccion',
+     's-fecha-inicio','s-fecha-fin'
+    ].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    ['s-genero','s-etnia','s-nacionalidad','s-ciudad','s-membresia'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.selectedIndex = 0;
+    });
+    document.getElementById('telefonos-container').innerHTML = '';
+    document.getElementById('correos-container').innerHTML   = '';
+    syncPlaceholders();
+    document.getElementById('membresia-info-card').style.display = 'none';
+    document.getElementById('modal-error').classList.add('d-none');
+    var firstTab = document.querySelector('#socio-tabs .nav-link');
+    if (firstTab) { new bootstrap.Tab(firstTab).show(); }
+    document.getElementById('modal-socio-label').innerHTML =
+      '<i class="bi bi-person-badge me-2"></i>Nuevo Socio';
+  }
+
+  function openEdit(personaId) {
+    openModal();
+    showModalSpinner(true);
+    Cuspide.api.call('GET', CONFIG.ENDPOINTS.socios, 'profile', null, { id: personaId })
+      .then(function (d) {
+        showModalSpinner(false);
+        if (!d) { showModalError('No se pudo cargar el perfil del socio.'); return; }
+        editingId = d.id;
+        document.getElementById('s-id').value               = d.id || '';
+        document.getElementById('s-identificacion').value   = d.identificacion   || '';
+        document.getElementById('s-primer-nombre').value    = d.primer_nombre    || '';
+        document.getElementById('s-segundo-nombre').value   = d.segundo_nombre   || '';
+        document.getElementById('s-primer-apellido').value  = d.primer_apellido  || '';
+        document.getElementById('s-segundo-apellido').value = d.segundo_apellido || '';
+        document.getElementById('s-fecha-nac').value  = d.fecha_nacimiento ? d.fecha_nacimiento.substr(0, 10) : '';
+        document.getElementById('s-direccion').value  = d.direccion || '';
+        setSelectVal('s-genero',       d.genero_id);
+        setSelectVal('s-etnia',        d.etnia_id);
+        setSelectVal('s-nacionalidad', d.nacionalidad_id);
+        setSelectVal('s-ciudad',       d.ciudad_id);
+        setSelectVal('s-membresia',    d.membresia_id);
+        if (d.fecha_inicio) document.getElementById('s-fecha-inicio').value = d.fecha_inicio.substr(0, 10);
+        if (d.fecha_fin)    document.getElementById('s-fecha-fin').value    = d.fecha_fin.substr(0, 10);
+
+        var telCont = document.getElementById('telefonos-container');
+        telCont.innerHTML = '';
+        (d.telefonos || []).forEach(function (t) { addDynamicRow(telCont, 'tel', t.numero); });
+        var corCont = document.getElementById('correos-container');
+        corCont.innerHTML = '';
+        (d.correos || []).forEach(function (c) { addDynamicRow(corCont, 'cor', c.email); });
+        syncPlaceholders();
+
+        updateMembresiaCard(d.membresia_id);
+        document.getElementById('modal-socio-label').innerHTML =
+          '<i class="bi bi-person-badge me-2"></i>Editar Socio — ' + (d.nombre_completo || d.primer_nombre || '');
+      })
+      .catch(function (err) {
+        showModalSpinner(false);
+        showModalError('Error al cargar el perfil: ' + (err.message || err));
+      });
+  }
+
+  function addDynamicRow(container, type, value) {
+    var row = document.createElement('div');
+    row.className = 'dynamic-row';
+    var inp = document.createElement('input');
+    inp.type        = type === 'cor' ? 'email' : 'tel';
+    inp.className   = 'form-control form-control-sm';
+    inp.placeholder = type === 'cor' ? 'correo@ejemplo.com' : '09xxxxxxxx';
+    inp.value       = value || '';
+    var btn = document.createElement('button');
+    btn.type      = 'button';
+    btn.className = 'btn btn-sm btn-outline-danger';
+    btn.innerHTML = '<i class="bi bi-trash3"></i>';
+    btn.addEventListener('click', function () { row.remove(); syncPlaceholders(); });
+    row.appendChild(inp);
+    row.appendChild(btn);
+    container.appendChild(row);
+    syncPlaceholders();
+  }
+
+  function syncPlaceholders() {
+    var tel = document.getElementById('telefonos-container');
+    var cor = document.getElementById('correos-container');
+    document.getElementById('telefono-placeholder').style.display = tel.children.length ? 'none' : '';
+    document.getElementById('correo-placeholder').style.display   = cor.children.length ? 'none' : '';
+  }
+
+  function updateMembresiaCard(id) {
+    var card = document.getElementById('membresia-info-card');
+    if (!id) { card.style.display = 'none'; return; }
+    var m = (catalogData.membresias || []).find(function (x) { return String(x.id) === String(id); });
+    if (!m) { card.style.display = 'none'; return; }
+    document.getElementById('mi-titulo').textContent  = m.titulo;
+    document.getElementById('mi-precio').textContent  = '$' + parseFloat(m.precio || 0).toFixed(2);
+    document.getElementById('mi-periodo').textContent = m.periodo || 'mensual';
+    var fi = m.fecha_inicio ? m.fecha_inicio.substr(0, 10) : '—';
+    var ff = m.fecha_fin    ? m.fecha_fin.substr(0, 10)    : '—';
+    document.getElementById('mi-vigencia').textContent = fi + ' → ' + ff;
+    card.style.display = '';
+  }
+
+  function setSelectVal(id, val) {
+    var el = document.getElementById(id);
+    if (el && val !== null && val !== undefined) el.value = val;
+  }
+
+  function showModalSpinner(show) {
+    document.getElementById('modal-spinner').classList.toggle('d-none', !show);
+    document.getElementById('form-socio').style.opacity = show ? '0.3' : '1';
+  }
+
+  function showModalError(msg) {
+    document.getElementById('modal-error-msg').textContent = msg;
+    document.getElementById('modal-error').classList.remove('d-none');
+  }
+
+  function openModal() {
+    resetForm();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-socio')).show();
+  }
+
+  function setBtnGuardarLoading(loading) {
+    document.getElementById('btn-guardar-spinner').classList.toggle('d-none', !loading);
+    document.getElementById('btn-guardar-icon').classList.toggle('d-none', loading);
+    document.getElementById('btn-guardar-socio').disabled = loading;
+  }
+
+  function saveSocio() {
+    var identificacion = document.getElementById('s-identificacion').value.trim();
+    var primerNombre   = document.getElementById('s-primer-nombre').value.trim();
+    var primerApellido = document.getElementById('s-primer-apellido').value.trim();
+    var membresiaId    = document.getElementById('s-membresia').value;
+
+    if (!identificacion || !primerNombre || !primerApellido) {
+      toast('Identificación, primer nombre y primer apellido son requeridos.', 'warning');
+      new bootstrap.Tab(document.querySelector('#socio-tabs .nav-link')).show();
+      return;
+    }
+    if (!membresiaId) {
+      toast('Debe seleccionar una membresía.', 'warning');
+      new bootstrap.Tab(document.querySelector('[data-bs-target="#tab-membresia"]')).show();
+      return;
+    }
+
+    var telefonos = [];
+    document.querySelectorAll('#telefonos-container .dynamic-row input').forEach(function (inp) {
+      var v = inp.value.trim();
+      if (v) telefonos.push({ numero: v });
+    });
+    var correos = [];
+    document.querySelectorAll('#correos-container .dynamic-row input').forEach(function (inp) {
+      var v = inp.value.trim();
+      if (v) correos.push({ email: v });
+    });
+
+    var body = {
+      identificacion:   identificacion,
+      primer_nombre:    primerNombre,
+      segundo_nombre:   document.getElementById('s-segundo-nombre').value.trim(),
+      primer_apellido:  primerApellido,
+      segundo_apellido: document.getElementById('s-segundo-apellido').value.trim(),
+      fecha_nacimiento: document.getElementById('s-fecha-nac').value || null,
+      direccion:        document.getElementById('s-direccion').value.trim() || null,
+      genero:           document.getElementById('s-genero').value       || null,
+      etnia:            document.getElementById('s-etnia').value        || null,
+      nacionalidad:     document.getElementById('s-nacionalidad').value || null,
+      ciudad:           document.getElementById('s-ciudad').value       || null,
+      membresia_id:     parseInt(membresiaId),
+      fecha_inicio:     document.getElementById('s-fecha-inicio').value || null,
+      fecha_fin:        document.getElementById('s-fecha-fin').value    || null,
+      telefonos:        telefonos,
+      correos:          correos,
+    };
+    if (editingId) body.id = editingId;
+
+    var method = editingId ? 'PUT' : 'POST';
+    var params = editingId ? { id: editingId } : null;
+
+    setBtnGuardarLoading(true);
+    Cuspide.api.call(method, CONFIG.ENDPOINTS.socios, 'savesocio', body, params)
+      .then(function () {
+        setBtnGuardarLoading(false);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-socio')).hide();
+        toast('Socio guardado correctamente.', 'success');
+        loadList('');
+      })
+      .catch(function (err) {
+        setBtnGuardarLoading(false);
+        toast((err.message || 'Error al guardar.'), 'error');
+      });
+  }
+
+  // ── Search debounce ──────────────────────────────────────────────────────
+  var searchTimer = null;
+  document.getElementById('socio-search').addEventListener('input', function () {
+    var q = this.value.trim();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () { loadList(q); }, 350);
+  });
+  document.getElementById('btn-limpiar-busqueda').addEventListener('click', function () {
+    document.getElementById('socio-search').value = '';
+    loadList('');
+  });
+
+  document.getElementById('btn-nuevo-socio').addEventListener('click', openModal);
+  document.getElementById('btn-guardar-socio').addEventListener('click', saveSocio);
+
+  document.getElementById('btn-add-telefono').addEventListener('click', function () {
+    addDynamicRow(document.getElementById('telefonos-container'), 'tel', '');
+  });
+  document.getElementById('btn-add-correo').addEventListener('click', function () {
+    addDynamicRow(document.getElementById('correos-container'), 'cor', '');
+  });
+
+  document.getElementById('s-membresia').addEventListener('change', function () {
+    updateMembresiaCard(this.value);
+  });
+
+  // ── Init ────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function () {
+    loadCatalogs(function () { loadList(''); });
+  });
+
+}());
+</script>
+{% endblock %}

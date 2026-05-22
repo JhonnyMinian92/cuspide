@@ -64,6 +64,7 @@ final class PagoServices implements PagoServiceInterface
             $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams),
             $method === 'GET'  && $resource === 'formas'         => $this->fetchFormasPago(),
             $method === 'GET'  && $resource === 'detail'         => $this->fetchDetalle($queryParams),
+            $method === 'GET'  && $resource === 'recent'         => $this->fetchRecientes($userId),
             $method === 'POST' && $resource === 'register'       => $this->registrarPago($userId),
             $method === 'POST' && $resource === 'anular'         => $this->anularPago($userId),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
@@ -531,6 +532,51 @@ final class PagoServices implements PagoServiceInterface
             $db->rollBack();
             throw new RuntimeException('Error al anular pago: ' . $e->getMessage(), 500);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchRecientes
+    // -------------------------------------------------------------------------
+
+    private function fetchRecientes(int $userId): array
+    {
+        $institucion = $this->getInstitucionByUserId($userId);
+        $db = Database::getInstance();
+        $stmt = $db->prepare(
+            "SELECT p.id, p.numero, p.fecha, CAST(p.monto AS DECIMAL(12,2)) AS monto,
+                    p.referencia, p.observacion,
+                    p.estado AS estado_id,
+                    fp.nombre AS forma_pago,
+                    TRIM(CONCAT(
+                        COALESCE(per.primer_nombre, ''), ' ',
+                        COALESCE(per.segundo_nombre, ''), ' ',
+                        COALESCE(per.primer_apellido, ''), ' ',
+                        COALESCE(per.segundo_apellido, '')
+                    )) AS nombre_cliente,
+                    per.identificacion
+             FROM pagos p
+             JOIN personas per ON per.id = p.persona
+             LEFT JOIN formas_pago fp ON fp.id = p.forma_pago
+             WHERE p.institucion = :inst
+             ORDER BY p.fecha DESC, p.id DESC
+             LIMIT 20"
+        );
+        $stmt->execute([':inst' => $institucion]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        return array_map(function (array $r): array {
+            return [
+                'id'            => (int)   $r['id'],
+                'numero'        => $r['numero'],
+                'fecha'         => $r['fecha'],
+                'monto'         => (float) $r['monto'],
+                'referencia'    => $r['referencia'],
+                'observacion'   => $r['observacion'],
+                'estado_id'     => (int)   $r['estado_id'],
+                'forma_pago'    => $r['forma_pago'],
+                'nombre_cliente'=> trim((string) $r['nombre_cliente']),
+                'identificacion'=> $r['identificacion'],
+            ];
+        }, $rows);
     }
 
     private function getInstitucionByUserId(int $userId): int

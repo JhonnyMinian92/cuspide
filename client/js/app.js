@@ -59,9 +59,7 @@ function escapeHtml(value) {
 }
 
 function setLogoImage(elementOrId, url) {
-  var img = typeof elementOrId === 'string'
-    ? document.getElementById(elementOrId)
-    : elementOrId;
+  var img = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
 
   if (!img || img.tagName !== 'IMG') return;
 
@@ -88,7 +86,7 @@ async function authGet(endpoint, apiParam) {
   const url = base + '/?api=' + encodeURIComponent(apiParam);
 
   const res = await fetch(url, {
-    headers: { 'Authorization': 'Bearer ' + token }
+    headers: { Authorization: 'Bearer ' + token },
   });
 
   const json = await res.json();
@@ -114,13 +112,7 @@ async function loadUserProfile() {
       throw new Error('No se recibieron datos del usuario.');
     }
 
-    const fullName = [
-      data.primer_nombre,
-      data.primer_apellido
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .trim() || 'Usuario';
+    const fullName = [data.primer_nombre, data.primer_apellido].filter(Boolean).join(' ').trim() || 'Usuario';
 
     const initial = (fullName.charAt(0) || 'U').toUpperCase();
 
@@ -134,7 +126,6 @@ async function loadUserProfile() {
 
     if (topbarUsername) topbarUsername.textContent = fullName;
     if (topbarAvatar) topbarAvatar.textContent = initial;
-
   } catch (err) {
     console.error('Error cargando usuario:', err);
 
@@ -173,7 +164,6 @@ async function loadInstitucion() {
       badge.textContent = data.nombre;
       badge.style.display = '';
     }
-
   } catch (err) {
     // Silencioso
   }
@@ -190,8 +180,8 @@ function normalizeRouteKey(value) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // quita tildes
-    .replace(/\s+/g, '-')            // espacios a guiones
-    .replace(/[^a-z0-9-]/g, '');     // limpia caracteres raros
+    .replace(/\s+/g, '-') // espacios a guiones
+    .replace(/[^a-z0-9-]/g, ''); // limpia caracteres raros
 }
 
 function resolveRouteAlias(value) {
@@ -213,6 +203,7 @@ function resolveRouteAlias(value) {
   if (key.indexOf('membres') !== -1 || key.indexOf('socio') !== -1) return '/membresias';
   if (key.indexOf('persona') !== -1 || key.indexOf('perfil') !== -1) return '/personas';
   if (key.indexOf('alumno') !== -1 || key.indexOf('estudiante') !== -1) return '/alumnos';
+  if (key.indexOf('socio') !== -1 || key.indexOf('estudiante') !== -1) return '/socios';
   if (key.indexOf('asign') !== -1 || key.indexOf('clase') !== -1) return '/asignaturas';
   if (key.indexOf('activ') !== -1 || key.indexOf('deporte') !== -1 || key.indexOf('evento') !== -1) return '/actividades';
   if (key.indexOf('producto') !== -1 || key.indexOf('mercancia') !== -1 || key.indexOf('uniforme') !== -1 || key.indexOf('equipo') !== -1) return '/productos';
@@ -234,14 +225,7 @@ function resolveRouteAlias(value) {
 }
 
 function resolveMenuHref(item) {
-  var candidates = [
-    item && item.ruta,
-    item && item.path,
-    item && item.href,
-    item && item.tipo,
-    item && item.nemonico,
-    item && item.nombre,
-  ];
+  var candidates = [item && item.ruta, item && item.path, item && item.href, item && item.tipo, item && item.nemonico, item && item.nombre];
 
   for (var i = 0; i < candidates.length; i++) {
     var candidate = String(candidates[i] || '').trim();
@@ -319,23 +303,21 @@ async function loadMenu() {
 
     var rendered = items
       .slice()
-      .sort(function (a, b) { return (a.orden || 0) - (b.orden || 0); })
+      .sort(function (a, b) {
+        return (a.orden || 0) - (b.orden || 0);
+      })
       .map(function (item) {
         var href = resolveMenuHref(item);
         var iconHtml = buildMenuIconHtml(item.icon || item.icono);
         var isActive = currentPath === href ? 'active' : '';
         var label = escapeHtml(item.nombre || 'Opción');
 
-        return '<li class="nav-item">' +
-          '<a class="nav-link ' + isActive + '" href="' + escapeHtml(href) + '" title="' + label + '">' +
-          iconHtml + '<span class="nav-link-text">' + label + '</span>' +
-          '</a></li>';
+        return '<li class="nav-item">' + '<a class="nav-link ' + isActive + '" href="' + escapeHtml(href) + '" title="' + label + '">' + iconHtml + '<span class="nav-link-text">' + label + '</span>' + '</a></li>';
       })
       .join('');
 
     menuEl.innerHTML = rendered;
     clearMenuLoadingState(menuEl);
-
   } catch (err) {
     if (menuEl) {
       menuEl.innerHTML = '<li class="nav-item"><span class="nav-link text-muted small">No se pudo cargar el menú</span></li>';
@@ -365,10 +347,5 @@ async function loadInstituciones() {
 document.addEventListener('DOMContentLoaded', function () {
   if (!checkAuth()) return;
 
-  Promise.all([
-    loadUserProfile(),
-    loadInstitucion(),
-    loadMenu(),
-    loadInstituciones(),
-  ]);
+  Promise.all([loadUserProfile(), loadInstitucion(), loadMenu(), loadInstituciones()]);
 });
