@@ -359,15 +359,14 @@ final class MatriculaServices implements MatriculaServiceInterface
 
             // 3. Actividades + Calendarios
             foreach ($actividades as $actItem) {
-                $actividadId  = (int) ($actItem['actividad_id']       ?? 0);
-                $modalidad    = (int) ($actItem['modalidad']           ?? 1);
-                $horario      = isset($actItem['horario'])             ? (int) $actItem['horario'] : null;
-                $catDeportiva = isset($actItem['categoria_deportiva']) ? (int) $actItem['categoria_deportiva'] : null;
-                $aFechaInicio = (string) ($actItem['fecha_inicio']     ?? $fechaInicio);
-                $aFechaFin    = (string) ($actItem['fecha_fin']        ?? $fechaFin);
+                $actividadId  = (int) ($actItem['actividad_id'] ?? 0);
+                $modalidad    = (int) ($actItem['modalidad']   ?? 1);
+                $horario      = isset($actItem['horario'])     ? (int) $actItem['horario'] : null;
+                $aFechaInicio = (string) ($actItem['fecha_inicio'] ?? $fechaInicio);
+                $aFechaFin    = (string) ($actItem['fecha_fin']    ?? $fechaFin);
                 if ($actividadId <= 0) continue;
 
-                $actMatEntity = new ActividadMatricula(null, $actividadId, $matriculaId, $modalidad, $aFechaInicio, $aFechaFin, 1, $catDeportiva, $horario);
+                $actMatEntity = new ActividadMatricula(null, $actividadId, $matriculaId, $modalidad, $aFechaInicio, $aFechaFin, 1, $horario);
                 $this->actMatRepo->save($actMatEntity);
 
                 $stmtA = $db->prepare('SELECT nombre, precio FROM actividades WHERE id = :id LIMIT 1');
@@ -380,13 +379,13 @@ final class MatriculaServices implements MatriculaServiceInterface
                 $calendRepo->save($cal);
             }
 
-            // 4. Descuento automático desde membresía
+            // 4. Descuento desde membresía: porcentaje aplicado al subtotal de clases/actividades
             $descuento = 0.0;
-            $periodo   = 'mensual';
+            $periodo   = 'mensual'; // por defecto: cuotas mensuales sin membresía
             if ($membresiaId !== null) {
                 $mem = (new MembresiaRepository())->findById($membresiaId);
                 if ($mem) {
-                    $descuento = round((float) $mem->getPrecio() * ((float) $mem->getPorcentaje() / 100), 2);
+                    $descuento = round($subtotal * ((float) $mem->getPorcentaje() / 100), 2);
                     $periodo   = $mem->getPeriodo();
                 }
             }
@@ -398,38 +397,40 @@ final class MatriculaServices implements MatriculaServiceInterface
             $ventaEntity   = new Venta(null, $numeroFactura, date('Y-m-d H:i:s'), $persona, $matriculaId, $instId, 'MATRICULA', $subtotal, $descuento, $impuesto, $total, $total, 1);
             $ventaRepo     = new VentaRepository();
             $ventaRepo->save($ventaEntity);
-            $ventaId = (int) $ventaEntity->getId();
 
-            // 6. Plan de pago + cuotas (solo si hay membresía)
+            // 6. Plan de pago + cuotas (SIEMPRE, mensual por defecto; periodo de membresía si la hay)
             $cuotasData = [];
-            if ($membresiaId !== null) {
+            if ($total > 0) {
                 $periodicidadId = $this->resolvePeriodicidadId($db, $periodo);
-                $plan = new PlanPagoMatricula(null, $matriculaId, $periodicidadId, $subtotal, $descuento, $total, $total, date('Y-m-d'), 1);
+                $plan     = new PlanPagoMatricula(null, $matriculaId, $periodicidadId, $subtotal, $descuento, $total, $total, date('Y-m-d'), 1);
                 $planRepo = new PlanPagoMatriculaRepository();
                 $planRepo->save($plan);
                 $planId = (int) $plan->getId();
 
-                // Generar cuotas usando intervalos reales de calendario
+                // Cuotas por cada período dentro del rango de la matrícula
                 $startDt    = new \DateTime($fechaInicio);
                 $endDt      = new \DateTime($fechaFin);
                 $interval   = new \DateInterval($this->periodoToInterval($periodo));
                 $datePeriod = new \DatePeriod($startDt, $interval, $endDt);
                 $numCuotas  = max(1, iterator_count($datePeriod));
-                $valorBase  = round($total / $numCuotas, 2);
+                $valorBase  = round($total, 2);
                 $cuotaRepo  = new CuotaMatriculaRepository();
                 $currentDue = clone $startDt;
 
                 for ($i = 0; $i < $numCuotas; $i++) {
                     $currentDue->add($interval);
                     $isLast  = ($i === $numCuotas - 1);
-                    $valorC  = $isLast ? round($total - $valorBase * ($numCuotas - 1), 2) : $valorBase;
+                    $valorC  = $valorBase;
                     $dueDate = $currentDue->format('Y-m-d');
                     $cuota   = new CuotaMatricula(null, $planId, $i + 1, $dueDate, $valorC, $valorC, 1);
                     $cuotaRepo->save($cuota);
-                    $cuotasData[] = ['id' => (int) $cuota->getId(), 'numero' => $i + 1, 'fecha_vencimiento' => $dueDate, 'valor' => $valorC];
+                    $cuotasData[] = [
+                        'id'                => (int) $cuota->getId(),
+                        'numero'            => $i + 1,
+                        'fecha_vencimiento' => $dueDate,
+                        'valor'             => $valorC,
+                    ];
                 }
-
-                // Las cuotas quedan pendientes de cobro; el pago se registra desde el tab Cobrar.
             }
 
             $db->commit();
@@ -557,7 +558,7 @@ final class MatriculaServices implements MatriculaServiceInterface
                 $chk->execute([':a' => $actividadId, ':m' => $id]);
                 if ($chk->fetch()) continue;
 
-                $actMatEntity = new ActividadMatricula(null, $actividadId, $id, 1, $fechaInicio, $fechaFin, 1, null, null);
+                $actMatEntity = new ActividadMatricula(null, $actividadId, $id, 1, $fechaInicio, $fechaFin, 1, null);
                 $this->actMatRepo->save($actMatEntity);
 
                 $stmtA = $db->prepare('SELECT nombre FROM actividades WHERE id = :id LIMIT 1');
@@ -574,7 +575,7 @@ final class MatriculaServices implements MatriculaServiceInterface
             return [
                 'id'                   => $id,
                 'clases_agregadas'     => $clasesAdded,
-                'actividades_agregadas'=> $actsAdded,
+                'actividades_agregadas' => $actsAdded,
             ];
         } catch (\Throwable $e) {
             $db->rollBack();
@@ -592,9 +593,47 @@ final class MatriculaServices implements MatriculaServiceInterface
             throw new RuntimeException('ID de matrícula inválido.', 400);
         }
 
-        $this->matriculaRepo->disable($id);
-        $this->claseMatRepo->cancelByMatriculaId($id);
-        $this->actMatRepo->cancelByMatriculaId($id);
+        $db = \Core\Database::getInstance();
+
+        try {
+            $db->beginTransaction();
+
+            // 1. Anular matrícula, clases y actividades
+            $this->matriculaRepo->disable($id);
+            $this->claseMatRepo->cancelByMatriculaId($id);
+            $this->actMatRepo->cancelByMatriculaId($id);
+
+            // 2. Anular cuotas no pagadas del plan de pago de esta matrícula
+            $stmtPlan = $db->prepare(
+                'SELECT id FROM plan_pago_matricula WHERE matricula = :mid ORDER BY id ASC LIMIT 1'
+            );
+            $stmtPlan->execute([':mid' => $id]);
+            $planRow = $stmtPlan->fetch(\PDO::FETCH_ASSOC);
+
+            if ($planRow) {
+                $planId = (int) $planRow['id'];
+
+                // Anular cuotas pendientes (saldo > 0): estado=2 y saldo=0
+                $db->prepare(
+                    'UPDATE cuotas_matricula SET estado = 2, saldo = 0 WHERE plan_pago = :pid AND saldo > 0'
+                )->execute([':pid' => $planId]);
+
+                // Actualizar saldo del plan a 0 (deuda condonada por anulación)
+                $db->prepare(
+                    'UPDATE plan_pago_matricula SET saldo = 0 WHERE id = :pid'
+                )->execute([':pid' => $planId]);
+            }
+
+            // 3. Llevar a 0 el saldo de la venta asociada (ya no se adeuda)
+            $db->prepare(
+                'UPDATE ventas SET saldo = 0 WHERE matricula = :mid AND saldo > 0'
+            )->execute([':mid' => $id]);
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw new RuntimeException('Error al anular matrícula: ' . $e->getMessage(), 500);
+        }
 
         return ['id' => $id, 'estado' => 'ANULADO'];
     }

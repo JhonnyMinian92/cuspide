@@ -668,13 +668,12 @@ document.getElementById('mat-membresia').addEventListener('change', function() {
   var infoEl = document.getElementById('mat-membresia-info');
   var opt    = this.options[this.selectedIndex];
   if (!this.value) { infoEl.textContent = ''; return; }
-  var precio     = parseFloat(opt.dataset.precio     || 0);
   var porcentaje = parseFloat(opt.dataset.porcentaje || 0);
-  var descuento  = Math.round(precio * porcentaje / 100 * 100) / 100;
   var periodo    = opt.dataset.periodo || 'mensual';
-  var texto      = 'Descuento automático: '+fmtMoney(descuento);
-  if (porcentaje) texto += ' ('+porcentaje+'%)';
-  texto += ' · Período de cobro: '+periodo;
+  var texto      = porcentaje > 0
+    ? 'Descuento: ' + porcentaje + '% sobre el total de clases/actividades'
+    : 'Sin descuento';
+  texto += ' · Período de cobro: ' + periodo;
   infoEl.textContent = texto;
   var fin = opt.dataset.fechaFin;
   if (fin && !editMatriculaData) document.getElementById('mat-fecha-fin').value = fin;
