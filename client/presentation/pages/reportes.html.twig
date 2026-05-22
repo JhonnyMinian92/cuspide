@@ -1,7 +1,7 @@
 {% extends 'layouts/base.html.twig' %}
 {% set currentPage = 'reportes' %}
 
-{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block title %}SportAdmin - Reportes y Estadísticas{% endblock %}
 {% block page_title %}Reportes y Estadísticas{% endblock %}
 
 {% block head %}
@@ -10,7 +10,7 @@
 /* ── Toast ── */
 .toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.875rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.35);}
 .toast-notification.show{opacity:1;transform:translateX(0);}
-.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#d97706;color:#fff;}.toast-info{background:#0d6efd;}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#d97706;}.toast-info{background:#0d6efd;}
 
 /* ── KPI Cards ── */
 .rpt-kpi-card{border:1px solid var(--card-border);background:var(--card-bg);border-radius:12px;padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1rem;box-shadow:var(--card-shadow);transition:transform .15s ease;}
@@ -20,35 +20,42 @@
 .rpt-kpi-value{font-size:1.6rem;font-weight:700;line-height:1;color:var(--app-text);}
 .rpt-kpi-sub{font-size:.75rem;color:var(--app-text-muted);margin-top:.2rem;}
 
-/* ── Tab nav ── */
-.rpt-tabs .nav-link{color:var(--app-text-muted);border-radius:8px 8px 0 0;font-weight:500;font-size:.875rem;padding:.5rem 1rem;border:1px solid transparent;border-bottom:none;}
+/* ── Tabs ── */
+.rpt-tabs .nav-link{color:var(--app-text-muted);border-radius:8px 8px 0 0;font-weight:500;font-size:.875rem;padding:.5rem .9rem;border:1px solid transparent;border-bottom:none;}
 .rpt-tabs .nav-link:hover{color:var(--app-text);background:var(--app-surface-soft);}
 .rpt-tabs .nav-link.active{color:var(--brand-color);background:var(--card-bg);border-color:var(--card-border);border-bottom-color:var(--card-bg);}
 
-/* ── Chart cards ── */
-.chart-canvas-wrap{position:relative;height:300px;}
-.chart-canvas-wrap canvas{max-height:300px;}
+/* ── Chart wrapper ── */
+.chart-canvas-wrap{position:relative;height:280px;}
+.chart-canvas-wrap canvas{max-height:280px;}
 
-/* ── Section label ── */
+/* ── Labels ── */
 .section-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--app-text-muted);font-weight:700;margin-bottom:.5rem;}
 
-/* ── Export button ── */
-.btn-export{font-size:.78rem;padding:.3rem .7rem;}
-
 /* ── Summary mini-cards ── */
-.rpt-summary-card{background:var(--app-surface-soft);border:1px solid var(--app-border);border-radius:10px;padding:1rem 1.25rem;}
-.rpt-summary-card .val{font-size:1.35rem;font-weight:700;color:var(--app-text);}
-.rpt-summary-card .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--app-text-muted);font-weight:600;}
+.rpt-summary-card{background:var(--app-surface-soft);border:1px solid var(--app-border);border-radius:10px;padding:.85rem 1.1rem;}
+.rpt-summary-card .val{font-size:1.25rem;font-weight:700;color:var(--app-text);}
+.rpt-summary-card .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--app-text-muted);font-weight:600;}
 
-/* ── Attendance warning row ── */
-tr.rpt-row-warn td{background:rgba(239,68,68,.07) !important;}
+/* ── Attendance row highlight ── */
+tr.rpt-row-warn td{background:rgba(239,68,68,.07)!important;}
 tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
-
-/* ── Spinner overlay ── */
-.tab-loading{display:flex;align-items:center;justify-content:center;min-height:180px;color:var(--app-text-muted);}
+tr.rpt-row-ok td{background:rgba(34,197,94,.05)!important;}
+tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
 
 /* ── Header bar ── */
 .rpt-header{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;box-shadow:var(--card-shadow);}
+
+/* ── Export btn ── */
+.btn-export{font-size:.78rem;padding:.3rem .7rem;}
+
+/* ── Loading spinner row ── */
+.tab-loading{display:flex;align-items:center;justify-content:center;min-height:160px;color:var(--app-text-muted);}
+
+/* ── Matricula detail modal ── */
+#mat-detail-modal .modal-header{background:var(--card-bg);border-bottom:1px solid var(--card-border);}
+#mat-detail-modal .modal-body{background:var(--card-bg);}
+#mat-detail-modal .modal-footer{background:var(--card-bg);border-top:1px solid var(--card-border);}
 </style>
 {% endblock %}
 
@@ -61,28 +68,28 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
       <i class="bi bi-bar-chart-fill" style="color:var(--brand-color);"></i>
       Reportes y Estadísticas
     </h5>
-    <p class="text-muted small mb-0">Análisis de rendimiento institucional</p>
+    <p class="text-muted small mb-0">Análisis financiero y operativo institucional</p>
   </div>
   <div class="d-flex align-items-center gap-2 flex-wrap">
     <div>
       <label class="section-label mb-1 d-block">Período</label>
-      <select class="form-select form-select-sm" id="rpt-periodo-select" style="min-width:200px;">
+      <select class="form-select form-select-sm" id="rpt-periodo-select" style="min-width:210px;">
         <option value="">Todos los períodos</option>
       </select>
     </div>
     <div class="mt-3">
-      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-rpt-refresh" title="Actualizar datos del período activo">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-rpt-refresh" title="Actualizar datos">
         <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
       </button>
     </div>
   </div>
 </div>
 
-<!-- ── KPI row ── -->
+<!-- ── KPI Row ── -->
 <div class="row g-3 mb-4" id="rpt-kpi-row">
   <div class="col-12 col-sm-6 col-xl-3">
     <div class="rpt-kpi-card">
-      <div class="rpt-kpi-icon" style="background:rgba(59,130,246,.18);">
+      <div class="rpt-kpi-icon" style="background:rgba(59,130,246,.15);">
         <i class="bi bi-people-fill" style="color:#3b82f6;"></i>
       </div>
       <div>
@@ -93,57 +100,52 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   </div>
   <div class="col-12 col-sm-6 col-xl-3">
     <div class="rpt-kpi-card">
-      <div class="rpt-kpi-icon" style="background:rgba(34,197,94,.18);">
+      <div class="rpt-kpi-icon" style="background:rgba(34,197,94,.15);">
         <i class="bi bi-cash-coin" style="color:#22c55e;"></i>
       </div>
       <div>
-        <div class="rpt-kpi-label">Pagos Cobrados</div>
-        <div class="rpt-kpi-value" id="kpi-cobrados"><span class="spinner-border spinner-border-sm"></span></div>
+        <div class="rpt-kpi-label">Ingresos del Mes</div>
+        <div class="rpt-kpi-value" id="kpi-ingresos"><span class="spinner-border spinner-border-sm"></span></div>
       </div>
     </div>
   </div>
   <div class="col-12 col-sm-6 col-xl-3">
     <div class="rpt-kpi-card">
-      <div class="rpt-kpi-icon" style="background:rgba(239,68,68,.18);">
-        <i class="bi bi-exclamation-triangle-fill" style="color:#ef4444;"></i>
+      <div class="rpt-kpi-icon" style="background:rgba(168,85,247,.15);">
+        <i class="bi bi-graph-up-arrow" style="color:#a855f7;"></i>
       </div>
       <div>
-        <div class="rpt-kpi-label">Pagos Vencidos</div>
-        <div class="rpt-kpi-value" id="kpi-vencidos"><span class="spinner-border spinner-border-sm"></span></div>
+        <div class="rpt-kpi-label">Balance del Mes</div>
+        <div class="rpt-kpi-value" id="kpi-balance"><span class="spinner-border spinner-border-sm"></span></div>
       </div>
     </div>
   </div>
   <div class="col-12 col-sm-6 col-xl-3">
     <div class="rpt-kpi-card">
-      <div class="rpt-kpi-icon" style="background:rgba(168,85,247,.18);">
-        <i class="bi bi-trophy-fill" style="color:#a855f7;"></i>
+      <div class="rpt-kpi-icon" style="background:rgba(245,158,11,.15);">
+        <i class="bi bi-hourglass-split" style="color:#f59e0b;"></i>
       </div>
       <div>
-        <div class="rpt-kpi-label">Actividades Activas</div>
-        <div class="rpt-kpi-value" id="kpi-actividades"><span class="spinner-border spinner-border-sm"></span></div>
+        <div class="rpt-kpi-label">Ventas Pendientes (Mes)</div>
+        <div class="rpt-kpi-value" id="kpi-pendientes"><span class="spinner-border spinner-border-sm"></span></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Tab navigation ── -->
+<!-- ── Main card with tabs ── -->
 <div class="card chart-card p-0" style="border-radius:12px;overflow:hidden;">
 
   <div class="px-3 pt-3" style="border-bottom:1px solid var(--card-border);background:var(--card-bg);">
     <ul class="nav rpt-tabs" id="rpt-tab-nav" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-asistencias-btn" data-bs-toggle="tab" data-bs-target="#tab-asistencias" type="button" role="tab">
-          <i class="bi bi-calendar-check me-1"></i>Asistencias
+        <button class="nav-link active" id="tab-pagos-btn" data-bs-toggle="tab" data-bs-target="#tab-pagos" type="button" role="tab">
+          <i class="bi bi-receipt me-1"></i>Pagos
         </button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-pagos-btn" data-bs-toggle="tab" data-bs-target="#tab-pagos" type="button" role="tab">
-          <i class="bi bi-cash-coin me-1"></i>Pagos
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-gastos-btn" data-bs-toggle="tab" data-bs-target="#tab-gastos" type="button" role="tab">
-          <i class="bi bi-wallet2 me-1"></i>Gastos
+        <button class="nav-link" id="tab-ventas-btn" data-bs-toggle="tab" data-bs-target="#tab-ventas" type="button" role="tab">
+          <i class="bi bi-cart3 me-1"></i>Ventas
         </button>
       </li>
       <li class="nav-item" role="presentation">
@@ -152,8 +154,8 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
         </button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-rendimiento-btn" data-bs-toggle="tab" data-bs-target="#tab-rendimiento" type="button" role="tab">
-          <i class="bi bi-speedometer2 me-1"></i>Rendimiento
+        <button class="nav-link" id="tab-gastos-btn" data-bs-toggle="tab" data-bs-target="#tab-gastos" type="button" role="tab">
+          <i class="bi bi-wallet2 me-1"></i>Gastos
         </button>
       </li>
     </ul>
@@ -162,44 +164,61 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   <div class="tab-content p-3 p-lg-4" id="rpt-tab-content" style="background:var(--card-bg);">
 
     <!-- ══════════════════════════════════════
-         TAB: ASISTENCIAS
+         TAB: PAGOS REALIZADOS
     ══════════════════════════════════════ -->
-    <div class="tab-pane fade show active" id="tab-asistencias" role="tabpanel">
+    <div class="tab-pane fade show active" id="tab-pagos" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <div class="section-label">Reporte de Asistencias</div>
-          <h6 class="fw-bold mb-0">Top 10 clases y actividades por asistencia</h6>
+          <div class="section-label">Pagos Realizados</div>
+          <h6 class="fw-bold mb-0">Últimos cobros registrados en la institución</h6>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('asistencias-tbody','reporte_asistencias')">
+        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('pagos-tbody','reporte_pagos')">
           <i class="bi bi-download me-1"></i>CSV
         </button>
       </div>
 
-      <div class="row g-4">
-        <div class="col-12 col-xl-6">
-          <div class="chart-canvas-wrap" id="asistencias-chart-wrap">
-            <div class="tab-loading" id="asistencias-chart-loading">
-              <span class="spinner-border spinner-border-sm me-2"></span>Cargando gráfico...
-            </div>
-            <canvas id="chart-asistencias" class="d-none"></canvas>
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="rpt-summary-card">
+            <div class="lbl">Total Cobrado</div>
+            <div class="val text-success" id="pagos-total-cobrado">—</div>
           </div>
         </div>
-        <div class="col-12 col-xl-6">
-          <div id="asistencias-error" class="alert alert-danger d-none"></div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
-              <thead class="table-light">
+        <div class="col-6 col-md-3">
+          <div class="rpt-summary-card">
+            <div class="lbl">N° Transacciones</div>
+            <div class="val" id="pagos-num-pagos">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-12 col-xl-5">
+          <div class="section-label">Cobrado por forma de pago</div>
+          <div class="chart-canvas-wrap" id="pagos-chart-wrap">
+            <div class="tab-loading" id="pagos-chart-loading">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando gráfico...
+            </div>
+            <canvas id="chart-pagos" class="d-none"></canvas>
+          </div>
+        </div>
+        <div class="col-12 col-xl-7">
+          <div id="pagos-error" class="alert alert-danger d-none"></div>
+          <div class="table-responsive" style="max-height:380px;overflow-y:auto;">
+            <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+              <thead class="table-light sticky-top">
                 <tr>
-                  <th>Nombre</th>
-                  <th>Tipo</th>
-                  <th class="text-center">Matriculados</th>
-                  <th class="text-center">Asistencias</th>
-                  <th class="text-center">Faltas</th>
-                  <th class="text-center">% Asist.</th>
+                  <th>Estado</th>
+                  <th>Cliente</th>
+                  <th>Identificación</th>
+                  <th>N° Pago</th>
+                  <th>Fecha</th>
+                  <th>Forma de Pago</th>
+                  <th class="text-end">Monto</th>
                 </tr>
               </thead>
-              <tbody id="asistencias-tbody">
-                <tr><td colspan="6" class="text-center text-muted py-5">
+              <tbody id="pagos-tbody">
+                <tr><td colspan="7" class="text-center text-muted py-5">
                   <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
                 </td></tr>
               </tbody>
@@ -210,73 +229,152 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     </div>
 
     <!-- ══════════════════════════════════════
-         TAB: PAGOS
+         TAB: VENTAS
     ══════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-pagos" role="tabpanel">
+    <div class="tab-pane fade" id="tab-ventas" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <div class="section-label">Reporte de Pagos</div>
-          <h6 class="fw-bold mb-0">Facturas pendientes por cobrar</h6>
+          <div class="section-label">Ventas</div>
+          <h6 class="fw-bold mb-0">Todas las ventas de productos, matrículas y servicios</h6>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('pagos-tbody','reporte_pagos')">
+        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('ventas-tbody','reporte_ventas')">
           <i class="bi bi-download me-1"></i>CSV
         </button>
       </div>
 
-      <!-- Summary cards -->
-      <div class="row g-3 mb-4" id="pagos-summary-row">
+      <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
           <div class="rpt-summary-card">
-            <div class="lbl">Total Pendiente</div>
-            <div class="val" id="pagos-total-pendiente">—</div>
+            <div class="lbl">Total Ventas</div>
+            <div class="val" id="ventas-num">—</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="rpt-summary-card">
-            <div class="lbl">N° Facturas</div>
-            <div class="val" id="pagos-num-facturas">—</div>
+            <div class="lbl">Monto Total</div>
+            <div class="val" id="ventas-total">—</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="rpt-summary-card">
-            <div class="lbl">Saldo Máx.</div>
-            <div class="val" id="pagos-saldo-max">—</div>
+            <div class="lbl">Cobrado</div>
+            <div class="val text-success" id="ventas-cobrado">—</div>
           </div>
         </div>
         <div class="col-6 col-md-3">
           <div class="rpt-summary-card">
-            <div class="lbl">Clientes Afectados</div>
-            <div class="val" id="pagos-clientes">—</div>
+            <div class="lbl">Saldo Pendiente</div>
+            <div class="val text-danger" id="ventas-pendiente">—</div>
           </div>
         </div>
       </div>
 
       <div class="row g-4">
-        <div class="col-12 col-xl-6">
-          <div class="section-label">Saldo por tipo de factura</div>
-          <div class="chart-canvas-wrap" id="pagos-chart-wrap">
-            <div class="tab-loading" id="pagos-chart-loading">
+        <div class="col-12 col-xl-4">
+          <div class="section-label">Distribución por tipo</div>
+          <div class="chart-canvas-wrap" id="ventas-chart-wrap">
+            <div class="tab-loading" id="ventas-chart-loading">
               <span class="spinner-border spinner-border-sm me-2"></span>Cargando gráfico...
             </div>
-            <canvas id="chart-pagos" class="d-none"></canvas>
+            <canvas id="chart-ventas" class="d-none"></canvas>
           </div>
         </div>
-        <div class="col-12 col-xl-6">
-          <div class="section-label">Facturas pendientes <span class="text-muted">(más antiguas primero)</span></div>
-          <div id="pagos-error" class="alert alert-danger d-none"></div>
-          <div class="table-responsive" style="max-height:340px;overflow-y:auto;">
+        <div class="col-12 col-xl-8">
+          <div id="ventas-error" class="alert alert-danger d-none"></div>
+          <div class="table-responsive" style="max-height:380px;overflow-y:auto;">
             <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
               <thead class="table-light sticky-top">
                 <tr>
+                  <th>Estado</th>
                   <th>Cliente</th>
-                  <th>Factura</th>
+                  <th>N° Factura</th>
                   <th>Tipo</th>
-                  <th class="text-end">Saldo</th>
                   <th>Fecha</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-end">Saldo</th>
                 </tr>
               </thead>
-              <tbody id="pagos-tbody">
-                <tr><td colspan="5" class="text-center text-muted py-5">
+              <tbody id="ventas-tbody">
+                <tr><td colspan="7" class="text-center text-muted py-5">
+                  <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="ventas-pagination" class="d-flex justify-content-between align-items-center mt-2 d-none" style="font-size:.82rem;">
+            <span class="text-muted" id="ventas-page-info"></span>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-secondary" id="ventas-prev-btn" onclick="ventasChangePage(-1)"><i class="bi bi-chevron-left"></i></button>
+              <button class="btn btn-outline-secondary" id="ventas-next-btn" onclick="ventasChangePage(1)"><i class="bi bi-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB: MATRÍCULAS / ALUMNOS
+    ══════════════════════════════════════ -->
+    <div class="tab-pane fade" id="tab-matriculas" role="tabpanel">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <div class="section-label">Matrículas y Alumnos</div>
+          <h6 class="fw-bold mb-0">Últimas matrículas con membresía, clases y actividades</h6>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('matriculas-tbody','reporte_matriculas')">
+          <i class="bi bi-download me-1"></i>CSV
+        </button>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4">
+          <div class="rpt-summary-card">
+            <div class="lbl">Total Matrículas</div>
+            <div class="val" id="mat-total">—</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-4">
+          <div class="rpt-summary-card">
+            <div class="lbl">Con Membresía</div>
+            <div class="val text-primary" id="mat-con-mem">—</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-4">
+          <div class="rpt-summary-card">
+            <div class="lbl">Sin Membresía</div>
+            <div class="val text-muted" id="mat-sin-mem">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-12 col-xl-4">
+          <div class="section-label">Con / Sin membresía</div>
+          <div class="chart-canvas-wrap" id="matriculas-chart-wrap">
+            <div class="tab-loading" id="matriculas-chart-loading">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando gráfico...
+            </div>
+            <canvas id="chart-matriculas" class="d-none"></canvas>
+          </div>
+        </div>
+        <div class="col-12 col-xl-8">
+          <div id="matriculas-error" class="alert alert-danger d-none"></div>
+          <div class="table-responsive" style="max-height:380px;overflow-y:auto;">
+            <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Alumno</th>
+                  <th>Identificación</th>
+                  <th>Membresía</th>
+                  <th>Registro</th>
+                  <th>Vigencia</th>
+                  <th class="text-center">Clases</th>
+                  <th class="text-center">Actividades</th>
+                  <th class="text-center">Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="matriculas-tbody">
+                <tr><td colspan="8" class="text-center text-muted py-5">
                   <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
                 </td></tr>
               </tbody>
@@ -292,7 +390,7 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     <div class="tab-pane fade" id="tab-gastos" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <div class="section-label">Reporte de Gastos</div>
+          <div class="section-label">Gastos</div>
           <h6 class="fw-bold mb-0">Distribución y detalle de egresos</h6>
         </div>
         <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('gastos-tbody','reporte_gastos')">
@@ -303,11 +401,11 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
       <div class="row g-4">
         <div class="col-12 col-xl-5 d-flex flex-column gap-3">
           <div class="section-label">Gastos por categoría</div>
-          <div class="chart-canvas-wrap" id="gastos-chart-wrap" style="height:280px;">
+          <div class="chart-canvas-wrap" id="gastos-chart-wrap" style="height:260px;">
             <div class="tab-loading" id="gastos-chart-loading">
               <span class="spinner-border spinner-border-sm me-2"></span>Cargando gráfico...
             </div>
-            <canvas id="chart-gastos" class="d-none" style="max-height:280px;"></canvas>
+            <canvas id="chart-gastos" class="d-none" style="max-height:260px;"></canvas>
           </div>
           <div class="rpt-summary-card mt-auto">
             <div class="lbl">Total de Gastos</div>
@@ -345,108 +443,30 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════
-         TAB: MATRÍCULAS
-    ══════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-matriculas" role="tabpanel">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <div class="section-label">Reporte de Matrículas</div>
-          <h6 class="fw-bold mb-0">Inscripciones por clase y actividad (Top 10)</h6>
-        </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('matriculas-tbody','reporte_matriculas')">
-          <i class="bi bi-download me-1"></i>CSV
-        </button>
-      </div>
-
-      <div class="row g-4">
-        <div class="col-12 col-xl-6">
-          <div class="section-label">Matrículas por clase / actividad</div>
-          <div class="chart-canvas-wrap" id="matriculas-chart-wrap">
-            <div class="tab-loading" id="matriculas-chart-loading">
-              <span class="spinner-border spinner-border-sm me-2"></span>Cargando gráfico...
-            </div>
-            <canvas id="chart-matriculas" class="d-none"></canvas>
-          </div>
-        </div>
-        <div class="col-12 col-xl-6">
-          <div id="matriculas-error" class="alert alert-danger d-none"></div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
-              <thead class="table-light">
-                <tr>
-                  <th>Nombre</th>
-                  <th>Tipo</th>
-                  <th class="text-center">Matriculados</th>
-                  <th class="text-center">Cupo Máx.</th>
-                  <th class="text-center">Ocupación</th>
-                </tr>
-              </thead>
-              <tbody id="matriculas-tbody">
-                <tr><td colspan="5" class="text-center text-muted py-5">
-                  <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
-                </td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════
-         TAB: RENDIMIENTO
-    ══════════════════════════════════════ -->
-    <div class="tab-pane fade" id="tab-rendimiento" role="tabpanel">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <div class="section-label">Reporte de Rendimiento</div>
-          <h6 class="fw-bold mb-0">Estadísticas combinadas por clase y actividad</h6>
-        </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('rendimiento-tbody','reporte_rendimiento')">
-          <i class="bi bi-download me-1"></i>CSV
-        </button>
-      </div>
-
-      <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
-        <div class="d-flex align-items-center gap-2">
-          <span class="d-inline-block rounded" style="width:12px;height:12px;background:rgba(239,68,68,.25);border:2px solid #ef4444;"></span>
-          <small class="text-muted">Asistencia &lt; 70%</small>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          <span class="d-inline-block rounded" style="width:12px;height:12px;background:rgba(245,158,11,.18);border:2px solid #f59e0b;"></span>
-          <small class="text-muted">Asistencia 70–84%</small>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          <span class="d-inline-block rounded" style="width:12px;height:12px;background:rgba(34,197,94,.12);border:2px solid #22c55e;"></span>
-          <small class="text-muted">Asistencia ≥ 85%</small>
-        </div>
-      </div>
-
-      <div id="rendimiento-error" class="alert alert-danger d-none"></div>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0" style="font-size:.84rem;">
-          <thead class="table-light">
-            <tr>
-              <th>Clase / Actividad</th>
-              <th>Tipo</th>
-              <th>Docente</th>
-              <th class="text-center">Matriculados</th>
-              <th class="text-center">Asistencias</th>
-              <th class="text-center">Faltas</th>
-              <th class="text-center">% Asistencia</th>
-            </tr>
-          </thead>
-          <tbody id="rendimiento-tbody">
-            <tr><td colspan="7" class="text-center text-muted py-5">
-              <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
-            </td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
   </div><!-- /tab-content -->
-</div><!-- /tab card -->
+</div><!-- /main card -->
+
+<!-- ══════════════════════════════════════
+     MODAL: Detalle de matrícula
+══════════════════════════════════════ -->
+<div class="modal fade" id="mat-detail-modal" tabindex="-1" aria-labelledby="mat-detail-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold d-flex align-items-center gap-2" id="mat-detail-title">
+          <i class="bi bi-journal-bookmark-fill text-primary"></i>Detalle de Matrícula
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="mat-detail-body">
+        <div class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% endblock %}
 
@@ -458,23 +478,23 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   /* ─────────────────────────────────────
      STATE
   ───────────────────────────────────── */
-  var instId       = null;
-  var periodoId    = '';
+  var instId    = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || null;
+  var periodoId = '';
 
   var _data = {
-    stats:      null,
-    pendientes: null,
-    gastos:     null,
-    clases:     null,
-    actividades:null,
+    stats:        null,
+    pagos:        null,
+    ventas:       null,
+    ventasMeta:   { page: 1, totalPages: 1, totalItems: 0 },
+    matriculas:   null,
+    gastosData:   null,
   };
 
   var _tabLoaded = {
-    asistencias:  false,
-    pagos:        false,
-    gastos:       false,
-    matriculas:   false,
-    rendimiento:  false,
+    pagos:      false,
+    ventas:     false,
+    matriculas: false,
+    gastos:     false,
   };
 
   var _charts = {};
@@ -489,7 +509,8 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   }
 
   function fmtMoney(v) {
-    return '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    var n = parseFloat(v || 0);
+    return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
   function pct(num, den) {
@@ -510,10 +531,9 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     }, 3500);
   }
 
-  function spinnerRow(cols, msg) {
+  function spinnerRow(cols) {
     return '<tr><td colspan="' + cols + '" class="text-center text-muted py-5">' +
-      '<span class="spinner-border spinner-border-sm me-2"></span>' + esc(msg || 'Cargando...') +
-      '</td></tr>';
+      '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
   }
 
   function emptyRow(cols, msg) {
@@ -529,13 +549,9 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   }
 
   function destroyChart(id) {
-    if (_charts[id]) {
-      _charts[id].destroy();
-      _charts[id] = null;
-    }
+    if (_charts[id]) { _charts[id].destroy(); _charts[id] = null; }
   }
 
-  /* Default Chart.js font / color reconciled with CSS vars */
   function chartDefaults() {
     var bodyStyle = getComputedStyle(document.body);
     var textColor = bodyStyle.getPropertyValue('--app-text-muted').trim() || '#94a3b8';
@@ -543,8 +559,18 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     Chart.defaults.color = textColor;
     Chart.defaults.borderColor = gridColor;
     Chart.defaults.font.family = 'inherit';
-    Chart.defaults.font.size   = 11;
+    Chart.defaults.font.size = 11;
     return { textColor: textColor, gridColor: gridColor };
+  }
+
+  function hideChartLoader(name) {
+    var el = document.getElementById(name + '-chart-loading');
+    if (el) el.style.display = 'none';
+  }
+
+  function truncate(str, len) {
+    str = String(str || '');
+    return str.length > len ? str.slice(0, len - 1) + '…' : str;
   }
 
   /* ─────────────────────────────────────
@@ -555,25 +581,52 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   }
 
   /* ─────────────────────────────────────
-     LOAD INSTITUTION ID
+     ENSURE INSTITUTION ID
+     Reads from CUSPIDE_STATE or loads from API
+  ───────────────────────────────────── */
+  function ensureInstId() {
+    var cached = window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId;
+    if (cached) { instId = cached; return Promise.resolve(instId); }
+    if (instId) return Promise.resolve(instId);
+    return apiGet('instituciones', 'list').then(function (items) {
+      var list = Array.isArray(items) ? items : [];
+      if (list.length > 0) {
+        instId = parseInt(list[0].id, 10);
+        if (window.CUSPIDE_STATE) window.CUSPIDE_STATE.currentInstitucionId = instId;
+      }
+      return instId;
+    });
+  }
+
+  /* ─────────────────────────────────────
+     LOAD DASHBOARD KPIs
   ───────────────────────────────────── */
   function loadDashboardStats() {
     return apiGet('dashboard', 'stats').then(function (data) {
       _data.stats = data;
-      instId = parseInt((data && data.institucion_id) || 0, 10) || null;
 
       document.getElementById('kpi-alumnos').textContent =
         data.totalAlumnos !== undefined ? data.totalAlumnos : '—';
-      document.getElementById('kpi-cobrados').textContent =
-        data.pagosCobrados !== undefined ? fmtMoney(data.pagosCobrados) : '—';
-      document.getElementById('kpi-vencidos').textContent =
-        data.pagosVencidos !== undefined ? data.pagosVencidos : '—';
-    }).catch(function (err) {
-      ['kpi-alumnos','kpi-cobrados','kpi-vencidos'].forEach(function (id) {
+
+      document.getElementById('kpi-ingresos').textContent =
+        data.ingresosMes !== undefined ? fmtMoney(data.ingresosMes) : '—';
+
+      var balanceEl = document.getElementById('kpi-balance');
+      if (data.balanceMes !== undefined) {
+        balanceEl.textContent = fmtMoney(data.balanceMes);
+        balanceEl.style.color = data.balanceMes >= 0 ? '#22c55e' : '#ef4444';
+      } else {
+        balanceEl.textContent = '—';
+      }
+
+      document.getElementById('kpi-pendientes').textContent =
+        data.pagosPendientesMes !== undefined ? data.pagosPendientesMes : '—';
+
+    }).catch(function () {
+      ['kpi-alumnos','kpi-ingresos','kpi-balance','kpi-pendientes'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.textContent = '—';
       });
-      showToast('No se pudo cargar estadísticas: ' + (err.message || 'Error'), 'error');
     });
   }
 
@@ -587,27 +640,12 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
       list.forEach(function (p) {
         var opt = document.createElement('option');
         opt.value = p.id;
-        opt.textContent = esc(p.nombre) + (p.activo ? ' ✓' : '');
-        if (p.activo) opt.selected = true;
+        opt.textContent = esc(p.nombre) + (parseInt(p.estado) === 1 ? ' ✓' : '');
+        if (parseInt(p.estado) === 1) opt.selected = true;
         sel.appendChild(opt);
       });
       periodoId = sel.value;
-    }).catch(function () {
-      /* silently fail — period filter is optional */
-    });
-  }
-
-  /* ─────────────────────────────────────
-     LOAD ACTIVIDADES COUNT FOR KPI
-  ───────────────────────────────────── */
-  function loadActividadesKpi() {
-    var params = instId ? { institucion: instId } : {};
-    return apiGet('actividades', 'list', params).then(function (data) {
-      _data.actividades = Array.isArray(data) ? data : [];
-      document.getElementById('kpi-actividades').textContent = _data.actividades.length;
-    }).catch(function () {
-      document.getElementById('kpi-actividades').textContent = '—';
-    });
+    }).catch(function () { /* silently fail */ });
   }
 
   /* ─────────────────────────────────────
@@ -615,226 +653,117 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   ───────────────────────────────────── */
   function resetTabs() {
     Object.keys(_tabLoaded).forEach(function (k) { _tabLoaded[k] = false; });
-    _data.pendientes  = null;
-    _data.gastos      = null;
-    _data.clases      = null;
-    _data.actividades = null;
+    _data.pagos = null;
+    _data.ventas = null;
+    _data.ventasMeta = { page: 1, totalPages: 1, totalItems: 0 };
+    _data.matriculas = null;
+    _data.gastosData = null;
     Object.keys(_charts).forEach(function (id) { destroyChart(id); });
 
-    /* Reset tables to loading state */
     var resets = [
-      ['asistencias-tbody', 6],
-      ['pagos-tbody',       5],
-      ['gastos-tbody',      5],
-      ['matriculas-tbody',  5],
-      ['rendimiento-tbody', 7],
+      ['pagos-tbody', 7], ['ventas-tbody', 7], ['matriculas-tbody', 8], ['gastos-tbody', 5],
     ];
     resets.forEach(function (r) {
       var el = document.getElementById(r[0]);
       if (el) el.innerHTML = spinnerRow(r[1]);
     });
 
-    /* Hide chart canvases */
-    ['chart-asistencias','chart-pagos','chart-gastos','chart-matriculas'].forEach(function (id) {
+    ['chart-pagos','chart-ventas','chart-matriculas','chart-gastos'].forEach(function (id) {
       var cv = document.getElementById(id);
       if (cv) cv.classList.add('d-none');
     });
-    /* Show loading placeholders */
-    ['asistencias-chart-loading','pagos-chart-loading','gastos-chart-loading','matriculas-chart-loading'].forEach(function (id) {
-      var el = document.getElementById(id);
+    ['pagos','ventas','matriculas','gastos'].forEach(function (name) {
+      var el = document.getElementById(name + '-chart-loading');
       if (el) el.style.display = 'flex';
     });
-    /* Hide errors */
-    ['asistencias-error','pagos-error','gastos-error','matriculas-error','rendimiento-error'].forEach(function (id) {
-      var el = document.getElementById(id);
+    ['pagos','ventas','matriculas','gastos'].forEach(function (name) {
+      var el = document.getElementById(name + '-error');
       if (el) el.classList.add('d-none');
     });
+
+    ['pagos-total-cobrado','pagos-num-pagos'].forEach(function(id){ var e=document.getElementById(id); if(e) e.textContent='—'; });
+    ['ventas-total','ventas-cobrado','ventas-pendiente','ventas-num'].forEach(function(id){ var e=document.getElementById(id); if(e) e.textContent='—'; });
+    ['mat-total','mat-con-mem','mat-sin-mem','gastos-total','gastos-total-foot'].forEach(function(id){ var e=document.getElementById(id); if(e) e.textContent='—'; });
+    var tfoot = document.getElementById('gastos-tfoot');
+    if (tfoot) tfoot.classList.add('d-none');
+    var vpag = document.getElementById('ventas-pagination');
+    if (vpag) vpag.classList.add('d-none');
   }
 
-  /* ─────────────────────────────────────
-     TAB: ASISTENCIAS
-  ───────────────────────────────────── */
-  function loadTabAsistencias() {
-    if (_tabLoaded.asistencias) return;
-    _tabLoaded.asistencias = true;
-
-    var params = {};
-    if (instId) params.institucion = instId;
-    if (periodoId) params.periodo = periodoId;
-
-    Promise.all([
-      apiGet('clases', 'list', params),
-      apiGet('actividades', 'list', params),
-    ]).then(function (res) {
-      var clases = (Array.isArray(res[0]) ? res[0] : []).map(function (c) {
-        return Object.assign({}, c, { _tipo: 'Clase' });
-      });
-      var acts = (Array.isArray(res[1]) ? res[1] : []).map(function (a) {
-        return Object.assign({}, a, { _tipo: 'Actividad' });
-      });
-      var combined = clases.concat(acts);
-      renderAsistenciasTable(combined);
-      renderAsistenciasChart(combined);
-    }).catch(function (err) {
-      var errEl = document.getElementById('asistencias-error');
-      errEl.textContent = 'Error al cargar asistencias: ' + (err.message || 'Error');
-      errEl.classList.remove('d-none');
-      document.getElementById('asistencias-tbody').innerHTML = errorRow(6, err.message || 'Error al cargar.');
-      hideChartLoader('asistencias');
-    });
-  }
-
-  function renderAsistenciasTable(items) {
-    var tbody = document.getElementById('asistencias-tbody');
-    if (!items.length) {
-      tbody.innerHTML = emptyRow(6, 'No hay datos de asistencia disponibles.');
-      return;
-    }
-    var sorted = items.slice().sort(function (a, b) {
-      return (parseInt(b.asistencias, 10) || 0) - (parseInt(a.asistencias, 10) || 0);
-    }).slice(0, 20);
-
-    tbody.innerHTML = sorted.map(function (item) {
-      var matriculados = parseInt(item.matriculados, 10) || 0;
-      var asistencias  = parseInt(item.asistencias, 10) || 0;
-      var faltas       = parseInt(item.faltas, 10) || 0;
-      var pctAsis      = pct(asistencias, asistencias + faltas);
-      var pctClass     = pctAsis >= 85 ? 'text-success fw-bold' : pctAsis >= 70 ? 'text-warning fw-bold' : 'text-danger fw-bold';
-      var badgeClass   = item._tipo === 'Clase' ? 'bg-primary' : 'bg-success';
-      return '<tr>' +
-        '<td class="fw-semibold">' + esc(item.nombre) + '</td>' +
-        '<td><span class="badge rounded-pill ' + badgeClass + '">' + esc(item._tipo) + '</span></td>' +
-        '<td class="text-center">' + matriculados + '</td>' +
-        '<td class="text-center text-success fw-semibold">' + asistencias + '</td>' +
-        '<td class="text-center text-danger fw-semibold">' + faltas + '</td>' +
-        '<td class="text-center ' + pctClass + '">' + pctAsis + '%</td>' +
-      '</tr>';
-    }).join('');
-  }
-
-  function renderAsistenciasChart(items) {
-    var top10 = items.slice().sort(function (a, b) {
-      return (parseInt(b.asistencias, 10) || 0) - (parseInt(a.asistencias, 10) || 0);
-    }).slice(0, 10);
-
-    hideChartLoader('asistencias');
-    var cv = document.getElementById('chart-asistencias');
-    cv.classList.remove('d-none');
-    destroyChart('asistencias');
-
-    var cfg = chartDefaults();
-    _charts['asistencias'] = new Chart(cv, {
-      type: 'bar',
-      data: {
-        labels: top10.map(function (i) { return truncate(i.nombre, 18); }),
-        datasets: [
-          {
-            label: 'Asistencias',
-            data: top10.map(function (i) { return parseInt(i.asistencias, 10) || 0; }),
-            backgroundColor: 'rgba(34,197,94,.7)',
-            borderColor: '#22c55e',
-            borderWidth: 1,
-            borderRadius: 4,
-          },
-          {
-            label: 'Faltas',
-            data: top10.map(function (i) { return parseInt(i.faltas, 10) || 0; }),
-            backgroundColor: 'rgba(239,68,68,.7)',
-            borderColor: '#ef4444',
-            borderWidth: 1,
-            borderRadius: 4,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom' },
-          tooltip: { mode: 'index', intersect: false },
-        },
-        scales: {
-          x: { ticks: { maxRotation: 35, minRotation: 20 } },
-          y: { beginAtZero: true, ticks: { precision: 0 } },
-        },
-      },
-    });
-  }
-
-  /* ─────────────────────────────────────
+  /* ════════════════════════════════════════════════════
      TAB: PAGOS
-  ───────────────────────────────────── */
+     Source: pagos?api=recent
+     Fields: id, numero, fecha, monto, referencia,
+             observacion, estado_id, forma_pago,
+             nombre_cliente, identificacion
+  ════════════════════════════════════════════════════ */
   function loadTabPagos() {
     if (_tabLoaded.pagos) return;
     _tabLoaded.pagos = true;
 
-    if (_data.pendientes) {
-      renderPagosTab(_data.pendientes);
-      return;
-    }
+    if (_data.pagos) { renderPagosTab(_data.pagos); return; }
 
-    apiGet('pagos', 'pending').then(function (data) {
-      _data.pendientes = Array.isArray(data) ? data : [];
-      renderPagosTab(_data.pendientes);
+    apiGet('pagos', 'recent').then(function (data) {
+      _data.pagos = Array.isArray(data) ? data : [];
+      renderPagosTab(_data.pagos);
     }).catch(function (err) {
       var errEl = document.getElementById('pagos-error');
-      errEl.textContent = 'Error al cargar pagos pendientes: ' + (err.message || 'Error');
+      errEl.textContent = 'Error al cargar pagos: ' + (err.message || 'Error');
       errEl.classList.remove('d-none');
-      document.getElementById('pagos-tbody').innerHTML = errorRow(5, err.message || 'Error');
+      document.getElementById('pagos-tbody').innerHTML = errorRow(7, err.message || 'Error');
       hideChartLoader('pagos');
     });
   }
 
   function renderPagosTab(items) {
-    /* Summary stats */
-    var totalPendiente = items.reduce(function (s, p) { return s + parseFloat(p.saldo || 0); }, 0);
-    var clientesUnicos = new Set(items.map(function (p) { return p.identificacion; })).size;
-    var maxSaldo       = items.reduce(function (m, p) { return Math.max(m, parseFloat(p.saldo || 0)); }, 0);
+    var activos = items.filter(function (p) { return parseInt(p.estado_id) === 1; });
+    var totalCobrado = activos.reduce(function (s, p) { return s + parseFloat(p.monto || 0); }, 0);
 
-    document.getElementById('pagos-total-pendiente').textContent = fmtMoney(totalPendiente);
-    document.getElementById('pagos-num-facturas').textContent    = items.length;
-    document.getElementById('pagos-saldo-max').textContent       = fmtMoney(maxSaldo);
-    document.getElementById('pagos-clientes').textContent        = clientesUnicos;
+    document.getElementById('pagos-total-cobrado').textContent = fmtMoney(totalCobrado);
+    document.getElementById('pagos-num-pagos').textContent = activos.length;
 
-    /* Table (sorted oldest first) */
     var tbody = document.getElementById('pagos-tbody');
     if (!items.length) {
-      tbody.innerHTML = emptyRow(5, 'No hay facturas pendientes.');
+      tbody.innerHTML = emptyRow(7, 'No hay pagos recientes registrados.');
       hideChartLoader('pagos');
       return;
     }
 
-    var sorted = items.slice().sort(function (a, b) { return new Date(a.fecha) - new Date(b.fecha); });
-    tbody.innerHTML = sorted.map(function (p) {
-      var saldo = parseFloat(p.saldo || 0);
-      var saldoClass = saldo > 200 ? 'text-danger fw-bold' : 'fw-semibold';
+    tbody.innerHTML = items.map(function (p) {
+      var monto    = parseFloat(p.monto || 0);
+      var estadoId = parseInt(p.estado_id || 1);
+      var estadoBadge = estadoId === 1
+        ? '<span class="badge bg-success rounded-pill">Cobrado</span>'
+        : '<span class="badge bg-danger rounded-pill">Anulado</span>';
       return '<tr>' +
-        '<td><div class="fw-semibold">' + esc(p.nombre) + '</div><code style="font-size:.72rem;">' + esc(p.identificacion) + '</code></td>' +
-        '<td>' + esc(p.numero) + '</td>' +
-        '<td><span class="badge bg-secondary rounded-pill">' + esc(p.tipo || '—') + '</span></td>' +
-        '<td class="text-end ' + saldoClass + '">' + fmtMoney(saldo) + '</td>' +
-        '<td><span style="font-size:.8rem;">' + esc(p.fecha) + '</span></td>' +
+        '<td>' + estadoBadge + '</td>' +
+        '<td class="fw-semibold">' + esc(p.nombre_cliente || '—') + '</td>' +
+        '<td><code style="font-size:.72rem;">' + esc(p.identificacion || '—') + '</code></td>' +
+        '<td>' + esc(p.numero || '—') + '</td>' +
+        '<td style="font-size:.8rem;">' + esc(p.fecha || '—') + '</td>' +
+        '<td><span class="badge rounded-pill bg-secondary">' + esc(p.forma_pago || 'Efectivo') + '</span></td>' +
+        '<td class="text-end fw-bold ' + (estadoId === 1 ? 'text-success' : 'text-muted text-decoration-line-through') + '">' + fmtMoney(monto) + '</td>' +
       '</tr>';
     }).join('');
 
-    /* Chart: saldo por tipo */
-    var tipoMap = {};
-    items.forEach(function (p) {
-      var tipo = p.tipo || 'Sin tipo';
-      tipoMap[tipo] = (tipoMap[tipo] || 0) + parseFloat(p.saldo || 0);
+    /* Chart: total cobrado por forma de pago */
+    var formaMap = {};
+    activos.forEach(function (p) {
+      var f = p.forma_pago || 'Efectivo';
+      formaMap[f] = (formaMap[f] || 0) + parseFloat(p.monto || 0);
     });
-    renderPagosChart(tipoMap);
+    renderPagosChart(formaMap);
   }
 
-  function renderPagosChart(tipoMap) {
+  function renderPagosChart(formaMap) {
     hideChartLoader('pagos');
     var cv = document.getElementById('chart-pagos');
     cv.classList.remove('d-none');
     destroyChart('pagos');
 
-    var labels = Object.keys(tipoMap);
-    var values = labels.map(function (k) { return tipoMap[k]; });
-    var palette = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#14b8a6','#f97316','#06b6d4'];
+    var labels  = Object.keys(formaMap);
+    var values  = labels.map(function (k) { return formaMap[k]; });
+    var palette = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#14b8a6','#f97316'];
 
     chartDefaults();
     _charts['pagos'] = new Chart(cv, {
@@ -842,47 +771,383 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
       data: {
         labels: labels,
         datasets: [{
-          label: 'Saldo pendiente ($)',
+          label: 'Total cobrado ($)',
           data: values,
-          backgroundColor: labels.map(function (_, i) { return palette[i % palette.length].replace(')', ', .7)').replace('rgb', 'rgba') || 'rgba(59,130,246,.7)'; }),
+          backgroundColor: labels.map(function (_, i) { return palette[i % palette.length] + 'b0'; }),
           borderColor: labels.map(function (_, i) { return palette[i % palette.length]; }),
           borderWidth: 1,
-          borderRadius: 4,
+          borderRadius: 6,
         }],
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
+          tooltip: { callbacks: { label: function (ctx) { return ' ' + fmtMoney(ctx.parsed.y); } } },
+        },
+        scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return '$' + v.toFixed(0); } } } },
+      },
+    });
+  }
+
+  /* ════════════════════════════════════════════════════
+     TAB: VENTAS
+     Source: ventas?api=list&institucion=X
+     Returns: { items: [...], totalItems, totalPages, currentPage }
+     Item fields: id, numero, fecha, tipo, total, saldo,
+                  estado, identificacion, nombre
+  ════════════════════════════════════════════════════ */
+  function loadTabVentas() {
+    if (_tabLoaded.ventas) return;
+    _tabLoaded.ventas = true;
+    fetchVentasPage(1);
+  }
+
+  function fetchVentasPage(page) {
+    ensureInstId().then(function (id) {
+      if (!id) throw new Error('No se pudo obtener la institución.');
+      var params = { institucion: id, page: page || 1 };
+      return apiGet('ventas', 'list', params);
+    }).then(function (data) {
+      var items = [];
+      var meta  = { totalItems: 0, totalPages: 1, currentPage: 1 };
+      if (Array.isArray(data)) {
+        items = data;
+      } else if (data && Array.isArray(data.items)) {
+        items = data.items;
+        meta.totalItems  = data.totalItems  || 0;
+        meta.totalPages  = data.totalPages  || 1;
+        meta.currentPage = data.currentPage || 1;
+      }
+      _data.ventas     = items;
+      _data.ventasMeta = meta;
+      renderVentasTab(items, meta);
+    }).catch(function (err) {
+      var errEl = document.getElementById('ventas-error');
+      errEl.textContent = 'Error al cargar ventas: ' + (err.message || 'Error');
+      errEl.classList.remove('d-none');
+      document.getElementById('ventas-tbody').innerHTML = errorRow(7, err.message || 'Error');
+      hideChartLoader('ventas');
+    });
+  }
+
+  function renderVentasTab(items, meta) {
+    var totalSuma = items.reduce(function (s, v) { return s + parseFloat(v.total || 0); }, 0);
+    var saldoSuma = items.reduce(function (s, v) { return s + parseFloat(v.saldo || 0); }, 0);
+    var cobrado   = totalSuma - saldoSuma;
+
+    document.getElementById('ventas-total').textContent    = fmtMoney(totalSuma);
+    document.getElementById('ventas-cobrado').textContent  = fmtMoney(cobrado);
+    document.getElementById('ventas-pendiente').textContent = fmtMoney(saldoSuma);
+    document.getElementById('ventas-num').textContent = meta.totalItems > 0 ? meta.totalItems : items.length;
+
+    var tbody = document.getElementById('ventas-tbody');
+    if (!items.length) {
+      tbody.innerHTML = emptyRow(7, 'No hay ventas registradas.');
+      hideChartLoader('ventas');
+      return;
+    }
+
+    tbody.innerHTML = items.map(function (v) {
+      var total  = parseFloat(v.total || 0);
+      var saldo  = parseFloat(v.saldo || 0);
+      var estado = String(v.estado || '').toUpperCase();
+      var estadoBadge = estado === 'ANULADO'
+        ? '<span class="badge bg-danger rounded-pill">Anulado</span>'
+        : saldo <= 0
+          ? '<span class="badge bg-success rounded-pill">Cobrado</span>'
+          : '<span class="badge bg-warning text-dark rounded-pill">Pendiente</span>';
+      var tipoBadge = v.tipo
+        ? '<span class="badge rounded-pill" style="background:rgba(99,102,241,.12);color:var(--app-text);border:1px solid rgba(99,102,241,.35);">' + esc(v.tipo) + '</span>'
+        : '<span class="text-muted">—</span>';
+      return '<tr>' +
+        '<td>' + estadoBadge + '</td>' +
+        '<td class="fw-semibold" style="max-width:160px;">' + esc(v.nombre || '—') + '<br>' +
+          '<code style="font-size:.7rem;color:var(--app-text-muted);">' + esc(v.identificacion || '') + '</code></td>' +
+        '<td>' + esc(v.numero || '—') + '</td>' +
+        '<td>' + tipoBadge + '</td>' +
+        '<td style="font-size:.8rem;">' + esc(v.fecha || '—') + '</td>' +
+        '<td class="text-end fw-bold">' + fmtMoney(total) + '</td>' +
+        '<td class="text-end fw-semibold ' + (saldo > 0 ? 'text-danger' : 'text-success') + '">' + fmtMoney(saldo) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    /* Pagination */
+    if (meta.totalPages > 1) {
+      var vpag = document.getElementById('ventas-pagination');
+      vpag.classList.remove('d-none');
+      document.getElementById('ventas-page-info').textContent =
+        'Página ' + meta.currentPage + ' de ' + meta.totalPages +
+        ' (' + meta.totalItems + ' registros)';
+      document.getElementById('ventas-prev-btn').disabled = meta.currentPage <= 1;
+      document.getElementById('ventas-next-btn').disabled = meta.currentPage >= meta.totalPages;
+    }
+
+    /* Chart: total por tipo */
+    var tipoMap = {};
+    items.forEach(function (v) {
+      var tipo = v.tipo || 'Sin tipo';
+      tipoMap[tipo] = (tipoMap[tipo] || 0) + parseFloat(v.total || 0);
+    });
+    renderVentasChart(tipoMap);
+  }
+
+  window.ventasChangePage = function (delta) {
+    var meta = _data.ventasMeta;
+    var next = (meta.currentPage || 1) + delta;
+    if (next < 1 || next > meta.totalPages) return;
+    _tabLoaded.ventas = false;
+    _data.ventas = null;
+    document.getElementById('ventas-tbody').innerHTML = spinnerRow(7);
+    fetchVentasPage(next);
+    _tabLoaded.ventas = true;
+  };
+
+  function renderVentasChart(tipoMap) {
+    hideChartLoader('ventas');
+    var cv = document.getElementById('chart-ventas');
+    cv.classList.remove('d-none');
+    destroyChart('ventas');
+
+    var labels  = Object.keys(tipoMap);
+    var values  = labels.map(function (k) { return tipoMap[k]; });
+    var palette = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#14b8a6'];
+
+    chartDefaults();
+    _charts['ventas'] = new Chart(cv, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: labels.map(function (_, i) { return palette[i % palette.length]; }),
+          borderColor: 'transparent',
+          hoverOffset: 6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '58%',
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 10 } } },
           tooltip: {
             callbacks: {
-              label: function (ctx) { return ' ' + fmtMoney(ctx.parsed.y); },
+              label: function (ctx) {
+                var tot = ctx.dataset.data.reduce(function (s, v) { return s + v; }, 0);
+                var p   = tot > 0 ? Math.round((ctx.parsed / tot) * 100) : 0;
+                return ' ' + fmtMoney(ctx.parsed) + ' (' + p + '%)';
+              },
             },
           },
-        },
-        scales: {
-          y: { beginAtZero: true, ticks: { callback: function (v) { return '$' + v.toFixed(0); } } },
         },
       },
     });
   }
 
-  /* ─────────────────────────────────────
+  /* ════════════════════════════════════════════════════
+     TAB: MATRÍCULAS
+     Source: dashboard?api=ultimas_matriculas
+     Fields: id, nombre, persona_id, identificacion,
+             tipo, membresia, fecha_registro,
+             fecha_inicio, fecha_fin, clases_count,
+             actividades_count
+  ════════════════════════════════════════════════════ */
+  function loadTabMatriculas() {
+    if (_tabLoaded.matriculas) return;
+    _tabLoaded.matriculas = true;
+
+    if (_data.matriculas) { renderMatriculasTab(_data.matriculas); return; }
+
+    apiGet('dashboard', 'ultimas_matriculas').then(function (data) {
+      _data.matriculas = Array.isArray(data) ? data : [];
+      renderMatriculasTab(_data.matriculas);
+    }).catch(function (err) {
+      var errEl = document.getElementById('matriculas-error');
+      errEl.textContent = 'Error al cargar matrículas: ' + (err.message || 'Error');
+      errEl.classList.remove('d-none');
+      document.getElementById('matriculas-tbody').innerHTML = errorRow(8, err.message || 'Error');
+      hideChartLoader('matriculas');
+    });
+  }
+
+  function renderMatriculasTab(items) {
+    var conMem = items.filter(function (m) {
+      return m.membresia && m.membresia !== 'Sin membresía';
+    }).length;
+    var sinMem = items.length - conMem;
+
+    document.getElementById('mat-total').textContent   = items.length;
+    document.getElementById('mat-con-mem').textContent = conMem;
+    document.getElementById('mat-sin-mem').textContent = sinMem;
+
+    var tbody = document.getElementById('matriculas-tbody');
+    if (!items.length) {
+      tbody.innerHTML = emptyRow(8, 'No hay matrículas registradas.');
+      hideChartLoader('matriculas');
+      return;
+    }
+
+    tbody.innerHTML = items.map(function (m) {
+      var tieneMem  = m.membresia && m.membresia !== 'Sin membresía';
+      var memBadge  = tieneMem
+        ? '<span class="badge bg-primary rounded-pill" style="font-size:.7rem;">' + esc(m.membresia) + '</span>'
+        : '<span class="badge rounded-pill" style="background:rgba(107,114,128,.15);color:var(--app-text-muted);font-size:.7rem;">Sin membresía</span>';
+      var vigencia  = (m.fecha_inicio && m.fecha_fin)
+        ? '<span style="font-size:.76rem;">' + esc(m.fecha_inicio) + '</span><br>' +
+          '<span style="font-size:.72rem;color:var(--app-text-muted);">al ' + esc(m.fecha_fin) + '</span>'
+        : '<span class="text-muted">—</span>';
+      var detailBtn = '<button class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:.2rem .5rem;" ' +
+        'data-mat-id="' + esc(m.id) + '" data-persona-id="' + esc(m.persona_id) + '" ' +
+        'onclick="verDetalleMatricula(this)">' +
+        '<i class="bi bi-eye"></i>' +
+        '</button>';
+      return '<tr>' +
+        '<td class="fw-semibold">' + esc(m.nombre || '—') + '</td>' +
+        '<td><code style="font-size:.72rem;">' + esc(m.identificacion || '—') + '</code></td>' +
+        '<td>' + memBadge + '</td>' +
+        '<td style="font-size:.8rem;">' + esc(m.fecha_registro || '—') + '</td>' +
+        '<td>' + vigencia + '</td>' +
+        '<td class="text-center"><span class="badge rounded-pill ' + (parseInt(m.clases_count) > 0 ? 'bg-primary' : 'bg-light text-muted') + '">' +
+          (parseInt(m.clases_count) || 0) + '</span></td>' +
+        '<td class="text-center"><span class="badge rounded-pill ' + (parseInt(m.actividades_count) > 0 ? 'bg-success' : 'bg-light text-muted') + '">' +
+          (parseInt(m.actividades_count) || 0) + '</span></td>' +
+        '<td class="text-center">' + detailBtn + '</td>' +
+      '</tr>';
+    }).join('');
+
+    renderMatriculasChart(conMem, sinMem);
+  }
+
+  function renderMatriculasChart(conMem, sinMem) {
+    hideChartLoader('matriculas');
+    var cv = document.getElementById('chart-matriculas');
+    cv.classList.remove('d-none');
+    destroyChart('matriculas');
+
+    chartDefaults();
+    _charts['matriculas'] = new Chart(cv, {
+      type: 'doughnut',
+      data: {
+        labels: ['Con membresía', 'Sin membresía'],
+        datasets: [{
+          data: [conMem, sinMem],
+          backgroundColor: ['#3b82f6', '#94a3b8'],
+          borderColor: 'transparent',
+          hoverOffset: 6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '62%',
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+          tooltip: { callbacks: { label: function (ctx) { return ' ' + ctx.parsed + ' matrícula(s)'; } } },
+        },
+      },
+    });
+  }
+
+  /* Modal: detalle de matrícula */
+  window.verDetalleMatricula = function (btn) {
+    var matriculaId = btn.dataset.matId;
+    var personaId   = btn.dataset.personaId;
+    var matItem     = (_data.matriculas || []).find(function (m) { return String(m.id) === String(matriculaId); });
+    var nombre      = matItem ? matItem.nombre : '';
+
+    var modal   = document.getElementById('mat-detail-modal');
+    var titleEl = document.getElementById('mat-detail-title');
+    var bodyEl  = document.getElementById('mat-detail-body');
+
+    titleEl.innerHTML = '<i class="bi bi-journal-bookmark-fill text-primary me-2"></i>' + esc(nombre || 'Detalle de Matrícula');
+    bodyEl.innerHTML  = '<div class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando detalle...</div>';
+
+    var bsModal = bootstrap.Modal.getInstance(modal) || new bootstrap.Modal(modal);
+    bsModal.show();
+
+    apiGet('matriculas', 'list', { persona_id: personaId }).then(function (data) {
+      var mats   = Array.isArray(data) ? data : [];
+      var target = mats.find(function (m) { return parseInt(m.id) === parseInt(matriculaId); }) || mats[0];
+
+      if (!target) {
+        bodyEl.innerHTML = '<p class="text-muted text-center py-3"><i class="bi bi-inbox fs-4 d-block mb-2 opacity-25"></i>Sin información disponible.</p>';
+        return;
+      }
+
+      var clases = Array.isArray(target.clases) ? target.clases : [];
+      var acts   = Array.isArray(target.actividades) ? target.actividades : [];
+
+      var html = '<div class="row g-2 mb-4">';
+      html += makeDetailField('Membresía', target.membresia || 'Sin membresía');
+      html += makeDetailField('Estado', target.estado || '—');
+      html += makeDetailField('Fecha inicio', target.fecha_inicio || '—');
+      html += makeDetailField('Fecha fin', target.fecha_fin || '—');
+      html += '</div>';
+
+      /* Plan de pago */
+      if (target.plan_pago && target.plan_pago.total) {
+        html += '<div class="section-label mb-2">Plan de Pago</div>';
+        html += '<div class="row g-2 mb-3">';
+        html += makeDetailField('Total', fmtMoney(target.plan_pago.total));
+        html += makeDetailField('Saldo', fmtMoney(target.plan_pago.saldo), parseFloat(target.plan_pago.saldo) > 0 ? 'text-danger' : 'text-success');
+        html += '</div>';
+      }
+
+      /* Clases */
+      if (clases.length > 0) {
+        html += '<div class="section-label mb-2"><i class="bi bi-book me-1 text-primary"></i>Clases (' + clases.length + ')</div>';
+        html += '<div class="list-group list-group-flush mb-3">';
+        clases.forEach(function (c) {
+          var activo = c.estado === 1 || c.estado === '1';
+          html += '<div class="list-group-item px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">';
+          html += '<span class="fw-semibold">' + esc(c.clase_nombre || '—') + '</span>';
+          html += '<span class="badge rounded-pill ' + (activo ? 'bg-success' : 'bg-secondary') + '">' + (activo ? 'Activa' : 'Inactiva') + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      /* Actividades */
+      if (acts.length > 0) {
+        html += '<div class="section-label mb-2"><i class="bi bi-trophy me-1 text-success"></i>Actividades (' + acts.length + ')</div>';
+        html += '<div class="list-group list-group-flush">';
+        acts.forEach(function (a) {
+          var activo = a.estado === 1 || a.estado === '1';
+          html += '<div class="list-group-item px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">';
+          html += '<span class="fw-semibold">' + esc(a.actividad_nombre || '—') + '</span>';
+          html += '<span class="badge rounded-pill ' + (activo ? 'bg-success' : 'bg-secondary') + '">' + (activo ? 'Activa' : 'Inactiva') + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      if (clases.length === 0 && acts.length === 0) {
+        html += '<p class="text-muted text-center py-3"><i class="bi bi-inbox d-block fs-4 mb-2 opacity-25"></i>Sin clases ni actividades asignadas.</p>';
+      }
+
+      bodyEl.innerHTML = html;
+    }).catch(function (err) {
+      bodyEl.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar el detalle.') + '</div>';
+    });
+  };
+
+  function makeDetailField(label, value, valueClass) {
+    return '<div class="col-6">' +
+      '<div class="rpt-summary-card">' +
+      '<div class="lbl">' + esc(label) + '</div>' +
+      '<div class="val ' + (valueClass || '') + '" style="font-size:1rem;">' + esc(value) + '</div>' +
+      '</div></div>';
+  }
+
+  /* ════════════════════════════════════════════════════
      TAB: GASTOS
-  ───────────────────────────────────── */
+  ════════════════════════════════════════════════════ */
   function loadTabGastos() {
     if (_tabLoaded.gastos) return;
     _tabLoaded.gastos = true;
 
-    if (_data.gastos) {
-      renderGastosTab(_data.gastos);
-      return;
-    }
+    if (_data.gastosData) { renderGastosTab(_data.gastosData); return; }
 
     apiGet('gastos', 'list', { limit: 200 }).then(function (data) {
-      _data.gastos = Array.isArray(data) ? data : [];
-      renderGastosTab(_data.gastos);
+      _data.gastosData = Array.isArray(data) ? data : [];
+      renderGastosTab(_data.gastosData);
     }).catch(function (err) {
       var errEl = document.getElementById('gastos-error');
       errEl.textContent = 'Error al cargar gastos: ' + (err.message || 'Error');
@@ -894,10 +1159,9 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
 
   function renderGastosTab(items) {
     var total = items.reduce(function (s, g) { return s + parseFloat(g.monto || 0); }, 0);
-    document.getElementById('gastos-total').textContent       = fmtMoney(total);
-    document.getElementById('gastos-total-foot').textContent  = fmtMoney(total);
+    document.getElementById('gastos-total').textContent      = fmtMoney(total);
+    document.getElementById('gastos-total-foot').textContent = fmtMoney(total);
 
-    /* Table */
     var tbody = document.getElementById('gastos-tbody');
     var tfoot = document.getElementById('gastos-tfoot');
 
@@ -908,9 +1172,9 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     }
 
     var tipoBadgeColors = {
-      NOMINA: '#1a2235', SERVICIOS: '#0d9488', ARRIENDO: '#d97706',
-      EQUIPAMIENTO: '#3b82f6', MANTENIMIENTO: '#8b5cf6', TRANSPORTE: '#f97316',
-      ALIMENTACION: '#14b8a6', PUBLICIDAD: '#ec4899', ADMINISTRATIVO: '#6366f1', OTROS: '#6b7280',
+      NOMINA:'#1a2235', SERVICIOS:'#0d9488', ARRIENDO:'#d97706',
+      EQUIPAMIENTO:'#3b82f6', MANTENIMIENTO:'#8b5cf6', TRANSPORTE:'#f97316',
+      ALIMENTACION:'#14b8a6', PUBLICIDAD:'#ec4899', ADMINISTRATIVO:'#6366f1', OTROS:'#6b7280',
     };
 
     var sorted = items.slice().sort(function (a, b) { return new Date(b.fecha) - new Date(a.fecha); });
@@ -927,7 +1191,6 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
 
     tfoot.classList.remove('d-none');
 
-    /* Doughnut chart */
     var tipoTotals = {};
     items.forEach(function (g) {
       var tipo = g.tipo_gasto || 'OTROS';
@@ -942,8 +1205,8 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     cv.classList.remove('d-none');
     destroyChart('gastos');
 
-    var labels = Object.keys(tipoTotals);
-    var values = labels.map(function (k) { return tipoTotals[k]; });
+    var labels   = Object.keys(tipoTotals);
+    var values   = labels.map(function (k) { return tipoTotals[k]; });
     var bgColors = labels.map(function (k) { return colors[k] || '#6b7280'; });
 
     chartDefaults();
@@ -959,233 +1222,21 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
         }],
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '58%',
+        responsive: true, maintainAspectRatio: false, cutout: '58%',
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { boxWidth: 12, padding: 10, font: { size: 10 } },
-          },
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 10 } } },
           tooltip: {
             callbacks: {
               label: function (ctx) {
-                var total = ctx.dataset.data.reduce(function (s, v) { return s + v; }, 0);
-                var pctVal = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
-                return ' ' + fmtMoney(ctx.parsed) + ' (' + pctVal + '%)';
+                var tot = ctx.dataset.data.reduce(function (s, v) { return s + v; }, 0);
+                var p   = tot > 0 ? Math.round((ctx.parsed / tot) * 100) : 0;
+                return ' ' + fmtMoney(ctx.parsed) + ' (' + p + '%)';
               },
             },
           },
         },
       },
     });
-  }
-
-  /* ─────────────────────────────────────
-     TAB: MATRÍCULAS
-  ───────────────────────────────────── */
-  function loadTabMatriculas() {
-    if (_tabLoaded.matriculas) return;
-    _tabLoaded.matriculas = true;
-
-    var params = {};
-    if (instId) params.institucion = instId;
-    if (periodoId) params.periodo = periodoId;
-
-    Promise.all([
-      apiGet('clases', 'list', params),
-      apiGet('actividades', 'list', params),
-    ]).then(function (res) {
-      var clases = (Array.isArray(res[0]) ? res[0] : []).map(function (c) {
-        return Object.assign({}, c, { _tipo: 'Clase' });
-      });
-      var acts = (Array.isArray(res[1]) ? res[1] : []).map(function (a) {
-        return Object.assign({}, a, { _tipo: 'Actividad' });
-      });
-      _data.clases = clases;
-      _data.actividades = acts;
-      renderMatriculasTab(clases.concat(acts));
-    }).catch(function (err) {
-      var errEl = document.getElementById('matriculas-error');
-      errEl.textContent = 'Error al cargar matrículas: ' + (err.message || 'Error');
-      errEl.classList.remove('d-none');
-      document.getElementById('matriculas-tbody').innerHTML = errorRow(5, err.message || 'Error');
-      hideChartLoader('matriculas');
-    });
-  }
-
-  function renderMatriculasTab(items) {
-    var sorted = items.slice().sort(function (a, b) {
-      return (parseInt(b.matriculados, 10) || 0) - (parseInt(a.matriculados, 10) || 0);
-    });
-
-    var top10 = sorted.slice(0, 10);
-
-    /* Table */
-    var tbody = document.getElementById('matriculas-tbody');
-    if (!items.length) {
-      tbody.innerHTML = emptyRow(5, 'No hay datos de matrículas.');
-      hideChartLoader('matriculas');
-      return;
-    }
-
-    tbody.innerHTML = sorted.map(function (item) {
-      var matriculados = parseInt(item.matriculados, 10) || 0;
-      var cupoMax      = parseInt(item.cupo_maximo, 10) || 0;
-      var badgeClass   = item._tipo === 'Clase' ? 'bg-primary' : 'bg-success';
-      var ocupPct      = cupoMax > 0 ? pct(matriculados, cupoMax) : null;
-      var cupoDisplay  = cupoMax > 0 ? cupoMax : '<span class="text-muted">—</span>';
-      var ocupDisplay  = ocupPct !== null
-        ? '<div class="d-flex align-items-center gap-2">' +
-            '<div class="progress flex-grow-1" style="height:6px;max-width:80px;background:var(--app-border);">' +
-              '<div class="progress-bar ' + (ocupPct >= 90 ? 'bg-danger' : ocupPct >= 70 ? 'bg-warning' : 'bg-success') + '" style="width:' + ocupPct + '%"></div>' +
-            '</div>' +
-            '<span class="small fw-semibold">' + ocupPct + '%</span>' +
-          '</div>'
-        : '<span class="text-muted">—</span>';
-      return '<tr>' +
-        '<td class="fw-semibold">' + esc(item.nombre) + '</td>' +
-        '<td><span class="badge rounded-pill ' + badgeClass + '">' + esc(item._tipo) + '</span></td>' +
-        '<td class="text-center fw-bold">' + matriculados + '</td>' +
-        '<td class="text-center">' + cupoDisplay + '</td>' +
-        '<td class="text-center">' + ocupDisplay + '</td>' +
-      '</tr>';
-    }).join('');
-
-    /* Chart */
-    renderMatriculasChart(top10);
-  }
-
-  function renderMatriculasChart(top10) {
-    hideChartLoader('matriculas');
-    var cv = document.getElementById('chart-matriculas');
-    cv.classList.remove('d-none');
-    destroyChart('matriculas');
-
-    chartDefaults();
-    _charts['matriculas'] = new Chart(cv, {
-      type: 'bar',
-      data: {
-        labels: top10.map(function (i) { return truncate(i.nombre, 18); }),
-        datasets: [{
-          label: 'Matriculados',
-          data: top10.map(function (i) { return parseInt(i.matriculados, 10) || 0; }),
-          backgroundColor: top10.map(function (i) {
-            return i._tipo === 'Clase' ? 'rgba(59,130,246,.75)' : 'rgba(34,197,94,.75)';
-          }),
-          borderColor: top10.map(function (i) {
-            return i._tipo === 'Clase' ? '#3b82f6' : '#22c55e';
-          }),
-          borderWidth: 1,
-          borderRadius: 4,
-        }],
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: function (ctx) { return ' ' + ctx.parsed.x + ' alumnos'; } } },
-        },
-        scales: {
-          x: { beginAtZero: true, ticks: { precision: 0 } },
-        },
-      },
-    });
-  }
-
-  /* ─────────────────────────────────────
-     TAB: RENDIMIENTO
-  ───────────────────────────────────── */
-  function loadTabRendimiento() {
-    if (_tabLoaded.rendimiento) return;
-    _tabLoaded.rendimiento = true;
-
-    var params = {};
-    if (instId) params.institucion = instId;
-    if (periodoId) params.periodo = periodoId;
-
-    /* Reuse already-loaded data if available */
-    var clasesProm = _data.clases
-      ? Promise.resolve(_data.clases)
-      : apiGet('clases', 'list', params).then(function (d) {
-          return (Array.isArray(d) ? d : []).map(function (c) { return Object.assign({}, c, { _tipo: 'Clase' }); });
-        });
-
-    var actsProm = _data.actividades
-      ? Promise.resolve(_data.actividades)
-      : apiGet('actividades', 'list', params).then(function (d) {
-          return (Array.isArray(d) ? d : []).map(function (a) { return Object.assign({}, a, { _tipo: 'Actividad' }); });
-        });
-
-    Promise.all([clasesProm, actsProm]).then(function (res) {
-      var combined = res[0].concat(res[1]);
-      renderRendimientoTab(combined);
-    }).catch(function (err) {
-      var errEl = document.getElementById('rendimiento-error');
-      errEl.textContent = 'Error al cargar rendimiento: ' + (err.message || 'Error');
-      errEl.classList.remove('d-none');
-      document.getElementById('rendimiento-tbody').innerHTML = errorRow(7, err.message || 'Error');
-    });
-  }
-
-  function renderRendimientoTab(items) {
-    var tbody = document.getElementById('rendimiento-tbody');
-    if (!items.length) {
-      tbody.innerHTML = emptyRow(7, 'No hay datos de rendimiento disponibles.');
-      return;
-    }
-
-    /* Sort by % asistencia asc (worst first) */
-    var sorted = items.slice().sort(function (a, b) {
-      var pa = calcPctAsis(a);
-      var pb = calcPctAsis(b);
-      return pa - pb;
-    });
-
-    tbody.innerHTML = sorted.map(function (item) {
-      var matriculados = parseInt(item.matriculados, 10) || 0;
-      var asistencias  = parseInt(item.asistencias, 10) || 0;
-      var faltas       = parseInt(item.faltas, 10) || 0;
-      var pctAsis      = calcPctAsis(item);
-      var badgeClass   = item._tipo === 'Clase' ? 'bg-primary' : 'bg-success';
-      var docente      = item.primer_nombre && item.primer_apellido
-        ? esc(item.primer_nombre) + ' ' + esc(item.primer_apellido)
-        : '<span class="text-muted">—</span>';
-
-      var rowClass = pctAsis < 70 ? 'rpt-row-warn' : '';
-      var pctStyle = pctAsis < 70
-        ? 'color:#ef4444;font-weight:700;'
-        : pctAsis < 85
-          ? 'color:#f59e0b;font-weight:600;'
-          : 'color:#22c55e;font-weight:600;';
-
-      return '<tr class="' + rowClass + '">' +
-        '<td class="fw-semibold">' + esc(item.nombre) + '</td>' +
-        '<td><span class="badge rounded-pill ' + badgeClass + '">' + esc(item._tipo) + '</span></td>' +
-        '<td>' + docente + '</td>' +
-        '<td class="text-center">' + matriculados + '</td>' +
-        '<td class="text-center text-success fw-semibold">' + asistencias + '</td>' +
-        '<td class="text-center text-danger fw-semibold">' + faltas + '</td>' +
-        '<td class="text-center" style="' + pctStyle + '">' + pctAsis + '%</td>' +
-      '</tr>';
-    }).join('');
-  }
-
-  function calcPctAsis(item) {
-    var asistencias = parseInt(item.asistencias, 10) || 0;
-    var faltas      = parseInt(item.faltas, 10) || 0;
-    var total       = asistencias + faltas;
-    return total > 0 ? Math.round((asistencias / total) * 100) : 0;
-  }
-
-  /* ─────────────────────────────────────
-     CHART LOADER HELPERS
-  ───────────────────────────────────── */
-  function hideChartLoader(name) {
-    var el = document.getElementById(name + '-chart-loading');
-    if (el) el.style.display = 'none';
   }
 
   /* ─────────────────────────────────────
@@ -1197,16 +1248,16 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     var thead = tbody.closest('table').querySelector('thead');
     var rows  = [];
 
-    /* Header */
     if (thead) {
       var ths = thead.querySelectorAll('th');
-      rows.push(Array.from(ths).map(function (th) { return '"' + th.textContent.trim().replace(/"/g, '""') + '"'; }).join(','));
+      rows.push(Array.from(ths).map(function (th) {
+        return '"' + th.textContent.trim().replace(/"/g, '""') + '"';
+      }).join(','));
     }
 
-    /* Body rows */
     Array.from(tbody.querySelectorAll('tr')).forEach(function (tr) {
       var cells = Array.from(tr.querySelectorAll('td'));
-      if (cells.length <= 1) return; /* skip spinner/empty rows */
+      if (cells.length <= 1) return;
       rows.push(cells.map(function (td) {
         return '"' + td.textContent.trim().replace(/"/g, '""') + '"';
       }).join(','));
@@ -1218,22 +1269,13 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
     a.href     = url;
-    a.download = filename + '_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.download = filename + '_' + new Date().toISOString().slice(0, 10) + '.csv';
     a.click();
     URL.revokeObjectURL(url);
     showToast('CSV exportado correctamente.', 'success');
   }
 
-  /* expose globally for onclick handlers */
   window.exportTableCSV = exportTableCSV;
-
-  /* ─────────────────────────────────────
-     UTILITY
-  ───────────────────────────────────── */
-  function truncate(str, len) {
-    str = String(str || '');
-    return str.length > len ? str.slice(0, len - 1) + '…' : str;
-  }
 
   /* ─────────────────────────────────────
      TAB LAZY LOADING
@@ -1241,11 +1283,10 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   document.getElementById('rpt-tab-nav').addEventListener('show.bs.tab', function (e) {
     var target = e.target.getAttribute('data-bs-target');
     switch (target) {
-      case '#tab-asistencias': loadTabAsistencias(); break;
-      case '#tab-pagos':       loadTabPagos();       break;
-      case '#tab-gastos':      loadTabGastos();       break;
-      case '#tab-matriculas':  loadTabMatriculas();  break;
-      case '#tab-rendimiento': loadTabRendimiento(); break;
+      case '#tab-pagos':      loadTabPagos();      break;
+      case '#tab-ventas':     loadTabVentas();     break;
+      case '#tab-matriculas': loadTabMatriculas(); break;
+      case '#tab-gastos':     loadTabGastos();     break;
     }
   });
 
@@ -1256,29 +1297,24 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
     periodoId = document.getElementById('rpt-periodo-select').value;
     resetTabs();
 
-    /* Reload KPIs */
-    ['kpi-alumnos','kpi-cobrados','kpi-vencidos','kpi-actividades'].forEach(function (id) {
-      document.getElementById(id).innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    ['kpi-alumnos','kpi-ingresos','kpi-balance','kpi-pendientes'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     });
 
     loadDashboardStats().then(function () {
-      loadActividadesKpi();
-      /* Re-trigger active tab */
       var activeBtn = document.querySelector('#rpt-tab-nav .nav-link.active');
-      if (activeBtn) {
-        var target = activeBtn.getAttribute('data-bs-target');
-        switch (target) {
-          case '#tab-asistencias': loadTabAsistencias(); break;
-          case '#tab-pagos':       loadTabPagos();       break;
-          case '#tab-gastos':      loadTabGastos();       break;
-          case '#tab-matriculas':  loadTabMatriculas();  break;
-          case '#tab-rendimiento': loadTabRendimiento(); break;
-        }
+      if (!activeBtn) return;
+      var target = activeBtn.getAttribute('data-bs-target');
+      switch (target) {
+        case '#tab-pagos':      loadTabPagos();      break;
+        case '#tab-ventas':     loadTabVentas();     break;
+        case '#tab-matriculas': loadTabMatriculas(); break;
+        case '#tab-gastos':     loadTabGastos();     break;
       }
     });
   });
 
-  /* Period change also resets */
   document.getElementById('rpt-periodo-select').addEventListener('change', function () {
     document.getElementById('btn-rpt-refresh').click();
   });
@@ -1289,13 +1325,15 @@ tr.rpt-row-warn td:first-child{border-left:3px solid #ef4444;}
   document.addEventListener('DOMContentLoaded', function () {
     checkAuth();
 
-    loadDashboardStats().then(function () {
-      return loadPeriodos();
-    }).then(function () {
+    instId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || null;
+
+    Promise.all([
+      loadDashboardStats(),
+      ensureInstId(),
+      loadPeriodos(),
+    ]).then(function () {
       periodoId = document.getElementById('rpt-periodo-select').value;
-      loadActividadesKpi();
-      /* Load default (first) tab */
-      loadTabAsistencias();
+      loadTabPagos();
     }).catch(function (err) {
       showToast('Error al inicializar reportes: ' + (err.message || 'Error'), 'error');
     });
