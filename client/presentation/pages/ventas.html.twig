@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
     currentFilters.page = page;
     var tbody = document.getElementById('ventas-tbody');
     tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
-    var params = { institucion: institucionId, ...currentFilters };
+    var params = { institucion: institucionId, tipo: 'VENTA', ...currentFilters };
     api('GET', 'ventas', 'list', null, params).then(function(response) {
       renderVentas(response.items);
       renderPagination(response.currentPage, response.totalPages, response.totalItems);

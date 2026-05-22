@@ -128,7 +128,53 @@ class VentaServices
             'q'           => !empty($queryParams['q']) ? $queryParams['q'] : null,
         ];
 
-        $result = $this->ventaRepo->findByInstitucion($filters['institucion'], $filters);
+        if (!empty($queryParams['tipo'])) {
+            $filters['tipo'] = $queryParams['tipo'];
+        }
+
+        // Reemplazo de llamada al repositorio por una consulta directa para asegurar el filtrado por 'tipo'.
+        // El repositorio parece no estar aplicando este filtro correctamente.
+        $nombreCompletoSql = "TRIM(CONCAT(COALESCE(p.primer_nombre,''),' ', COALESCE(p.segundo_nombre,''),' ', COALESCE(p.primer_apellido,''),' ', COALESCE(p.segundo_apellido,'')))";
+        $baseSql = "FROM ventas v JOIN personas p ON v.persona = p.id WHERE v.institucion = :institucion";
+        $params = [':institucion' => $filters['institucion']];
+
+        if (!empty($filters['tipo'])) {
+            $baseSql .= " AND v.tipo = :tipo";
+            $params[':tipo'] = $filters['tipo'];
+        }
+        if (!empty($filters['q'])) {
+            $baseSql .= " AND (v.numero LIKE :q OR p.identificacion LIKE :q OR {$nombreCompletoSql} LIKE :q)";
+            $params[':q'] = '%' . $filters['q'] . '%';
+        }
+        if (!empty($filters['desde'])) {
+            $baseSql .= " AND DATE(v.fecha) >= :desde";
+            $params[':desde'] = $filters['desde'];
+        }
+        if (!empty($filters['hasta'])) {
+            $baseSql .= " AND DATE(v.fecha) <= :hasta";
+            $params[':hasta'] = $filters['hasta'];
+        }
+
+        // Contar total de registros
+        $countStmt = $this->db->prepare("SELECT COUNT(v.id) " . $baseSql);
+        $countStmt->execute($params);
+        $total = (int) $countStmt->fetchColumn();
+
+        // Obtener registros con paginación
+        $offset = ($filters['page'] - 1) * $filters['limit'];
+        $limit = $filters['limit'];
+        $itemsSql = "SELECT v.id, v.numero, v.fecha, v.tipo, v.total, v.saldo, v.estado, p.identificacion, {$nombreCompletoSql} as nombre " . $baseSql . " ORDER BY v.fecha DESC, v.id DESC LIMIT :limit OFFSET :offset";
+
+        $itemsStmt = $this->db->prepare($itemsSql);
+        foreach ($params as $key => &$val) {
+            $itemsStmt->bindParam($key, $val);
+        }
+        $itemsStmt->bindParam(':limit', $limit, \PDO::PARAM_INT);
+        $itemsStmt->bindParam(':offset', $offset, \PDO::PARAM_INT);
+        $itemsStmt->execute();
+        $items = $itemsStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $result = ['items' => $items, 'total' => $total];
 
         return [
             'items' => array_map(fn($row) => [
