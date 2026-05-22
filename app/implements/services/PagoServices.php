@@ -64,7 +64,7 @@ final class PagoServices implements PagoServiceInterface
             $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams),
             $method === 'GET'  && $resource === 'formas'         => $this->fetchFormasPago(),
             $method === 'GET'  && $resource === 'detail'         => $this->fetchDetalle($queryParams),
-            $method === 'GET'  && $resource === 'recent'         => $this->fetchRecientes($userId),
+            $method === 'GET'  && $resource === 'recent'         => $this->fetchRecientes($userId, $queryParams),
             $method === 'POST' && $resource === 'register'       => $this->registrarPago($userId),
             $method === 'POST' && $resource === 'anular'         => $this->anularPago($userId),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
@@ -163,7 +163,7 @@ final class PagoServices implements PagoServiceInterface
             'monto'      => $p->getMonto(),
             'forma_pago' => $p->getFormaPago() !== null ? $p->getFormaPago()->getId() : null,
             'referencia' => $p->getReferencia(),
-            'observacion'=> $p->getObservacion(),
+            'observacion' => $p->getObservacion(),
             'estado'     => $p->getEstado() !== null ? $p->getEstado()->getId() : null,
         ], $pagos);
 
@@ -336,7 +336,6 @@ final class PagoServices implements PagoServiceInterface
                 'ventas_saldadas' => $ventasSaldadas,
                 'saldo_restante'  => max(0.0, $montoRestante),
             ];
-
         } catch (\Throwable $e) {
             $db->rollBack();
             throw new RuntimeException('Error al registrar pago: ' . $e->getMessage(), 500);
@@ -527,7 +526,6 @@ final class PagoServices implements PagoServiceInterface
                 'numero'  => $pago->getNumero(),
                 'mensaje' => 'Pago ' . $pago->getNumero() . ' anulado correctamente. Saldos restaurados en las facturas correspondientes.',
             ];
-
         } catch (\Throwable $e) {
             $db->rollBack();
             throw new RuntimeException('Error al anular pago: ' . $e->getMessage(), 500);
@@ -538,12 +536,16 @@ final class PagoServices implements PagoServiceInterface
     // fetchRecientes
     // -------------------------------------------------------------------------
 
-    private function fetchRecientes(int $userId): array
+    private function fetchRecientes(int $userId, array $queryParams): array
     {
         $institucion = $this->getInstitucionByUserId($userId);
         $db = Database::getInstance();
-        $stmt = $db->prepare(
-            "SELECT p.id, p.numero, p.fecha, CAST(p.monto AS DECIMAL(12,2)) AS monto,
+
+        $desde = !empty($queryParams['desde']) ? $queryParams['desde'] : null;
+        $hasta = !empty($queryParams['hasta']) ? $queryParams['hasta'] : null;
+        $limit = isset($queryParams['limit']) ? (int)$queryParams['limit'] : 20;
+
+        $sql = "SELECT p.id, p.numero, p.fecha, CAST(p.monto AS DECIMAL(12,2)) AS monto,
                     p.referencia, p.observacion,
                     p.estado AS estado_id,
                     fp.nombre AS forma_pago,
@@ -557,11 +559,29 @@ final class PagoServices implements PagoServiceInterface
              FROM pagos p
              JOIN personas per ON per.id = p.persona
              LEFT JOIN formas_pago fp ON fp.id = p.forma_pago
-             WHERE p.institucion = :inst
-             ORDER BY p.fecha DESC, p.id DESC
-             LIMIT 20"
-        );
-        $stmt->execute([':inst' => $institucion]);
+             WHERE p.institucion = :inst";
+
+        if ($desde) {
+            $sql .= " AND DATE(p.fecha) >= :desde";
+        }
+        if ($hasta) {
+            $sql .= " AND DATE(p.fecha) <= :hasta";
+        }
+
+        $sql .= " ORDER BY p.fecha DESC, p.id DESC";
+
+        if ($limit > 0) {
+            $sql .= " LIMIT :limit";
+        }
+
+        $stmt = $db->prepare($sql);
+
+        $stmt->bindValue(':inst', $institucion, \PDO::PARAM_INT);
+        if ($desde) $stmt->bindValue(':desde', $desde);
+        if ($hasta) $stmt->bindValue(':hasta', $hasta);
+        if ($limit > 0) $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+
+        $stmt->execute();
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
         return array_map(function (array $r): array {
             return [
@@ -573,8 +593,8 @@ final class PagoServices implements PagoServiceInterface
                 'observacion'   => $r['observacion'],
                 'estado_id'     => (int)   $r['estado_id'],
                 'forma_pago'    => $r['forma_pago'],
-                'nombre_cliente'=> trim((string) $r['nombre_cliente']),
-                'identificacion'=> $r['identificacion'],
+                'nombre_cliente' => trim((string) $r['nombre_cliente']),
+                'identificacion' => $r['identificacion'],
             ];
         }, $rows);
     }

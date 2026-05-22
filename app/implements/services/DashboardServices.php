@@ -43,7 +43,7 @@ final class DashboardServices
             $method === 'GET' && $resource === 'vencidos'              => $this->fetchVencidos($userId),
             $method === 'GET' && $resource === 'chart_ingresos_gastos' => $this->fetchChartIngresosGastos($userId),
             $method === 'GET' && $resource === 'chart_membresias'      => $this->fetchChartMembresias($userId),
-            $method === 'GET' && $resource === 'ultimas_matriculas'    => $this->fetchUltimasMatriculas($userId),
+            $method === 'GET' && $resource === 'ultimas_matriculas'    => $this->fetchUltimasMatriculas($userId, $queryParams),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
         };
     }
@@ -236,12 +236,16 @@ final class DashboardServices
 
     // ── últimas matrículas registradas ───────────────────────────────────────
 
-    private function fetchUltimasMatriculas(int $userId): array
+    private function fetchUltimasMatriculas(int $userId, array $queryParams): array
     {
         $instId = $this->getInstitucionByUserId($userId);
+        $desde = !empty($queryParams['desde']) ? $queryParams['desde'] : null;
+        $hasta = !empty($queryParams['hasta']) ? $queryParams['hasta'] : null;
+        $limit = isset($queryParams['limit']) ? (int)$queryParams['limit'] : 20;
 
-        $stmt = $this->db->prepare(
-            "SELECT mat.id,
+        $params = [':inst' => $instId];
+
+        $sql = "SELECT mat.id,
                     mat.fecha_registro,
                     mat.fecha_inicio,
                     mat.fecha_fin,
@@ -256,17 +260,38 @@ final class DashboardServices
                     COALESCE(tp.nombre, 'Estudiante') AS tipo,
                     COALESCE(m.titulo, 'Sin membresía') AS membresia,
                     (SELECT COUNT(*) FROM clases_matricula cm WHERE cm.matricula = mat.id AND cm.estado = 1) AS clases_count,
-                    (SELECT COUNT(*) FROM actividades_matricula am WHERE am.matricula = mat.id AND am.estado = 1) AS actividades_count
+                    (SELECT GROUP_CONCAT(c.nombre SEPARATOR '; ') FROM clases_matricula cm JOIN clases c ON c.id = cm.clase WHERE cm.matricula = mat.id AND cm.estado = 1) AS clases_nombres,
+                    (SELECT COUNT(*) FROM actividades_matricula am WHERE am.matricula = mat.id AND am.estado = 1) AS actividades_count,
+                    (SELECT GROUP_CONCAT(a.nombre SEPARATOR '; ') FROM actividades_matricula am JOIN actividades a ON a.id = am.actividad WHERE am.matricula = mat.id AND am.estado = 1) AS actividades_nombres
              FROM matricula mat
              JOIN personas p ON p.id = mat.persona
              LEFT JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.id_institucion = mat.institucion
              LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
              LEFT JOIN membresias m ON m.id = mat.membresia
-             WHERE mat.institucion = :inst AND mat.estado = 1
-             ORDER BY mat.fecha_registro DESC
-             LIMIT 20"
-        );
-        $stmt->execute([':inst' => $instId]);
+             WHERE mat.institucion = :inst AND mat.estado = 1";
+
+        if ($desde) {
+            $sql .= " AND DATE(mat.fecha_registro) >= :desde";
+            $params[':desde'] = $desde;
+        }
+        if ($hasta) {
+            $sql .= " AND DATE(mat.fecha_registro) <= :hasta";
+            $params[':hasta'] = $hasta;
+        }
+
+        $sql .= " ORDER BY mat.fecha_registro DESC";
+
+        if ($limit > 0) {
+            $sql .= " LIMIT :limit";
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':inst', $instId, PDO::PARAM_INT);
+        if ($desde) $stmt->bindValue(':desde', $desde);
+        if ($hasta) $stmt->bindValue(':hasta', $hasta);
+        if ($limit > 0) $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+
+        $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
         return array_map(fn($r) => [
@@ -280,7 +305,9 @@ final class DashboardServices
             'fecha_inicio'      => $r['fecha_inicio'],
             'fecha_fin'         => $r['fecha_fin'],
             'clases_count'      => (int) $r['clases_count'],
+            'clases_nombres'    => $r['clases_nombres'],
             'actividades_count' => (int) $r['actividades_count'],
+            'actividades_nombres' => $r['actividades_nombres'],
         ], $rows);
     }
 

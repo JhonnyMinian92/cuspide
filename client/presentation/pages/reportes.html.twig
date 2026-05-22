@@ -71,13 +71,7 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
     <p class="text-muted small mb-0">Análisis financiero y operativo institucional</p>
   </div>
   <div class="d-flex align-items-center gap-2 flex-wrap">
-    <div>
-      <label class="section-label mb-1 d-block">Período</label>
-      <select class="form-select form-select-sm" id="rpt-periodo-select" style="min-width:210px;">
-        <option value="">Todos los períodos</option>
-      </select>
-    </div>
-    <div class="mt-3">
+    <div class="align-self-end">
       <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-rpt-refresh" title="Actualizar datos">
         <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
       </button>
@@ -167,14 +161,26 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
          TAB: PAGOS REALIZADOS
     ══════════════════════════════════════ -->
     <div class="tab-pane fade show active" id="tab-pagos" role="tabpanel">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
         <div>
           <div class="section-label">Pagos Realizados</div>
           <h6 class="fw-bold mb-0">Últimos cobros registrados en la institución</h6>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('pagos-tbody','reporte_pagos')">
-          <i class="bi bi-download me-1"></i>CSV
-        </button>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div>
+            <label for="pagos-fecha-desde" class="form-label mb-0" style="font-size: .75rem;">Desde</label>
+            <input type="date" id="pagos-fecha-desde" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div>
+            <label for="pagos-fecha-hasta" class="form-label mb-0" style="font-size: .75rem;">Hasta</label>
+            <input type="date" id="pagos-fecha-hasta" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div class="align-self-end">
+            <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportReport('pagos')">
+              <i class="bi bi-download me-1"></i>CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="row g-3 mb-4">
@@ -232,14 +238,26 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
          TAB: VENTAS
     ══════════════════════════════════════ -->
     <div class="tab-pane fade" id="tab-ventas" role="tabpanel">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
         <div>
           <div class="section-label">Ventas</div>
           <h6 class="fw-bold mb-0">Todas las ventas de productos, matrículas y servicios</h6>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('ventas-tbody','reporte_ventas')">
-          <i class="bi bi-download me-1"></i>CSV
-        </button>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div>
+            <label for="ventas-fecha-desde" class="form-label mb-0" style="font-size: .75rem;">Desde</label>
+            <input type="date" id="ventas-fecha-desde" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div>
+            <label for="ventas-fecha-hasta" class="form-label mb-0" style="font-size: .75rem;">Hasta</label>
+            <input type="date" id="ventas-fecha-hasta" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div class="align-self-end">
+            <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportReport('ventas')">
+              <i class="bi bi-download me-1"></i>CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="row g-3 mb-4">
@@ -316,14 +334,26 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
          TAB: MATRÍCULAS / ALUMNOS
     ══════════════════════════════════════ -->
     <div class="tab-pane fade" id="tab-matriculas" role="tabpanel">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
         <div>
           <div class="section-label">Matrículas y Alumnos</div>
           <h6 class="fw-bold mb-0">Últimas matrículas con membresía, clases y actividades</h6>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('matriculas-tbody','reporte_matriculas')">
-          <i class="bi bi-download me-1"></i>CSV
-        </button>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div>
+            <label for="matriculas-fecha-desde" class="form-label mb-0" style="font-size: .75rem;">Desde</label>
+            <input type="date" id="matriculas-fecha-desde" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div>
+            <label for="matriculas-fecha-hasta" class="form-label mb-0" style="font-size: .75rem;">Hasta</label>
+            <input type="date" id="matriculas-fecha-hasta" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div class="align-self-end">
+            <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportReport('matriculas')">
+              <i class="bi bi-download me-1"></i>CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="row g-3 mb-4">
@@ -388,14 +418,26 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
          TAB: GASTOS
     ══════════════════════════════════════ -->
     <div class="tab-pane fade" id="tab-gastos" role="tabpanel">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
         <div>
           <div class="section-label">Gastos</div>
           <h6 class="fw-bold mb-0">Distribución y detalle de egresos</h6>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportTableCSV('gastos-tbody','reporte_gastos')">
-          <i class="bi bi-download me-1"></i>CSV
-        </button>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div>
+            <label for="gastos-fecha-desde" class="form-label mb-0" style="font-size: .75rem;">Desde</label>
+            <input type="date" id="gastos-fecha-desde" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div>
+            <label for="gastos-fecha-hasta" class="form-label mb-0" style="font-size: .75rem;">Hasta</label>
+            <input type="date" id="gastos-fecha-hasta" class="form-control form-control-sm" style="min-width:130px;">
+          </div>
+          <div class="align-self-end">
+            <button type="button" class="btn btn-outline-secondary btn-export" onclick="exportReport('gastos')">
+              <i class="bi bi-download me-1"></i>CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="row g-4">
@@ -479,7 +521,6 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
      STATE
   ───────────────────────────────────── */
   var instId    = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || null;
-  var periodoId = '';
 
   var _data = {
     stats:        null,
@@ -573,6 +614,21 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
     return str.length > len ? str.slice(0, len - 1) + '…' : str;
   }
 
+  function initDatePickers() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
+    const lastDay = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+    ['pagos', 'ventas', 'matriculas', 'gastos'].forEach(function(reportType) {
+        const desdeEl = document.getElementById(`${reportType}-fecha-desde`);
+        const hastaEl = document.getElementById(`${reportType}-fecha-hasta`);
+        if (desdeEl) desdeEl.value = firstDay;
+        if (hastaEl) hastaEl.value = lastDay;
+    });
+  }
+
   /* ─────────────────────────────────────
      API WRAPPER
   ───────────────────────────────────── */
@@ -628,24 +684,6 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
         if (el) el.textContent = '—';
       });
     });
-  }
-
-  /* ─────────────────────────────────────
-     LOAD PERIODOS DROPDOWN
-  ───────────────────────────────────── */
-  function loadPeriodos() {
-    return apiGet('periodos', 'list').then(function (items) {
-      var list = Array.isArray(items) ? items : [];
-      var sel  = document.getElementById('rpt-periodo-select');
-      list.forEach(function (p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = esc(p.nombre) + (parseInt(p.estado) === 1 ? ' ✓' : '');
-        if (parseInt(p.estado) === 1) opt.selected = true;
-        sel.appendChild(opt);
-      });
-      periodoId = sel.value;
-    }).catch(function () { /* silently fail */ });
   }
 
   /* ─────────────────────────────────────
@@ -1096,8 +1134,8 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
         html += '<div class="list-group list-group-flush mb-3">';
         clases.forEach(function (c) {
           var activo = c.estado === 1 || c.estado === '1';
-          html += '<div class="list-group-item px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">';
-          html += '<span class="fw-semibold">' + esc(c.clase_nombre || '—') + '</span>';
+          html += '<div class="list-group-item bg-transparent px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">';
+          html += '<span class="fw-semibold text-body">' + esc(c.clase_nombre || '—') + '</span>';
           html += '<span class="badge rounded-pill ' + (activo ? 'bg-success' : 'bg-secondary') + '">' + (activo ? 'Activa' : 'Inactiva') + '</span>';
           html += '</div>';
         });
@@ -1110,8 +1148,8 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
         html += '<div class="list-group list-group-flush">';
         acts.forEach(function (a) {
           var activo = a.estado === 1 || a.estado === '1';
-          html += '<div class="list-group-item px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">';
-          html += '<span class="fw-semibold">' + esc(a.actividad_nombre || '—') + '</span>';
+          html += '<div class="list-group-item bg-transparent px-0 py-2 border-0 border-bottom d-flex justify-content-between align-items-center">';
+          html += '<span class="fw-semibold text-body">' + esc(a.actividad_nombre || '—') + '</span>';
           html += '<span class="badge rounded-pill ' + (activo ? 'bg-success' : 'bg-secondary') + '">' + (activo ? 'Activa' : 'Inactiva') + '</span>';
           html += '</div>';
         });
@@ -1240,42 +1278,126 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
   }
 
   /* ─────────────────────────────────────
-     EXPORT TABLE TO CSV
+     EXPORT REPORT TO CSV
   ───────────────────────────────────── */
-  function exportTableCSV(tbodyId, filename) {
-    var tbody = document.getElementById(tbodyId);
-    if (!tbody) return;
-    var thead = tbody.closest('table').querySelector('thead');
-    var rows  = [];
+  function exportReport(reportType) {
+    const desdeEl = document.getElementById(`${reportType}-fecha-desde`);
+    const hastaEl = document.getElementById(`${reportType}-fecha-hasta`);
+    let desde = null;
+    let hasta = null;
 
-    if (thead) {
-      var ths = thead.querySelectorAll('th');
-      rows.push(Array.from(ths).map(function (th) {
-        return '"' + th.textContent.trim().replace(/"/g, '""') + '"';
-      }).join(','));
+    // Solo para reportes que tengan filtros de fecha
+    if (desdeEl && hastaEl) {
+      desde = desdeEl.value;
+      hasta = hastaEl.value;
+      if (!desde || !hasta) {
+        showToast('Por favor, seleccione un rango de fechas para exportar.', 'warning');
+        return;
+      }
     }
 
-    Array.from(tbody.querySelectorAll('tr')).forEach(function (tr) {
-      var cells = Array.from(tr.querySelectorAll('td'));
-      if (cells.length <= 1) return;
-      rows.push(cells.map(function (td) {
-        return '"' + td.textContent.trim().replace(/"/g, '""') + '"';
-      }).join(','));
-    });
+    const exportButton = document.querySelector(`#tab-${reportType} .btn-export`);
+    if (!exportButton) return;
 
-    if (rows.length <= 1) { showToast('No hay datos para exportar.', 'warning'); return; }
+    const originalHtml = exportButton.innerHTML;
+    exportButton.disabled = true;
+    exportButton.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Exportando...`;
 
-    var blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    var url  = URL.createObjectURL(blob);
-    var a    = document.createElement('a');
-    a.href     = url;
-    a.download = filename + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+    const apiConfig = {
+      pagos:      { endpoint: 'pagos',      action: 'recent',            params: {} },
+      ventas:     { endpoint: 'ventas',     action: 'list',              params: { institucion: instId } },
+      matriculas: { endpoint: 'dashboard',  action: 'ultimas_matriculas', params: {} },
+      gastos:     { endpoint: 'gastos',     action: 'list',              params: {} }
+    };
+
+    const config = apiConfig[reportType];
+    if (!config) {
+      showToast('Tipo de reporte no configurado.', 'error');
+      exportButton.disabled = false;
+      exportButton.innerHTML = originalHtml;
+      return;
+    }
+
+    // limit=0 para obtener todos los registros. Asume que el backend lo soporta.
+    const apiParams = { ...config.params, limit: 0 };
+    if (desde && hasta) {
+      apiParams.desde = desde;
+      apiParams.hasta = hasta;
+    }
+
+    apiGet(config.endpoint, config.action, apiParams)
+      .then(response => {
+        let data = [];
+        // La API de ventas devuelve un objeto { items: [...] }
+        if (reportType === 'ventas' && response && response.items) {
+          data = response.items;
+        } else if (Array.isArray(response)) {
+          data = response;
+        }
+
+        if (data.length === 0) {
+          showToast('No hay datos para exportar en el rango seleccionado.', 'info');
+          return;
+        }
+
+        generateAndDownloadCSV(reportType, data, desde, hasta);
+      })
+      .catch(err => {
+        showToast('Error al exportar: ' + (err.message || 'Error'), 'error');
+      })
+      .finally(() => {
+        exportButton.disabled = false;
+        exportButton.innerHTML = originalHtml;
+      });
+  }
+  window.exportReport = exportReport;
+
+  function generateAndDownloadCSV(reportType, data, desde, hasta) {
+    let csvContent = '';
+    let headers = [];
+    let rows = [];
+    const filename = (desde && hasta)
+      ? `reporte_${reportType}_${desde}_a_${hasta}.csv`
+      : `reporte_${reportType}_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    const toCsvRow = (arr) => arr.map(val => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`).join(',');
+
+    switch (reportType) {
+      case 'pagos':
+        headers = ['Estado', 'Cliente', 'Identificación', 'N° Pago', 'Fecha', 'Forma de Pago', 'Monto'];
+        rows = data.map(p => [parseInt(p.estado_id || 1) === 1 ? 'Cobrado' : 'Anulado', p.nombre_cliente, p.identificacion, p.numero, p.fecha, p.forma_pago || 'Efectivo', parseFloat(p.monto || 0).toFixed(2)]);
+        break;
+      case 'ventas':
+        headers = ['Estado', 'Cliente', 'Identificación', 'N° Factura', 'Tipo', 'Fecha', 'Total', 'Saldo'];
+        rows = data.map(v => {
+          const saldo = parseFloat(v.saldo || 0);
+          const estado = (v.estado === 0 || v.estado === '0' || String(v.estado).toUpperCase() === 'ANULADO') ? 'Anulado' : (saldo <= 0 ? 'Cobrado' : 'Pendiente');
+          return [estado, v.nombre, v.identificacion, v.numero, v.tipo, v.fecha, parseFloat(v.total || 0).toFixed(2), saldo.toFixed(2)];
+        });
+        break;
+      case 'matriculas':
+        headers = ['Alumno', 'Identificación', 'Membresía', 'Registro', 'Vigencia Inicio', 'Vigencia Fin', 'Clases', 'Actividades'];
+        rows = data.map(m => [m.nombre, m.identificacion, m.membresia, m.fecha_registro, m.fecha_inicio, m.fecha_fin, m.clases_nombres, m.actividades_nombres]);
+        break;
+      case 'gastos':
+        headers = ['N°', 'Fecha', 'Descripción', 'Tipo', 'Monto'];
+        rows = data.map(g => [g.numero, g.fecha, g.descripcion, g.tipo_gasto, parseFloat(g.monto || 0).toFixed(2)]);
+        break;
+      default: return;
+    }
+
+    csvContent += toCsvRow(headers) + '\n';
+    rows.forEach(row => { csvContent += toCsvRow(row) + '\n'; });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
     showToast('CSV exportado correctamente.', 'success');
   }
-
-  window.exportTableCSV = exportTableCSV;
 
   /* ─────────────────────────────────────
      TAB LAZY LOADING
@@ -1294,7 +1416,6 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
      REFRESH BUTTON
   ───────────────────────────────────── */
   document.getElementById('btn-rpt-refresh').addEventListener('click', function () {
-    periodoId = document.getElementById('rpt-periodo-select').value;
     resetTabs();
 
     ['kpi-alumnos','kpi-ingresos','kpi-balance','kpi-pendientes'].forEach(function (id) {
@@ -1315,24 +1436,19 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
     });
   });
 
-  document.getElementById('rpt-periodo-select').addEventListener('change', function () {
-    document.getElementById('btn-rpt-refresh').click();
-  });
-
   /* ─────────────────────────────────────
      INIT
   ───────────────────────────────────── */
   document.addEventListener('DOMContentLoaded', function () {
     checkAuth();
+    initDatePickers();
 
     instId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || null;
 
     Promise.all([
       loadDashboardStats(),
       ensureInstId(),
-      loadPeriodos(),
     ]).then(function () {
-      periodoId = document.getElementById('rpt-periodo-select').value;
       loadTabPagos();
     }).catch(function (err) {
       showToast('Error al inicializar reportes: ' + (err.message || 'Error'), 'error');

@@ -121,7 +121,7 @@ class VentaServices
 
         $filters = [
             'institucion' => (int)$queryParams['institucion'],
-            'limit'       => isset($queryParams['limit']) ? max(1, (int)$queryParams['limit']) : 20,
+            'limit'       => isset($queryParams['limit']) ? (int)$queryParams['limit'] : 20,
             'page'        => isset($queryParams['page']) ? max(1, (int)$queryParams['page']) : 1,
             'desde'       => !empty($queryParams['desde']) ? $queryParams['desde'] : null,
             'hasta'       => !empty($queryParams['hasta']) ? $queryParams['hasta'] : null,
@@ -143,8 +143,8 @@ class VentaServices
                 'nombre'         => $row['nombre'],
             ], $result['items']),
             'totalItems'  => (int) $result['total'],
-            'totalPages'  => (int) ceil($result['total'] / $filters['limit']),
-            'currentPage' => $filters['page'],
+            'totalPages'  => ($filters['limit'] > 0) ? (int) ceil($result['total'] / $filters['limit']) : 1,
+            'currentPage' => ($filters['limit'] > 0) ? $filters['page'] : 1,
         ];
     }
 
