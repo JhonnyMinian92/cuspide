@@ -84,9 +84,19 @@
               placeholder="Ej: Huaquillas FC">
           </div>
           <div class="col-md-8">
-            <label class="form-label fw-semibold">URL Logotipo <span class="text-muted small">(opcional)</span></label>
-            <input type="url" class="form-control" id="f-logotipo" name="logotipo"
-              placeholder="https://example.com/logo.png">
+            <label class="form-label fw-semibold">Logotipo <span class="text-muted small">(opcional)</span></label>
+            <input type="hidden" id="f-logotipo" name="logotipo">
+            <div class="d-flex align-items-start gap-3">
+              <div class="rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                style="width:72px;height:72px;background:var(--app-surface-soft);border:1px solid var(--app-border);overflow:hidden;">
+                <i class="bi bi-image text-muted fs-3" id="logo-preview-placeholder"></i>
+                <img id="logo-preview-img" class="d-none" style="width:100%;height:100%;object-fit:cover;" src="" alt="Vista previa">
+              </div>
+              <div class="flex-grow-1">
+                <input type="file" class="form-control" id="f-logotipo-file" accept="image/jpeg,image/png,image/gif,image/webp">
+                <div class="form-text">JPG, PNG, GIF o WebP. Se guardará en el servidor y se usará como logo de la institución.</div>
+              </div>
+            </div>
           </div>
           <div class="col-md-4 d-flex align-items-end pb-1">
             <div class="form-check">
@@ -187,11 +197,56 @@ function estadoBadge(estado) {
 ──────────────────────────────────────────────── */
 var editingId = null;
 
+/* ── Logo preview helper ── */
+function setLogoPreview(src) {
+  var img  = document.getElementById('logo-preview-img');
+  var icon = document.getElementById('logo-preview-placeholder');
+  if (src) {
+    img.src = src;
+    img.classList.remove('d-none');
+    icon.classList.add('d-none');
+  } else {
+    img.src = '';
+    img.classList.add('d-none');
+    icon.classList.remove('d-none');
+  }
+}
+
+/* ── Upload logo to server ── */
+function uploadLogoFile(file) {
+  var token = localStorage.getItem(CONFIG.STORAGE_KEYS.token) || '';
+  var base  = (CONFIG.API_BASE_URL + CONFIG.ENDPOINTS.instituciones).replace(/\/+$/, '');
+  var fd    = new FormData();
+  fd.append('logo', file);
+  return fetch(base + '/index.php?api=upload-logo', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token },
+    body: fd,
+  }).then(function(resp) {
+    return resp.json();
+  }).then(function(payload) {
+    if (payload.status !== 'success' || !payload.data || !payload.data.path) {
+      throw new Error(payload.message || 'Error al subir la imagen.');
+    }
+    return payload.data.path;
+  });
+}
+
+/* ── File input → live preview ── */
+document.getElementById('f-logotipo-file').addEventListener('change', function() {
+  var file = this.files && this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) { setLogoPreview(e.target.result); };
+  reader.readAsDataURL(file);
+});
+
 /* ────────────────────────────────────────────────
    INSTITUCIÓN ACTUAL
 ──────────────────────────────────────────────── */
+var currentInstData = null;
+
 function loadCurrentInst() {
-  var id = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
   var loading = document.getElementById('inst-current-loading');
   var data    = document.getElementById('inst-current-data');
   loading.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary me-2"></span>' +
@@ -199,10 +254,18 @@ function loadCurrentInst() {
   loading.classList.remove('d-none');
   data.classList.add('d-none');
 
-  Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'data', null, { id: id })
+  Cuspide.api.institucion()
     .then(function(d) {
       if (!d) return;
-      renderCurrentInst(d);
+      currentInstData = d;
+      renderCurrentInst({
+        id:           d.id,
+        ruc:          d.ruc,
+        razon_social: d.razon_social,
+        nombre:       d.nombre,
+        logotipo:     d.logo,
+        estado:       d.estado,
+      });
     })
     .catch(function(err) {
       loading.innerHTML = '<span class="text-muted small"><i class="bi bi-info-circle me-1"></i>' +
@@ -279,8 +342,10 @@ function renderInstTable(items) {
 function openFormNew() {
   editingId = null;
   document.getElementById('form-institucion').reset();
-  document.getElementById('f-id').value = '';
+  document.getElementById('f-id').value      = '';
+  document.getElementById('f-logotipo').value = '';
   document.getElementById('f-estado').checked = true;
+  setLogoPreview(null);
   document.getElementById('inst-form-title').innerHTML =
     '<i class="bi bi-plus-circle me-2"></i>Nueva Institución';
   showForm();
@@ -293,7 +358,9 @@ function openEditForm(d) {
   document.getElementById('f-razon-social').value  = d.razon_social || '';
   document.getElementById('f-nombre').value        = d.nombre || '';
   document.getElementById('f-logotipo').value      = d.logotipo || '';
+  document.getElementById('f-logotipo-file').value = '';
   document.getElementById('f-estado').checked      = parseInt(d.estado) === 1;
+  setLogoPreview(d.logotipo || null);
   document.getElementById('inst-form-title').innerHTML =
     '<i class="bi bi-pencil-square me-2"></i>Editar Institución — ' + esc(d.nombre);
   showForm();
@@ -314,13 +381,18 @@ function showForm() {
 function hideForm() {
   document.getElementById('inst-form-wrap').classList.add('d-none');
   document.getElementById('form-institucion').reset();
+  document.getElementById('f-logotipo').value = '';
+  setLogoPreview(null);
   editingId = null;
 }
 
 /* ── Botón Editar institución actual ── */
 document.getElementById('btn-edit-current').addEventListener('click', function() {
-  var id = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
-  Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'data', null, { id: id })
+  if (!currentInstData || !currentInstData.id) {
+    showToast('Institución aún no cargada. Espera un momento.', 'warning');
+    return;
+  }
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'data', null, { id: currentInstData.id })
     .then(function(d) { if (d) openEditForm(d); })
     .catch(function(err) { showToast(err.message || 'Error al cargar datos.', 'danger'); });
 });
@@ -338,34 +410,49 @@ document.getElementById('form-institucion').addEventListener('submit', function(
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
 
-  var id     = document.getElementById('f-id').value;
-  var isEdit = !!id;
+  var id       = document.getElementById('f-id').value;
+  var isEdit   = !!id;
+  var fileInput = document.getElementById('f-logotipo-file');
+  var file     = fileInput.files && fileInput.files[0];
 
-  var body = {
-    ruc:          document.getElementById('f-ruc').value.trim(),
-    razon_social: document.getElementById('f-razon-social').value.trim(),
-    nombre:       document.getElementById('f-nombre').value.trim(),
-    logotipo:     document.getElementById('f-logotipo').value.trim() || null,
-    estado:       document.getElementById('f-estado').checked ? 1 : 0,
-  };
+  function doSave(logoPath) {
+    var body = {
+      ruc:          document.getElementById('f-ruc').value.trim(),
+      razon_social: document.getElementById('f-razon-social').value.trim(),
+      nombre:       document.getElementById('f-nombre').value.trim(),
+      logotipo:     logoPath || document.getElementById('f-logotipo').value.trim() || null,
+      estado:       document.getElementById('f-estado').checked ? 1 : 0,
+    };
+    var method = isEdit ? 'PUT' : 'POST';
+    var params = isEdit ? { id: id } : null;
+    Cuspide.api.call(method, CONFIG.ENDPOINTS.instituciones, 'save', body, params)
+      .then(function() {
+        showToast(isEdit ? 'Institución actualizada correctamente.' : 'Institución creada correctamente.', 'success');
+        hideForm();
+        loadCurrentInst();
+        loadInstList();
+      })
+      .catch(function(err) {
+        showToast(err.message || 'Error al guardar la institución.', 'danger');
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar';
+      });
+  }
 
-  var method = isEdit ? 'PUT' : 'POST';
-  var params = isEdit ? { id: id } : null;
-
-  Cuspide.api.call(method, CONFIG.ENDPOINTS.instituciones, 'save', body, params)
-    .then(function() {
-      showToast(isEdit ? 'Institución actualizada correctamente.' : 'Institución creada correctamente.', 'success');
-      hideForm();
-      loadCurrentInst();
-      loadInstList();
-    })
-    .catch(function(err) {
-      showToast(err.message || 'Error al guardar la institución.', 'danger');
-    })
-    .finally(function() {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar';
-    });
+  if (file) {
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo imagen...';
+    uploadLogoFile(file)
+      .then(function(path) { doSave(path); })
+      .catch(function(err) {
+        showToast(err.message || 'Error al subir la imagen.', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar';
+      });
+  } else {
+    doSave(null);
+  }
 });
 
 /* ────────────────────────────────────────────────

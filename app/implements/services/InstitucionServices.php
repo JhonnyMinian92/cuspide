@@ -54,6 +54,9 @@ class InstitucionServices implements InstitucionServiceInterface
             case $method === 'PUT' && $resource === 'save':
                 return $this->saveInstitucion((int)($queryParams['id'] ?? 0));
 
+            case $method === 'POST' && $resource === 'upload-logo':
+                return $this->uploadLogo();
+
             default:
                 throw new \RuntimeException('Recurso no encontrado o método no soportado.', 404);
         }
@@ -150,6 +153,46 @@ class InstitucionServices implements InstitucionServiceInterface
         }
     }
 
+    // -------------------------------------------------------------------------
+    // uploadLogo
+    // -------------------------------------------------------------------------
+    private function uploadLogo(): array
+    {
+        if (empty($_FILES['logo']) || (int)$_FILES['logo']['error'] !== UPLOAD_ERR_OK) {
+            $code = (int)($_FILES['logo']['error'] ?? -1);
+            $msg  = match ($code) {
+                UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'El archivo supera el tamaño máximo permitido.',
+                UPLOAD_ERR_PARTIAL    => 'El archivo se subió parcialmente.',
+                UPLOAD_ERR_NO_FILE    => 'No se seleccionó ningún archivo.',
+                default               => 'Error al recibir el archivo.',
+            };
+            throw new \RuntimeException($msg, 400);
+        }
+
+        $file     = $_FILES['logo'];
+        $finfo    = new \finfo(FILEINFO_MIME_TYPE);
+        $mime     = $finfo->file($file['tmp_name']);
+        $allowed  = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+
+        if (!isset($allowed[$mime])) {
+            throw new \RuntimeException('Tipo de archivo no permitido. Solo imágenes JPG, PNG, GIF o WebP.', 400);
+        }
+
+        $ext       = $allowed[$mime];
+        $filename  = 'inst_' . uniqid('', true) . '.' . $ext;
+        $uploadDir = realpath(__DIR__ . '/../../../') . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'logo' . DIRECTORY_SEPARATOR;
+
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
+            throw new \RuntimeException('No se pudo crear el directorio de imágenes.', 500);
+        }
+
+        if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+            throw new \RuntimeException('Error al guardar el archivo en el servidor.', 500);
+        }
+
+        return ['path' => '/assets/logo/' . $filename];
+    }
+
     private function createInstitucionAndAdmin(?string $ruc, string $razonSocial, string $nombre, ?string $logotipo, int $estado): array
     {
         if (empty($ruc)) {
@@ -214,6 +257,22 @@ class InstitucionServices implements InstitucionServiceInterface
 
             $stmt = $db->prepare("INSERT INTO persona_institucion (id_persona, id_institucion, tipo, estado) VALUES (:personaId, :instId, :tipo, 1)");
             $stmt->execute([':personaId' => $personaId, ':instId' => $instId, ':tipo' => $adminTipoPersonaId]);
+
+            // 7. Grant all active buttons to TIPO_ADMIN for this institution
+            $stmtBotones = $db->query("SELECT id FROM botones WHERE estado = 1");
+            $botonIds    = $stmtBotones ? array_column($stmtBotones->fetchAll(\PDO::FETCH_ASSOC), 'id') : [];
+
+            if (!empty($botonIds)) {
+                $stmtBU = $db->prepare(
+                    "INSERT IGNORE INTO boton_user (boton, type_user, institucion) VALUES (:boton, 'TIPO_ADMIN', :institucion)"
+                );
+                foreach ($botonIds as $botonId) {
+                    $stmtBU->execute([
+                        ':boton'       => $botonId,
+                        ':institucion' => $instId,
+                    ]);
+                }
+            }
 
             $db->commit();
 
