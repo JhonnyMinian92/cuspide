@@ -196,6 +196,18 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
             <div class="val" id="pagos-num-pagos">—</div>
           </div>
         </div>
+        <div class="col-6 col-md-3">
+          <div class="rpt-summary-card">
+            <div class="lbl">Saldo por Cobrar</div>
+            <div class="val text-danger" id="pagos-total-pendiente">—</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="rpt-summary-card">
+            <div class="lbl">Facturas Pendientes</div>
+            <div class="val" id="pagos-num-pendiente">—</div>
+          </div>
+        </div>
       </div>
 
       <div class="row g-4">
@@ -230,6 +242,33 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- Sección pendientes -->
+      <div class="mt-4 pt-3" style="border-top:1px solid var(--card-border);">
+        <div class="section-label mb-2"><i class="bi bi-hourglass-split me-1 text-warning"></i>Ventas con Saldo Pendiente</div>
+        <div id="pagos-pendientes-error" class="alert alert-danger d-none"></div>
+        <div class="table-responsive" style="max-height:300px;overflow-y:auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Cliente</th>
+                <th>N° Factura</th>
+                <th>Tipo</th>
+                <th>Fecha</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Saldo</th>
+                <th class="text-center">% Pagado</th>
+                <th>Origen</th>
+              </tr>
+            </thead>
+            <tbody id="pagos-pendientes-tbody">
+              <tr><td colspan="8" class="text-center text-muted py-4">
+                <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+              </td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -520,15 +559,17 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
   /* ─────────────────────────────────────
      STATE
   ───────────────────────────────────── */
-  var instId    = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || null;
+  var instId    = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
 
   var _data = {
-    stats:        null,
-    pagos:        null,
-    ventas:       null,
-    ventasMeta:   { page: 1, totalPages: 1, totalItems: 0 },
-    matriculas:   null,
-    gastosData:   null,
+    stats:           null,
+    pagos:           null,
+    pagosPendientes: null,
+    ventas:          null,
+    ventasExternas:  null,
+    ventasMeta:      { page: 1, totalPages: 1, totalItems: 0 },
+    matriculas:      null,
+    gastosData:      null,
   };
 
   var _tabLoaded = {
@@ -615,18 +656,38 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
   }
 
   function initDatePickers() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
-    const lastDay = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    var today  = new Date();
+    var year   = today.getFullYear();
+    var month  = today.getMonth();
+    var firstDay = new Date(year, month, 1).toISOString().split('T')[0];
+    var lastDay  = new Date(year, month + 1, 0).toISOString().split('T')[0];
 
-    ['pagos', 'ventas', 'matriculas', 'gastos'].forEach(function(reportType) {
-        const desdeEl = document.getElementById(`${reportType}-fecha-desde`);
-        const hastaEl = document.getElementById(`${reportType}-fecha-hasta`);
-        if (desdeEl) desdeEl.value = firstDay;
-        if (hastaEl) hastaEl.value = lastDay;
+    ['pagos', 'ventas', 'matriculas', 'gastos'].forEach(function (name) {
+      var desdeEl = document.getElementById(name + '-fecha-desde');
+      var hastaEl = document.getElementById(name + '-fecha-hasta');
+      if (desdeEl) desdeEl.value = firstDay;
+      if (hastaEl) hastaEl.value = lastDay;
     });
+  }
+
+  function getDates(name) {
+    return {
+      desde: (document.getElementById(name + '-fecha-desde') || {}).value || null,
+      hasta:  (document.getElementById(name + '-fecha-hasta')  || {}).value || null,
+    };
+  }
+
+  function reloadTab(name) {
+    _tabLoaded[name] = false;
+    _data[name === 'pagos' ? 'pagos' : name === 'ventas' ? 'ventas' : name === 'gastos' ? 'gastosData' : name] = null;
+    if (name === 'pagos')  { _data.pagosPendientes = null; }
+    if (name === 'ventas') { _data.ventasExternas  = null; }
+    switch (name) {
+      case 'pagos':      loadTabPagos(true);      break;
+      case 'ventas':     loadTabVentas(true);     break;
+      case 'matriculas': loadTabMatriculas(true); break;
+      case 'gastos':     loadTabGastos(true);     break;
+    }
   }
 
   /* ─────────────────────────────────────
@@ -641,17 +702,8 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
      Reads from CUSPIDE_STATE or loads from API
   ───────────────────────────────────── */
   function ensureInstId() {
-    var cached = window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId;
-    if (cached) { instId = cached; return Promise.resolve(instId); }
-    if (instId) return Promise.resolve(instId);
-    return apiGet('instituciones', 'list').then(function (items) {
-      var list = Array.isArray(items) ? items : [];
-      if (list.length > 0) {
-        instId = parseInt(list[0].id, 10);
-        if (window.CUSPIDE_STATE) window.CUSPIDE_STATE.currentInstitucionId = instId;
-      }
-      return instId;
-    });
+    instId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || instId || 1;
+    return Promise.resolve(instId);
   }
 
   /* ─────────────────────────────────────
@@ -691,15 +743,18 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
   ───────────────────────────────────── */
   function resetTabs() {
     Object.keys(_tabLoaded).forEach(function (k) { _tabLoaded[k] = false; });
-    _data.pagos = null;
-    _data.ventas = null;
-    _data.ventasMeta = { page: 1, totalPages: 1, totalItems: 0 };
-    _data.matriculas = null;
-    _data.gastosData = null;
+    _data.pagos           = null;
+    _data.pagosPendientes = null;
+    _data.ventas          = null;
+    _data.ventasExternas  = null;
+    _data.ventasMeta      = { page: 1, totalPages: 1, totalItems: 0 };
+    _data.matriculas      = null;
+    _data.gastosData      = null;
     Object.keys(_charts).forEach(function (id) { destroyChart(id); });
 
     var resets = [
-      ['pagos-tbody', 7], ['ventas-tbody', 7], ['matriculas-tbody', 8], ['gastos-tbody', 5],
+      ['pagos-tbody', 7], ['pagos-pendientes-tbody', 8],
+      ['ventas-tbody', 7], ['matriculas-tbody', 8], ['gastos-tbody', 5],
     ];
     resets.forEach(function (r) {
       var el = document.getElementById(r[0]);
@@ -735,15 +790,21 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
              observacion, estado_id, forma_pago,
              nombre_cliente, identificacion
   ════════════════════════════════════════════════════ */
-  function loadTabPagos() {
-    if (_tabLoaded.pagos) return;
+  function loadTabPagos(force) {
+    if (_tabLoaded.pagos && !force) return;
     _tabLoaded.pagos = true;
 
-    if (_data.pagos) { renderPagosTab(_data.pagos); return; }
+    var dates = getDates('pagos');
+    document.getElementById('pagos-tbody').innerHTML           = spinnerRow(7);
+    document.getElementById('pagos-pendientes-tbody').innerHTML = spinnerRow(8);
 
-    apiGet('pagos', 'recent').then(function (data) {
-      _data.pagos = Array.isArray(data) ? data : [];
-      renderPagosTab(_data.pagos);
+    Promise.all([
+      apiGet('pagos', 'recent',  { desde: dates.desde, hasta: dates.hasta }),
+      apiGet('pagos', 'pending', {}),
+    ]).then(function (results) {
+      _data.pagos           = Array.isArray(results[0]) ? results[0] : [];
+      _data.pagosPendientes = Array.isArray(results[1]) ? results[1] : [];
+      renderPagosTab(_data.pagos, _data.pagosPendientes);
     }).catch(function (err) {
       var errEl = document.getElementById('pagos-error');
       errEl.textContent = 'Error al cargar pagos: ' + (err.message || 'Error');
@@ -753,44 +814,80 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
     });
   }
 
-  function renderPagosTab(items) {
-    var activos = items.filter(function (p) { return parseInt(p.estado_id) === 1; });
+  function renderPagosTab(items, pendientes) {
+    var activos      = items.filter(function (p) { return parseInt(p.estado_id) === 1; });
     var totalCobrado = activos.reduce(function (s, p) { return s + parseFloat(p.monto || 0); }, 0);
+    var totalPend    = (pendientes || []).reduce(function (s, p) { return s + parseFloat(p.saldo || 0); }, 0);
 
-    document.getElementById('pagos-total-cobrado').textContent = fmtMoney(totalCobrado);
-    document.getElementById('pagos-num-pagos').textContent = activos.length;
+    document.getElementById('pagos-total-cobrado').textContent  = fmtMoney(totalCobrado);
+    document.getElementById('pagos-num-pagos').textContent      = activos.length;
+    document.getElementById('pagos-total-pendiente').textContent = fmtMoney(totalPend);
+    document.getElementById('pagos-num-pendiente').textContent  = (pendientes || []).length;
 
     var tbody = document.getElementById('pagos-tbody');
     if (!items.length) {
-      tbody.innerHTML = emptyRow(7, 'No hay pagos recientes registrados.');
+      tbody.innerHTML = emptyRow(7, 'No hay pagos en el período seleccionado.');
       hideChartLoader('pagos');
-      return;
+    } else {
+      tbody.innerHTML = items.map(function (p) {
+        var monto    = parseFloat(p.monto || 0);
+        var estadoId = parseInt(p.estado_id || 1);
+        var esExt    = p.tipo_origen === 'externa';
+        var estadoBadge = estadoId === 1
+          ? '<span class="badge bg-success rounded-pill">Cobrado</span>'
+          : '<span class="badge bg-danger rounded-pill">Anulado</span>';
+        var extBadge = esExt
+          ? ' <span class="badge rounded-pill" style="font-size:.65rem;background:var(--app-border);color:var(--app-text-muted);">Ext</span>'
+          : '';
+        return '<tr>' +
+          '<td>' + estadoBadge + '</td>' +
+          '<td class="fw-semibold">' + esc(p.nombre_cliente || '—') + '</td>' +
+          '<td><code style="font-size:.72rem;">' + esc(p.identificacion || '—') + '</code></td>' +
+          '<td>' + esc(p.numero || '—') + extBadge + '</td>' +
+          '<td style="font-size:.8rem;">' + esc(p.fecha || '—') + '</td>' +
+          '<td><span class="badge rounded-pill bg-secondary">' + esc(p.forma_pago || 'Efectivo') + '</span></td>' +
+          '<td class="text-end fw-bold ' + (estadoId === 1 ? 'text-success' : 'text-muted text-decoration-line-through') + '">' + fmtMoney(monto) + '</td>' +
+        '</tr>';
+      }).join('');
+
+      var formaMap = {};
+      activos.forEach(function (p) {
+        var f = p.forma_pago || 'Efectivo';
+        formaMap[f] = (formaMap[f] || 0) + parseFloat(p.monto || 0);
+      });
+      renderPagosChart(formaMap);
     }
 
-    tbody.innerHTML = items.map(function (p) {
-      var monto    = parseFloat(p.monto || 0);
-      var estadoId = parseInt(p.estado_id || 1);
-      var estadoBadge = estadoId === 1
-        ? '<span class="badge bg-success rounded-pill">Cobrado</span>'
-        : '<span class="badge bg-danger rounded-pill">Anulado</span>';
-      return '<tr>' +
-        '<td>' + estadoBadge + '</td>' +
-        '<td class="fw-semibold">' + esc(p.nombre_cliente || '—') + '</td>' +
-        '<td><code style="font-size:.72rem;">' + esc(p.identificacion || '—') + '</code></td>' +
-        '<td>' + esc(p.numero || '—') + '</td>' +
-        '<td style="font-size:.8rem;">' + esc(p.fecha || '—') + '</td>' +
-        '<td><span class="badge rounded-pill bg-secondary">' + esc(p.forma_pago || 'Efectivo') + '</span></td>' +
-        '<td class="text-end fw-bold ' + (estadoId === 1 ? 'text-success' : 'text-muted text-decoration-line-through') + '">' + fmtMoney(monto) + '</td>' +
-      '</tr>';
-    }).join('');
-
-    /* Chart: total cobrado por forma de pago */
-    var formaMap = {};
-    activos.forEach(function (p) {
-      var f = p.forma_pago || 'Efectivo';
-      formaMap[f] = (formaMap[f] || 0) + parseFloat(p.monto || 0);
-    });
-    renderPagosChart(formaMap);
+    /* ─ Pendientes ─ */
+    var ptbody = document.getElementById('pagos-pendientes-tbody');
+    if (!pendientes || !pendientes.length) {
+      ptbody.innerHTML = emptyRow(8, 'Sin facturas con saldo pendiente.');
+    } else {
+      ptbody.innerHTML = pendientes.map(function (p) {
+        var total = parseFloat(p.total || 0);
+        var saldo = parseFloat(p.saldo || 0);
+        var pct   = total > 0 ? Math.round((1 - saldo / total) * 100) : 0;
+        var origenBadge = p.tipo_origen === 'externa'
+          ? '<span class="badge rounded-pill" style="font-size:.65rem;background:rgba(99,102,241,.15);color:#6366f1;border:1px solid rgba(99,102,241,.35);">Externa</span>'
+          : '<span class="badge rounded-pill bg-secondary" style="font-size:.65rem;">Regular</span>';
+        return '<tr>' +
+          '<td class="fw-semibold">' + esc(p.nombre || '—') + '<br>' +
+            '<code style="font-size:.7rem;color:var(--app-text-muted);">' + esc(p.identificacion || '') + '</code></td>' +
+          '<td>' + esc(p.numero || '—') + '</td>' +
+          '<td><span class="badge rounded-pill" style="background:rgba(99,102,241,.12);color:var(--app-text);border:1px solid rgba(99,102,241,.35);font-size:.7rem;">' + esc(p.tipo || '—') + '</span></td>' +
+          '<td style="font-size:.8rem;">' + esc(p.fecha || '—') + '</td>' +
+          '<td class="text-end">' + fmtMoney(total) + '</td>' +
+          '<td class="text-end fw-bold text-danger">' + fmtMoney(saldo) + '</td>' +
+          '<td class="text-center">' +
+            '<div class="progress" style="height:6px;width:70px;display:inline-flex;vertical-align:middle;margin-right:4px;">' +
+              '<div class="progress-bar bg-success" style="width:' + pct + '%"></div>' +
+            '</div>' +
+            '<span style="font-size:.75rem;">' + pct + '%</span>' +
+          '</td>' +
+          '<td>' + origenBadge + '</td>' +
+        '</tr>';
+      }).join('');
+    }
   }
 
   function renderPagosChart(formaMap) {
@@ -835,31 +932,58 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
      Item fields: id, numero, fecha, tipo, total, saldo,
                   estado, identificacion, nombre
   ════════════════════════════════════════════════════ */
-  function loadTabVentas() {
-    if (_tabLoaded.ventas) return;
+  function loadTabVentas(force) {
+    if (_tabLoaded.ventas && !force) return;
     _tabLoaded.ventas = true;
+    document.getElementById('ventas-tbody').innerHTML = spinnerRow(7);
     fetchVentasPage(1);
   }
 
   function fetchVentasPage(page) {
+    var dates = getDates('ventas');
     ensureInstId().then(function (id) {
       if (!id) throw new Error('No se pudo obtener la institución.');
-      var params = { institucion: id, page: page || 1 };
-      return apiGet('ventas', 'list', params);
-    }).then(function (data) {
-      var items = [];
+      var params = { institucion: id, page: page || 1, desde: dates.desde, hasta: dates.hasta };
+      return Promise.all([
+        apiGet('ventas', 'list', params),
+        apiGet('ventas', 'list_externas', { institucion: id, desde: dates.desde, hasta: dates.hasta, limit: 200 }),
+      ]);
+    }).then(function (results) {
+      var regData = results[0];
+      var extData = results[1];
+
+      var items = Array.isArray(regData) ? regData : (regData && Array.isArray(regData.items) ? regData.items : []);
       var meta  = { totalItems: 0, totalPages: 1, currentPage: 1 };
-      if (Array.isArray(data)) {
-        items = data;
-      } else if (data && Array.isArray(data.items)) {
-        items = data.items;
-        meta.totalItems  = data.totalItems  || 0;
-        meta.totalPages  = data.totalPages  || 1;
-        meta.currentPage = data.currentPage || 1;
+      if (regData && !Array.isArray(regData)) {
+        meta.totalItems  = regData.totalItems  || items.length;
+        meta.totalPages  = regData.totalPages  || 1;
+        meta.currentPage = regData.currentPage || 1;
       }
-      _data.ventas     = items;
-      _data.ventasMeta = meta;
-      renderVentasTab(items, meta);
+
+      /* Mapear externas al mismo formato */
+      var extItems = (extData && Array.isArray(extData.items) ? extData.items : [])
+        .map(function (ve) {
+          return {
+            id:             ve.id,
+            numero:         ve.numero,
+            fecha:          ve.fecha,
+            tipo:           'EXTERNA',
+            total:          ve.total,
+            saldo:          ve.saldo,
+            estado:         ve.estado,  /* 1=activa, 2=anulada */
+            identificacion: ve.cliente_identificacion || '',
+            nombre:         ve.cliente_nombre || 'Anónimo',
+            _externa:       true,
+          };
+        });
+
+      _data.ventas         = items;
+      _data.ventasExternas = extItems;
+      _data.ventasMeta     = meta;
+
+      var merged = items.concat(extItems);
+      merged.sort(function (a, b) { return new Date(b.fecha) - new Date(a.fecha); });
+      renderVentasTab(merged, meta);
     }).catch(function (err) {
       var errEl = document.getElementById('ventas-error');
       errEl.textContent = 'Error al cargar ventas: ' + (err.message || 'Error');
@@ -869,37 +993,54 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
     });
   }
 
+  function ventaEstadoBadge(v) {
+    var estadoNum = parseInt(v.estado || 1);
+    var saldo     = parseFloat(v.saldo || 0);
+    var total     = parseFloat(v.total || 0);
+    var pct       = total > 0 ? Math.round((1 - saldo / total) * 100) : 100;
+
+    /* ventas regulares: estado=2 anulado, ventas_externas: estado=2 anulado */
+    if (v._externa) {
+      if (estadoNum === 2) return '<span class="badge bg-danger rounded-pill">Anulada</span>';
+      if (saldo <= 0)      return '<span class="badge bg-success rounded-pill">Cobrado</span>';
+      return '<span class="badge rounded-pill" style="background:#f59e0b22;color:#b45309;border:1px solid #f59e0b55;">' +
+             'Pagado ' + pct + '%</span>';
+    }
+    /* ventas regulares */
+    if (estadoNum === 2 && saldo <= 0) return '<span class="badge bg-success rounded-pill">Cobrado</span>';
+    if (estadoNum === 0)               return '<span class="badge bg-danger rounded-pill">Anulado</span>';
+    if (saldo <= 0)                    return '<span class="badge bg-success rounded-pill">Cobrado</span>';
+    if (pct > 0 && pct < 100)
+      return '<span class="badge rounded-pill" style="background:#f59e0b22;color:#b45309;border:1px solid #f59e0b55;">' +
+             'Pagado ' + pct + '%</span>';
+    return '<span class="badge bg-warning text-dark rounded-pill">Pendiente</span>';
+  }
+
   function renderVentasTab(items, meta) {
     var totalSuma = items.reduce(function (s, v) { return s + parseFloat(v.total || 0); }, 0);
     var saldoSuma = items.reduce(function (s, v) { return s + parseFloat(v.saldo || 0); }, 0);
     var cobrado   = totalSuma - saldoSuma;
 
-    document.getElementById('ventas-total').textContent    = fmtMoney(totalSuma);
-    document.getElementById('ventas-cobrado').textContent  = fmtMoney(cobrado);
+    document.getElementById('ventas-total').textContent     = fmtMoney(totalSuma);
+    document.getElementById('ventas-cobrado').textContent   = fmtMoney(cobrado);
     document.getElementById('ventas-pendiente').textContent = fmtMoney(saldoSuma);
-    document.getElementById('ventas-num').textContent = meta.totalItems > 0 ? meta.totalItems : items.length;
+    document.getElementById('ventas-num').textContent       = items.length;
 
     var tbody = document.getElementById('ventas-tbody');
     if (!items.length) {
-      tbody.innerHTML = emptyRow(7, 'No hay ventas registradas.');
+      tbody.innerHTML = emptyRow(7, 'No hay ventas en el período seleccionado.');
       hideChartLoader('ventas');
       return;
     }
 
     tbody.innerHTML = items.map(function (v) {
-      var total  = parseFloat(v.total || 0);
-      var saldo  = parseFloat(v.saldo || 0);
-      var estado = String(v.estado || '').toUpperCase();
-      var estadoBadge = estado === 'ANULADO'
-        ? '<span class="badge bg-danger rounded-pill">Anulado</span>'
-        : saldo <= 0
-          ? '<span class="badge bg-success rounded-pill">Cobrado</span>'
-          : '<span class="badge bg-warning text-dark rounded-pill">Pendiente</span>';
+      var total     = parseFloat(v.total || 0);
+      var saldo     = parseFloat(v.saldo || 0);
       var tipoBadge = v.tipo
-        ? '<span class="badge rounded-pill" style="background:rgba(99,102,241,.12);color:var(--app-text);border:1px solid rgba(99,102,241,.35);">' + esc(v.tipo) + '</span>'
+        ? '<span class="badge rounded-pill" style="background:rgba(99,102,241,.12);color:var(--app-text);border:1px solid rgba(99,102,241,.35);font-size:.7rem;">' + esc(v.tipo) + '</span>'
         : '<span class="text-muted">—</span>';
       return '<tr>' +
-        '<td>' + estadoBadge + '</td>' +
+        '<td>' + ventaEstadoBadge(v) + '</td>' +
         '<td class="fw-semibold" style="max-width:160px;">' + esc(v.nombre || '—') + '<br>' +
           '<code style="font-size:.7rem;color:var(--app-text-muted);">' + esc(v.identificacion || '') + '</code></td>' +
         '<td>' + esc(v.numero || '—') + '</td>' +
@@ -910,18 +1051,17 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
       '</tr>';
     }).join('');
 
-    /* Pagination */
+    /* Pagination — solo aplica para ventas regulares */
     if (meta.totalPages > 1) {
       var vpag = document.getElementById('ventas-pagination');
       vpag.classList.remove('d-none');
       document.getElementById('ventas-page-info').textContent =
-        'Página ' + meta.currentPage + ' de ' + meta.totalPages +
-        ' (' + meta.totalItems + ' registros)';
+        'Página ' + meta.currentPage + ' de ' + meta.totalPages + ' (' + meta.totalItems + ' reg.)';
       document.getElementById('ventas-prev-btn').disabled = meta.currentPage <= 1;
       document.getElementById('ventas-next-btn').disabled = meta.currentPage >= meta.totalPages;
     }
 
-    /* Chart: total por tipo */
+    /* Chart */
     var tipoMap = {};
     items.forEach(function (v) {
       var tipo = v.tipo || 'Sin tipo';
@@ -989,11 +1129,11 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
              fecha_inicio, fecha_fin, clases_count,
              actividades_count
   ════════════════════════════════════════════════════ */
-  function loadTabMatriculas() {
-    if (_tabLoaded.matriculas) return;
+  function loadTabMatriculas(force) {
+    if (_tabLoaded.matriculas && !force) return;
     _tabLoaded.matriculas = true;
 
-    if (_data.matriculas) { renderMatriculasTab(_data.matriculas); return; }
+    if (_data.matriculas && !force) { renderMatriculasTab(_data.matriculas); return; }
 
     apiGet('dashboard', 'ultimas_matriculas').then(function (data) {
       _data.matriculas = Array.isArray(data) ? data : [];
@@ -1177,15 +1317,21 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
   /* ════════════════════════════════════════════════════
      TAB: GASTOS
   ════════════════════════════════════════════════════ */
-  function loadTabGastos() {
-    if (_tabLoaded.gastos) return;
+  function loadTabGastos(force) {
+    if (_tabLoaded.gastos && !force) return;
     _tabLoaded.gastos = true;
 
-    if (_data.gastosData) { renderGastosTab(_data.gastosData); return; }
+    var dates = getDates('gastos');
+    document.getElementById('gastos-tbody').innerHTML = spinnerRow(5);
 
-    apiGet('gastos', 'list', { limit: 200 }).then(function (data) {
-      _data.gastosData = Array.isArray(data) ? data : [];
-      renderGastosTab(_data.gastosData);
+    apiGet('gastos', 'list', {
+      limit:       500,
+      fecha_inicio: dates.desde,
+      fecha_fin:    dates.hasta,
+    }).then(function (data) {
+      var items = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
+      _data.gastosData = items;
+      renderGastosTab(items);
     }).catch(function (err) {
       var errEl = document.getElementById('gastos-error');
       errEl.textContent = 'Error al cargar gastos: ' + (err.message || 'Error');
@@ -1281,74 +1427,87 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
      EXPORT REPORT TO CSV
   ───────────────────────────────────── */
   function exportReport(reportType) {
-    const desdeEl = document.getElementById(`${reportType}-fecha-desde`);
-    const hastaEl = document.getElementById(`${reportType}-fecha-hasta`);
-    let desde = null;
-    let hasta = null;
+    var dates      = getDates(reportType);
+    var desde      = dates.desde;
+    var hasta      = dates.hasta;
 
-    // Solo para reportes que tengan filtros de fecha
-    if (desdeEl && hastaEl) {
-      desde = desdeEl.value;
-      hasta = hastaEl.value;
-      if (!desde || !hasta) {
-        showToast('Por favor, seleccione un rango de fechas para exportar.', 'warning');
-        return;
-      }
+    if (!desde || !hasta) {
+      showToast('Selecciona un rango de fechas para exportar.', 'warning');
+      return;
     }
 
-    const exportButton = document.querySelector(`#tab-${reportType} .btn-export`);
+    var exportButton = document.querySelector('#tab-' + reportType + ' .btn-export');
     if (!exportButton) return;
 
-    const originalHtml = exportButton.innerHTML;
+    var originalHtml = exportButton.innerHTML;
     exportButton.disabled = true;
-    exportButton.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Exportando...`;
+    exportButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Exportando...';
 
-    const apiConfig = {
-      pagos:      { endpoint: 'pagos',      action: 'recent',            params: {} },
-      ventas:     { endpoint: 'ventas',     action: 'list',              params: { institucion: instId } },
-      matriculas: { endpoint: 'dashboard',  action: 'ultimas_matriculas', params: {} },
-      gastos:     { endpoint: 'gastos',     action: 'list',              params: {} }
-    };
+    var promise;
 
-    const config = apiConfig[reportType];
-    if (!config) {
+    if (reportType === 'ventas') {
+      /* Ventas: regulares + externas */
+      ensureInstId().then(function (id) {
+        return Promise.all([
+          apiGet('ventas', 'list',          { institucion: id, desde: desde, hasta: hasta, limit: 9999 }),
+          apiGet('ventas', 'list_externas', { institucion: id, desde: desde, hasta: hasta, limit: 9999 }),
+        ]);
+      }).then(function (results) {
+        var reg  = results[0];
+        var ext  = results[1];
+        var regItems = Array.isArray(reg) ? reg : (reg && Array.isArray(reg.items) ? reg.items : []);
+        var extItems = (ext && Array.isArray(ext.items) ? ext.items : []).map(function (ve) {
+          return {
+            numero: ve.numero, fecha: ve.fecha, tipo: 'EXTERNA',
+            total: ve.total, saldo: ve.saldo, estado: ve.estado,
+            nombre: ve.cliente_nombre || 'Anónimo',
+            identificacion: ve.cliente_identificacion || '',
+            _externa: true,
+          };
+        });
+        var merged = regItems.concat(extItems);
+        merged.sort(function (a, b) { return new Date(b.fecha) - new Date(a.fecha); });
+        if (!merged.length) { showToast('Sin datos para exportar.', 'info'); return; }
+        generateAndDownloadCSV('ventas', merged, desde, hasta);
+      }).catch(function (err) {
+        showToast('Error al exportar: ' + (err.message || 'Error'), 'error');
+      }).finally(function () {
+        exportButton.disabled = false;
+        exportButton.innerHTML = originalHtml;
+      });
+      return;
+    }
+
+    if (reportType === 'gastos') {
+      promise = apiGet('gastos', 'list', {
+        limit: 9999, fecha_inicio: desde, fecha_fin: hasta,
+      }).then(function (data) {
+        return Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
+      });
+    } else if (reportType === 'pagos') {
+      promise = apiGet('pagos', 'recent', { desde: desde, hasta: hasta }).then(function (data) {
+        return Array.isArray(data) ? data : [];
+      });
+    } else if (reportType === 'matriculas') {
+      promise = apiGet('dashboard', 'ultimas_matriculas', {}).then(function (data) {
+        return Array.isArray(data) ? data : [];
+      });
+    } else {
       showToast('Tipo de reporte no configurado.', 'error');
       exportButton.disabled = false;
       exportButton.innerHTML = originalHtml;
       return;
     }
 
-    // limit=0 para obtener todos los registros. Asume que el backend lo soporta.
-    const apiParams = { ...config.params, limit: 0 };
-    if (desde && hasta) {
-      apiParams.desde = desde;
-      apiParams.hasta = hasta;
-    }
-
-    apiGet(config.endpoint, config.action, apiParams)
-      .then(response => {
-        let data = [];
-        // La API de ventas devuelve un objeto { items: [...] }
-        if (reportType === 'ventas' && response && response.items) {
-          data = response.items;
-        } else if (Array.isArray(response)) {
-          data = response;
-        }
-
-        if (data.length === 0) {
-          showToast('No hay datos para exportar en el rango seleccionado.', 'info');
-          return;
-        }
-
-        generateAndDownloadCSV(reportType, data, desde, hasta);
-      })
-      .catch(err => {
-        showToast('Error al exportar: ' + (err.message || 'Error'), 'error');
-      })
-      .finally(() => {
-        exportButton.disabled = false;
-        exportButton.innerHTML = originalHtml;
-      });
+    promise.then(function (data) {
+      if (!data.length) { showToast('Sin datos para exportar.', 'info'); return; }
+      generateAndDownloadCSV(reportType, data, desde, hasta);
+    }).catch(function (err) {
+      showToast('Error al exportar: ' + (err.message || 'Error'), 'error');
+    }).finally(function () {
+      exportButton.disabled = false;
+      exportButton.innerHTML = originalHtml;
+    });
   }
   window.exportReport = exportReport;
 
@@ -1368,11 +1527,19 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
         rows = data.map(p => [parseInt(p.estado_id || 1) === 1 ? 'Cobrado' : 'Anulado', p.nombre_cliente, p.identificacion, p.numero, p.fecha, p.forma_pago || 'Efectivo', parseFloat(p.monto || 0).toFixed(2)]);
         break;
       case 'ventas':
-        headers = ['Estado', 'Cliente', 'Identificación', 'N° Factura', 'Tipo', 'Fecha', 'Total', 'Saldo'];
-        rows = data.map(v => {
-          const saldo = parseFloat(v.saldo || 0);
-          const estado = (v.estado === 0 || v.estado === '0' || String(v.estado).toUpperCase() === 'ANULADO') ? 'Anulado' : (saldo <= 0 ? 'Cobrado' : 'Pendiente');
-          return [estado, v.nombre, v.identificacion, v.numero, v.tipo, v.fecha, parseFloat(v.total || 0).toFixed(2), saldo.toFixed(2)];
+        headers = ['Estado', 'Cliente', 'Identificación', 'N° Factura', 'Tipo', 'Origen', 'Fecha', 'Total', 'Saldo', '% Pagado'];
+        rows = data.map(function (v) {
+          var saldo    = parseFloat(v.saldo || 0);
+          var total    = parseFloat(v.total || 0);
+          var pct      = total > 0 ? Math.round((1 - saldo / total) * 100) : 100;
+          var estadoN  = parseInt(v.estado || 1);
+          var estado;
+          if (v._externa) {
+            estado = estadoN === 2 ? 'Anulada' : (saldo <= 0 ? 'Cobrado' : 'Pagado ' + pct + '%');
+          } else {
+            estado = estadoN === 0 ? 'Anulado' : (saldo <= 0 ? 'Cobrado' : (pct > 0 ? 'Pagado ' + pct + '%' : 'Pendiente'));
+          }
+          return [estado, v.nombre || v.cliente_nombre, v.identificacion, v.numero, v.tipo, v._externa ? 'Externa' : 'Regular', v.fecha, total.toFixed(2), saldo.toFixed(2), pct + '%'];
         });
         break;
       case 'matriculas':
@@ -1405,11 +1572,21 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
   document.getElementById('rpt-tab-nav').addEventListener('show.bs.tab', function (e) {
     var target = e.target.getAttribute('data-bs-target');
     switch (target) {
-      case '#tab-pagos':      loadTabPagos();      break;
-      case '#tab-ventas':     loadTabVentas();     break;
-      case '#tab-matriculas': loadTabMatriculas(); break;
-      case '#tab-gastos':     loadTabGastos();     break;
+      case '#tab-pagos':      loadTabPagos(false);      break;
+      case '#tab-ventas':     loadTabVentas(false);     break;
+      case '#tab-matriculas': loadTabMatriculas(false); break;
+      case '#tab-gastos':     loadTabGastos(false);     break;
     }
+  });
+
+  /* ─────────────────────────────────────
+     DATE PICKER CHANGE → RELOAD TAB
+  ───────────────────────────────────── */
+  ['pagos', 'ventas', 'gastos'].forEach(function (name) {
+    ['desde', 'hasta'].forEach(function (d) {
+      var el = document.getElementById(name + '-fecha-' + d);
+      if (el) el.addEventListener('change', function () { reloadTab(name); });
+    });
   });
 
   /* ─────────────────────────────────────
@@ -1443,7 +1620,7 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
     checkAuth();
     initDatePickers();
 
-    instId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || null;
+    instId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
 
     Promise.all([
       loadDashboardStats(),

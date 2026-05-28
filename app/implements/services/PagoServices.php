@@ -131,7 +131,26 @@ final class PagoServices implements PagoServiceInterface
             $institucion = $this->getInstitucionByUserId($userId);
         }
 
-        $rows = $this->ventaRepo->findPendientesByInstitucion($institucion);
+        $db   = Database::getInstance();
+        $stmt = $db->prepare(
+            "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo,
+                    p.identificacion,
+                    TRIM(CONCAT(p.primer_nombre, ' ', p.primer_apellido)) AS nombre,
+                    'regular' AS tipo_origen
+             FROM ventas v
+             JOIN personas p ON p.id = v.persona
+             WHERE v.saldo > 0 AND v.estado = 1 AND v.institucion = :inst1
+             UNION ALL
+             SELECT ve.id, ve.numero, ve.fecha, ve.total, ve.saldo, 'EXTERNA' AS tipo,
+                    COALESCE(ve.cliente_identificacion, '') AS identificacion,
+                    ve.cliente_nombre AS nombre,
+                    'externa' AS tipo_origen
+             FROM ventas_externas ve
+             WHERE ve.saldo > 0 AND ve.estado = 1 AND ve.institucion = :inst2
+             ORDER BY fecha ASC"
+        );
+        $stmt->execute([':inst1' => $institucion, ':inst2' => $institucion]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
         return array_map(fn($r) => [
             'id'             => (int)   $r['id'],
@@ -142,6 +161,7 @@ final class PagoServices implements PagoServiceInterface
             'tipo'           => $r['tipo'],
             'identificacion' => $r['identificacion'],
             'nombre'         => $r['nombre'],
+            'tipo_origen'    => $r['tipo_origen'],
         ], $rows);
     }
 
@@ -545,6 +565,7 @@ final class PagoServices implements PagoServiceInterface
         $hasta = !empty($queryParams['hasta']) ? $queryParams['hasta'] : null;
         $limit = isset($queryParams['limit']) ? (int)$queryParams['limit'] : 20;
 
+        // ── Pagos regulares ──────────────────────────────────────────────────
         $sql = "SELECT p.id, p.numero, p.fecha, CAST(p.monto AS DECIMAL(12,2)) AS monto,
                     p.referencia, p.observacion,
                     p.estado AS estado_id,
@@ -561,42 +582,78 @@ final class PagoServices implements PagoServiceInterface
              LEFT JOIN formas_pago fp ON fp.id = p.forma_pago
              WHERE p.institucion = :inst";
 
-        if ($desde) {
-            $sql .= " AND DATE(p.fecha) >= :desde";
-        }
-        if ($hasta) {
-            $sql .= " AND DATE(p.fecha) <= :hasta";
-        }
-
+        if ($desde) $sql .= " AND DATE(p.fecha) >= :desde";
+        if ($hasta) $sql .= " AND DATE(p.fecha) <= :hasta";
         $sql .= " ORDER BY p.fecha DESC, p.id DESC";
-
-        if ($limit > 0) {
-            $sql .= " LIMIT :limit";
-        }
+        if ($limit > 0) $sql .= " LIMIT :limit";
 
         $stmt = $db->prepare($sql);
-
         $stmt->bindValue(':inst', $institucion, \PDO::PARAM_INT);
         if ($desde) $stmt->bindValue(':desde', $desde);
         if ($hasta) $stmt->bindValue(':hasta', $hasta);
         if ($limit > 0) $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
-
         $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
-        return array_map(function (array $r): array {
+        $regular = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        // ── Ventas externas cobradas ─────────────────────────────────────────
+        $sqlExt = "SELECT ve.id, ve.numero, ve.fecha,
+                       CAST(ve.total AS DECIMAL(12,2)) AS monto,
+                       ve.referencia, NULL AS observacion,
+                       ve.estado AS estado_id,
+                       fp.nombre AS forma_pago,
+                       ve.cliente_nombre AS nombre_cliente,
+                       COALESCE(ve.cliente_identificacion, '') AS identificacion
+                   FROM ventas_externas ve
+                   LEFT JOIN formas_pago fp ON fp.id = ve.forma_pago
+                   WHERE ve.institucion = :inst
+                     AND ve.saldo = 0
+                     AND ve.estado = 1
+                     AND ve.forma_pago IS NOT NULL";
+
+        if ($desde) $sqlExt .= " AND DATE(ve.fecha) >= :desde";
+        if ($hasta) $sqlExt .= " AND DATE(ve.fecha) <= :hasta";
+        $sqlExt .= " ORDER BY ve.fecha DESC, ve.id DESC";
+        if ($limit > 0) $sqlExt .= " LIMIT :limit";
+
+        $stmtExt = $db->prepare($sqlExt);
+        $stmtExt->bindValue(':inst', $institucion, \PDO::PARAM_INT);
+        if ($desde) $stmtExt->bindValue(':desde', $desde);
+        if ($hasta) $stmtExt->bindValue(':hasta', $hasta);
+        if ($limit > 0) $stmtExt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $stmtExt->execute();
+        $externas = $stmtExt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        // ── Mapear, fusionar, ordenar y limitar ──────────────────────────────
+        $map = function (array $r, string $origen): array {
+            $estadoId = (int) $r['estado_id'];
+            // Normalizar: ventas_externas usa estado=2 para anulado, pagos usa 4
+            if ($origen === 'externa' && $estadoId === 2) $estadoId = 4;
             return [
-                'id'            => (int)   $r['id'],
-                'numero'        => $r['numero'],
-                'fecha'         => $r['fecha'],
-                'monto'         => (float) $r['monto'],
-                'referencia'    => $r['referencia'],
-                'observacion'   => $r['observacion'],
-                'estado_id'     => (int)   $r['estado_id'],
-                'forma_pago'    => $r['forma_pago'],
+                'id'             => (int)   $r['id'],
+                'numero'         => $r['numero'],
+                'fecha'          => $r['fecha'],
+                'monto'          => (float) $r['monto'],
+                'referencia'     => $r['referencia'],
+                'observacion'    => $r['observacion'] ?? null,
+                'estado_id'      => $estadoId,
+                'forma_pago'     => $r['forma_pago'],
                 'nombre_cliente' => trim((string) $r['nombre_cliente']),
                 'identificacion' => $r['identificacion'],
+                'tipo_origen'    => $origen,
             ];
-        }, $rows);
+        };
+
+        $merged = array_merge(
+            array_map(fn($r) => $map($r, 'regular'), $regular),
+            array_map(fn($r) => $map($r, 'externa'), $externas)
+        );
+
+        usort($merged, function ($a, $b) {
+            $cmp = strcmp($b['fecha'], $a['fecha']);
+            return $cmp !== 0 ? $cmp : $b['id'] - $a['id'];
+        });
+
+        return $limit > 0 ? array_slice($merged, 0, $limit) : $merged;
     }
 
     private function getInstitucionByUserId(int $userId): int

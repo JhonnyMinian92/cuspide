@@ -22,3 +22,5 @@ Backend Dir (/app/): APIs REST. Estructura:
 Seguridad: Login retorna JWT. Todo consumo API posterior exige JWT en header Authorization.
 
 Multi-tenancy (Aislamiento DB): Toda API REST devuelve estrictamente información de la institución correspondiente al JWT activo (Cadena de relación: JWT -> Usuario -> Persona -> Institución).
+
+Siempre realiza preguntas si consideras necesario antes de editar

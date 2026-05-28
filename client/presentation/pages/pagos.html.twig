@@ -404,6 +404,56 @@
   </div>
 </div>
 
+<!-- Modal: Cobrar Venta Externa -->
+<div class="modal fade" id="modal-cobrar-venta-ext" tabindex="-1" aria-labelledby="modal-cve-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-cve-label">
+          <i class="bi bi-cash-coin me-2" style="color:var(--brand-color);"></i>Cobrar Venta Externa
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cve-id">
+        <div class="mb-3 p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+          <div class="text-muted small">Número de venta</div>
+          <code id="cve-numero">—</code>
+          <span class="ms-3 text-muted small">Saldo pendiente:</span>
+          <span class="fw-bold ms-1" style="color:var(--danger-text);" id="cve-saldo-max">$0.00</span>
+        </div>
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold">Monto a cobrar *</label>
+            <div class="input-group">
+              <span class="input-group-text fw-bold">$</span>
+              <input type="number" class="form-control fw-bold" id="cve-monto"
+                step="0.01" min="0.01" required placeholder="0.00">
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold">Forma de Pago *</label>
+            <select class="form-select" id="cve-forma" required>
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Referencia <span class="text-muted small">(opcional)</span></label>
+            <input type="text" class="form-control" id="cve-referencia" placeholder="Nº transferencia, recibo...">
+          </div>
+        </div>
+        <div class="alert alert-danger mt-3 d-none py-2" id="cve-error"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-brand fw-bold" id="btn-cve-confirmar">
+          <i class="bi bi-check-circle-fill me-2"></i>Registrar Cobro
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
 
@@ -418,9 +468,11 @@ var allPendientes       = [];
 var formasPago          = [];
 var selectedPagoId      = null;
 var selectedVentaId     = null;
+var selectedVentaExtId  = null;
 var modalAnularMode     = 'pago';
-var currentPagoDetalle  = null;
-var reversoCliente      = null;
+var currentPagoDetalle    = null;
+var currentVentaExtDetalle = null;
+var reversoCliente        = null;
 
 /* ── Helpers ── */
 function esc(v) {
@@ -485,17 +537,50 @@ function loadFormasPago() {
   apiGet(CONFIG.ENDPOINTS.pagos, 'formas', {})
     .then(function(data) {
       formasPago = Array.isArray(data) ? data : [];
-      var sel = document.getElementById('pago-forma');
-      sel.innerHTML = '<option value="">— Seleccionar —</option>';
-      formasPago.forEach(function(f) {
-        sel.innerHTML += '<option value="' + f.id + '">' + esc(f.nombre) + '</option>';
-      });
+      var opts = '<option value="">— Seleccionar —</option>'
+        + formasPago.map(function(f) { return '<option value="' + f.id + '">' + esc(f.nombre) + '</option>'; }).join('');
+      document.getElementById('pago-forma').innerHTML = opts;
+      document.getElementById('cve-forma').innerHTML  = opts;
     })
     .catch(function() {
-      var sel = document.getElementById('pago-forma');
-      sel.innerHTML = '<option value="">— Error al cargar —</option>';
+      document.getElementById('pago-forma').innerHTML = '<option value="">— Error al cargar —</option>';
+      document.getElementById('cve-forma').innerHTML  = '<option value="">— Error al cargar —</option>';
     });
 }
+
+/* ── Cobro de venta externa — confirmar ── */
+document.getElementById('btn-cve-confirmar').addEventListener('click', function() {
+  var id        = parseInt(document.getElementById('cve-id').value);
+  var monto     = parseFloat(document.getElementById('cve-monto').value);
+  var formaPago = document.getElementById('cve-forma').value;
+  var referencia= document.getElementById('cve-referencia').value.trim() || null;
+  var errEl     = document.getElementById('cve-error');
+
+  errEl.classList.add('d-none');
+
+  if (!monto || monto <= 0) { errEl.textContent = 'Ingresa un monto válido.'; errEl.classList.remove('d-none'); return; }
+  if (!formaPago)            { errEl.textContent = 'Selecciona la forma de pago.'; errEl.classList.remove('d-none'); return; }
+
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+
+  apiPost(CONFIG.ENDPOINTS.ventas, 'pay_externa', { id: id, monto: monto, forma_pago: formaPago, referencia: referencia })
+    .then(function(data) {
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cobrar-venta-ext')).hide();
+      showToast(data.mensaje || 'Cobro registrado correctamente.', 'success');
+      allPendientes = [];
+      loadPendientes();
+    })
+    .catch(function(err) {
+      errEl.textContent = err.message || 'Error al registrar el cobro.';
+      errEl.classList.remove('d-none');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registrar Cobro';
+    });
+});
 
 /* ════════════════════════════════════════
    TAB PENDIENTES
@@ -560,12 +645,20 @@ function renderPendientes(items) {
       '<td class="text-end fw-bold" style="color:var(--danger-text);">' + fmt(saldo) + '</td>' +
       '<td>' +
         '<div class="d-flex gap-1">' +
-          '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' +
-            'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')">' +
-            '<i class="bi bi-cash"></i>' +
-          '</button>' +
-          '<button type="button" class="btn btn-xs btn-outline-danger btn-sm" title="Anular factura" ' +
-            'onclick="abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\')">' +
+          (p.tipo_origen === 'externa'
+            ? '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar venta externa" ' +
+                'onclick="abrirCobrarVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\',' + p.saldo + ')">' +
+                '<i class="bi bi-cash"></i>' +
+              '</button>'
+            : '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' +
+                'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')">' +
+                '<i class="bi bi-cash"></i>' +
+              '</button>'
+          ) +
+          '<button type="button" class="btn btn-xs btn-outline-danger btn-sm" title="Anular" ' +
+            'onclick="' + (p.tipo_origen === 'externa'
+              ? 'abrirAnularVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\')'
+              : 'abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\')') + '">' +
             '<i class="bi bi-x-circle"></i>' +
           '</button>' +
         '</div>' +
@@ -1016,6 +1109,84 @@ function abrirAnularVenta(ventaId, numero) {
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
 }
 
+/* ── Anular venta externa desde tabla de pendientes ── */
+function abrirAnularVentaExterna(id, numero) {
+  selectedVentaExtId = id;
+  modalAnularMode = 'venta_externa';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Venta Externa';
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+}
+
+/* ── Cobrar venta externa desde tabla de pendientes ── */
+function abrirCobrarVentaExterna(id, numero, saldo) {
+  document.getElementById('cve-id').value      = id;
+  document.getElementById('cve-numero').textContent = numero;
+  document.getElementById('cve-saldo-max').textContent = fmt(saldo);
+  document.getElementById('cve-monto').value   = parseFloat(saldo).toFixed(2);
+  document.getElementById('cve-monto').max     = parseFloat(saldo).toFixed(2);
+  document.getElementById('cve-forma').value   = '';
+  document.getElementById('cve-referencia').value = '';
+  document.getElementById('cve-error').classList.add('d-none');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cobrar-venta-ext')).show();
+}
+
+function buildVentaExtDetalleHTML(det) {
+  var v = det.venta || {};
+  var c = det.cliente || {};
+  var detallesRows = (det.detalles || []).map(function(d) {
+    return '<tr>'
+      + '<td class="ps-3">' + esc(d.descripcion) + '</td>'
+      + '<td class="text-center">' + esc(d.cantidad) + '</td>'
+      + '<td class="text-end">' + fmt(d.precio_unitario) + '</td>'
+      + '<td class="text-end pe-3 fw-semibold">' + fmt(d.subtotal) + '</td>'
+      + '</tr>';
+  }).join('') || '<tr><td colspan="4" class="text-center text-muted ps-3">Sin productos.</td></tr>';
+
+  return '<div class="row mb-3">'
+    + '<div class="col-md-6">'
+    + '<strong>Cliente:</strong><br>' + esc(c.nombre || 'Anónimo') + '<br>'
+    + (c.identificacion && c.identificacion !== '—' ? '<small class="text-muted">CI: ' + esc(c.identificacion) + '</small>' : '')
+    + (c.telefono && c.telefono !== '—' ? '<br><small class="text-muted">Tel: ' + esc(c.telefono) + '</small>' : '')
+    + '</div>'
+    + '<div class="col-md-6 text-md-end">'
+    + '<strong>Fecha:</strong><br>' + esc(new Date(v.fecha).toLocaleDateString()) + '<br>'
+    + '<span class="badge ' + (v.estado === 1 ? 'bg-success' : 'bg-danger') + ' mt-1">'
+    + (v.estado === 1 ? 'Activa' : 'Anulada') + '</span>'
+    + '</div>'
+    + '</div>'
+    + (v.forma_pago ? '<div class="mb-3"><span class="text-muted small">Forma de Pago:</span> <span class="fw-semibold">' + esc(v.forma_pago) + '</span></div>' : '')
+    + '<h6 class="fw-bold">Productos</h6>'
+    + '<div class="table-responsive border rounded mb-3">'
+    + '<table class="table table-sm table-striped mb-0">'
+    + '<thead class="table-light"><tr>'
+    + '<th class="ps-3">Descripción</th><th class="text-center">Cant.</th>'
+    + '<th class="text-end">P. Unit.</th><th class="text-end pe-3">Subtotal</th>'
+    + '</tr></thead>'
+    + '<tbody>' + detallesRows + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '<div class="d-flex justify-content-end mt-1">'
+    + '<table class="table table-sm mb-0" style="width:auto;min-width:230px;">'
+    + '<tbody>'
+    + '<tr><td class="text-muted">Subtotal:</td><td class="text-end ps-4">' + fmt(v.subtotal) + '</td></tr>'
+    + (v.descuento > 0 ? '<tr><td class="text-muted">Descuento:</td><td class="text-end ps-4 text-success">-' + fmt(v.descuento) + '</td></tr>' : '')
+    + (v.impuesto > 0 ? '<tr><td class="text-muted">Impuesto:</td><td class="text-end ps-4">' + fmt(v.impuesto) + '</td></tr>' : '')
+    + '<tr style="border-top:2px solid var(--app-border);">'
+    + '<td class="fw-bold fs-5 pt-2">Total:</td>'
+    + '<td class="text-end ps-4 fw-bold fs-5 pt-2">' + fmt(v.total) + '</td>'
+    + '</tr>'
+    + (v.saldo > 0 ? '<tr><td style="color:var(--danger-text);" class="fw-semibold">Saldo pendiente:</td>'
+      + '<td class="text-end ps-4 fw-bold" style="color:var(--danger-text);">' + fmt(v.saldo) + '</td></tr>' : '')
+    + '</tbody>'
+    + '</table>'
+    + '</div>';
+}
+
 /* ════════════════════════════════════════
    MODAL ANULACIÓN — Motivo
 ═══════════════════════════════════════ */
@@ -1063,6 +1234,18 @@ document.getElementById('btn-modal-anular-confirmar').addEventListener('click', 
         confirmBtn.disabled = false;
         confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
       });
+  } else if (modalAnularMode === 'venta_externa') {
+    apiPost(CONFIG.ENDPOINTS.ventas, 'cancel_externa', { id: selectedVentaExtId })
+      .then(function(data) {
+        showToast(data.mensaje || 'Venta externa anulada correctamente.', 'success');
+        allPendientes = [];
+        loadPendientes();
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular la venta externa.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
   } else {
     var pagoBtn = document.getElementById('btn-anular-pago');
     pagoBtn.disabled = true;
@@ -1101,7 +1284,8 @@ function verDetallePagoModal(pagoId) {
   var body    = document.getElementById('modal-pago-detalle-body');
   var lbl     = document.getElementById('modal-pago-detalle-label');
 
-  currentPagoDetalle = null;
+  currentPagoDetalle     = null;
+  currentVentaExtDetalle = null;
   document.getElementById('btn-imprimir-pago').disabled = true;
   document.getElementById('btn-descargar-pago-pdf').disabled = true;
   body.innerHTML = '<div class="text-center py-5"><span class="spinner-border text-primary"></span><p class="mt-2 text-muted">Cargando comprobante...</p></div>';
@@ -1215,19 +1399,83 @@ function buildPagoTicketHTML(det, isPDF) {
     +'</div></body></html>';
 }
 
+function buildVentaExtTicketHTML(det, isPDF) {
+  var v = det.venta || {};
+  var c = det.cliente || {};
+  var e2 = function(v) { return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); };
+  var m2 = function(v) { return '$'+parseFloat(v||0).toFixed(2); };
+
+  var fs = isPDF ? '13px' : '11px';
+  var w  = isPDF ? '155mm' : '72mm';
+  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:80mm auto;margin:4mm;}';
+
+  var detRows = (det.detalles||[]).map(function(d) {
+    var qty = parseFloat(d.cantidad||1);
+    var desc = e2(d.descripcion);
+    return '<tr>'
+      + '<td class="desc">' + desc + ' x' + qty + '</td>'
+      + '<td class="amt">' + m2(d.subtotal) + '</td>'
+      + '</tr>';
+  }).join('');
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(v.numero)+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'4mm 3mm')+';}'
+    +'.center{text-align:center;}.title{font-size:'+(isPDF?'18px':'14px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'11px':'9px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
+    +'.row2{display:flex;justify-content:space-between;margin:2px 0;}'
+    +'table{width:100%;border-collapse:collapse;}td{padding:2px 0;vertical-align:top;}'
+    +'.desc{width:65%;}.amt{width:35%;text-align:right;}'
+    +'.total-row td{font-size:'+(isPDF?'16px':'13px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'9px')+';}'
+    +pg+'@media print{button{display:none!important;}}</style>'
+    +'</head><body><div class="ticket">'
+    +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">VENTA EXTERNA</div></div>'
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>N°:</b></span><span>'+e2(v.numero)+'</span></div>'
+    +'<div class="row2"><span><b>Fecha:</b></span><span>'+e2(new Date(v.fecha).toLocaleDateString())+'</span></div>'
+    +'<div class="row2"><span><b>Cliente:</b></span><span>'+e2(c.nombre||'Anónimo')+'</span></div>'
+    +(c.identificacion&&c.identificacion!=='—'?'<div class="row2"><span><b>CI:</b></span><span>'+e2(c.identificacion)+'</span></div>':'')
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>Forma de Pago:</b></span><span>'+e2(v.forma_pago||'—')+'</span></div>'
+    +(v.referencia?'<div class="row2"><span><b>Referencia:</b></span><span>'+e2(v.referencia)+'</span></div>':'')
+    +'<hr class="div">'
+    +'<table><tbody>'+detRows+'</tbody></table>'
+    +'<hr class="div">'
+    +'<table><tbody>'
+    +(v.descuento>0?'<tr><td>Descuento</td><td style="text-align:right;">-'+m2(v.descuento)+'</td></tr>':'')
+    +(v.impuesto>0?'<tr><td>Impuesto</td><td style="text-align:right;">'+m2(v.impuesto)+'</td></tr>':'')
+    +'<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">'+m2(v.total)+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="footer">&#9474; ¡Gracias por su compra! &#9474;</div>'
+    +'</div></body></html>';
+}
+
 function imprimirTicketPago() {
-  if (!currentPagoDetalle) return;
+  var html;
+  if (currentVentaExtDetalle) {
+    html = buildVentaExtTicketHTML(currentVentaExtDetalle, false);
+  } else if (currentPagoDetalle) {
+    html = buildPagoTicketHTML(currentPagoDetalle, false);
+  } else { return; }
   var win = window.open('', '_blank', 'width=420,height=700,scrollbars=yes');
-  win.document.write(buildPagoTicketHTML(currentPagoDetalle, false));
+  win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(function() { win.print(); }, 350);
 }
 
 function descargarPDFPago() {
-  if (!currentPagoDetalle) return;
+  var html;
+  if (currentVentaExtDetalle) {
+    html = buildVentaExtTicketHTML(currentVentaExtDetalle, true);
+  } else if (currentPagoDetalle) {
+    html = buildPagoTicketHTML(currentPagoDetalle, true);
+  } else { return; }
   var win = window.open('', '_blank', 'width=700,height=900,scrollbars=yes');
-  win.document.write(buildPagoTicketHTML(currentPagoDetalle, true));
+  win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(function() { win.print(); }, 350);
@@ -1263,27 +1511,62 @@ function renderRecentPagos(items) {
   var tbody = document.getElementById('recent-tbody');
   tbody.innerHTML = items.map(function(p) {
     var esAnulado   = parseInt(p.estado_id || 1) === 4;
+    var esExterna   = p.tipo_origen === 'externa';
     var estadoBadge = esAnulado
       ? '<span class="badge bg-danger rounded-pill" style="font-size:.7rem;">Anulado</span>'
       : '<span class="badge bg-success rounded-pill" style="font-size:.7rem;">Activo</span>';
+    var extBadge = esExterna
+      ? ' <span class="badge rounded-pill" style="font-size:.65rem;background:var(--app-border);color:var(--app-text-muted);">Ext</span>'
+      : '';
+    var verBtn = esExterna
+      ? '<button type="button" class="btn btn-sm btn-outline-secondary" title="Ver detalle" '
+          + 'onclick="verDetalleVentaExt(' + p.id + ')">'
+          + '<i class="bi bi-eye"></i>'
+          + '</button>'
+      : '<button type="button" class="btn btn-sm btn-outline-secondary" title="Ver comprobante" '
+          + 'onclick="verDetallePagoFromRecent(' + p.id + ',\'' + esc(p.nombre_cliente) + '\',\'' + esc(p.identificacion) + '\')">'
+          + '<i class="bi bi-eye"></i>'
+          + '</button>';
     return '<tr>'
       + '<td style="font-size:.8rem;white-space:nowrap;">' + esc(p.fecha) + '</td>'
-      + '<td><code style="font-size:.78rem;">' + esc(p.numero) + '</code></td>'
+      + '<td><code style="font-size:.78rem;">' + esc(p.numero) + '</code>' + extBadge + '</td>'
       + '<td>'
       +   '<div class="fw-semibold" style="font-size:.82rem;">' + esc(p.nombre_cliente) + '</div>'
       +   '<code style="font-size:.7rem;">' + esc(p.identificacion) + '</code>'
       + '</td>'
       + '<td class="text-end fw-bold">' + fmt(p.monto) + '</td>'
       + '<td>' + estadoBadge + '</td>'
-      + '<td>'
-      +   '<button type="button" class="btn btn-sm btn-outline-secondary" title="Ver comprobante" '
-      +     'onclick="verDetallePagoFromRecent(' + p.id + ',\'' + esc(p.nombre_cliente) + '\',\'' + esc(p.identificacion) + '\')">'
-      +     '<i class="bi bi-eye"></i>'
-      +   '</button>'
-      + '</td>'
+      + '<td>' + verBtn + '</td>'
       + '</tr>';
   }).join('');
   document.getElementById('recent-container').classList.remove('d-none');
+}
+
+function verDetalleVentaExt(id) {
+  var modalEl = document.getElementById('modal-pago-detalle');
+  var body    = document.getElementById('modal-pago-detalle-body');
+  var lbl     = document.getElementById('modal-pago-detalle-label');
+
+  currentPagoDetalle     = null;
+  currentVentaExtDetalle = null;
+  document.getElementById('btn-imprimir-pago').disabled = true;
+  document.getElementById('btn-descargar-pago-pdf').disabled = true;
+  body.innerHTML = '<div class="text-center py-5"><span class="spinner-border text-primary"></span>'
+    + '<p class="mt-2 text-muted">Cargando detalle...</p></div>';
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+  apiGet(CONFIG.ENDPOINTS.ventas, 'detail_externa', { id: id })
+    .then(function(det) {
+      lbl.innerHTML = 'Venta Externa: <code>' + esc(det.venta.numero) + '</code>';
+      currentVentaExtDetalle = det;
+      body.innerHTML = buildVentaExtDetalleHTML(det);
+      document.getElementById('btn-imprimir-pago').disabled = false;
+      document.getElementById('btn-descargar-pago-pdf').disabled = false;
+    })
+    .catch(function(err) {
+      body.innerHTML = '<div class="alert alert-danger">' + esc(err.message || 'Error al cargar el detalle.') + '</div>';
+    });
 }
 
 function verDetallePagoFromRecent(pagoId, nombre, cedula) {
