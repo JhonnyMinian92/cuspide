@@ -105,6 +105,29 @@ class VentaServices
             case $method === 'GET' && $resource === 'formas_pago':
                 return $this->fetchFormasPago();
 
+            case $method === 'GET' && $resource === 'list_externas':
+                return $this->fetchVentasExternas($queryParams);
+
+            case $method === 'GET' && $resource === 'detail_externa':
+                if (empty($queryParams['id'])) {
+                    throw new \RuntimeException('El parámetro id es requerido.', 400);
+                }
+                return $this->fetchDetailExterna((int)$queryParams['id']);
+
+            case $method === 'POST' && $resource === 'create_externa':
+                return $this->createVentaExterna();
+
+            case $method === 'POST' && $resource === 'cancel_externa':
+                $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
+                $ventaExtId = !empty($queryParams['id']) ? (int)$queryParams['id'] : (!empty($body['id']) ? (int)$body['id'] : 0);
+                if ($ventaExtId <= 0) {
+                    throw new \RuntimeException('El parámetro id es requerido.', 400);
+                }
+                return $this->cancelVentaExterna($ventaExtId);
+
+            case $method === 'POST' && $resource === 'pay_externa':
+                return $this->payVentaExterna();
+
             default:
                 throw new \RuntimeException('Recurso no encontrado o método no soportado.', 404);
         }
@@ -536,5 +559,326 @@ class VentaServices
     {
         $formas = $this->formaPagoRepo->findAll();
         return array_map(fn($f) => ['id' => (int) $f->getId(), 'nombre' => $f->getNombre()], $formas);
+    }
+
+    // =========================================================================
+    // VENTAS EXTERNAS (clientes no registrados)
+    // =========================================================================
+
+    private function fetchVentasExternas(array $queryParams): array
+    {
+        if (empty($queryParams['institucion'])) {
+            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
+        }
+        $instId  = (int) $queryParams['institucion'];
+        $limit   = isset($queryParams['limit'])  ? (int) $queryParams['limit']         : 20;
+        $page    = isset($queryParams['page'])   ? max(1, (int) $queryParams['page'])   : 1;
+        $offset  = ($page - 1) * $limit;
+        $q       = !empty($queryParams['q'])     ? $queryParams['q']                   : null;
+        $desde   = !empty($queryParams['desde']) ? $queryParams['desde']               : null;
+        $hasta   = !empty($queryParams['hasta']) ? $queryParams['hasta']               : null;
+
+        $where  = 'WHERE ve.institucion = :inst';
+        $params = [':inst' => $instId];
+
+        if ($q !== null) {
+            $where .= ' AND (ve.numero LIKE :q OR ve.cliente_nombre LIKE :q OR ve.cliente_identificacion LIKE :q)';
+            $params[':q'] = '%' . $q . '%';
+        }
+        if ($desde !== null) { $where .= ' AND DATE(ve.fecha) >= :desde'; $params[':desde'] = $desde; }
+        if ($hasta !== null) { $where .= ' AND DATE(ve.fecha) <= :hasta'; $params[':hasta'] = $hasta; }
+
+        $cntStmt = $this->db->prepare("SELECT COUNT(*) FROM ventas_externas ve $where");
+        $cntStmt->execute($params);
+        $total = (int) $cntStmt->fetchColumn();
+
+        $sql = "SELECT ve.id, ve.numero, ve.fecha, ve.cliente_nombre, ve.cliente_identificacion,
+                       ve.total, ve.saldo, ve.estado, fp.nombre AS forma_pago_nombre
+                FROM ventas_externas ve
+                LEFT JOIN formas_pago fp ON fp.id = ve.forma_pago
+                $where ORDER BY ve.fecha DESC, ve.id DESC LIMIT :lim OFFSET :off";
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $k => &$v) { $stmt->bindParam($k, $v); }
+        $stmt->bindParam(':lim', $limit, \PDO::PARAM_INT);
+        $stmt->bindParam(':off', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return [
+            'items'      => array_map(fn($r) => [
+                'id'                    => (int)  $r['id'],
+                'numero'                => $r['numero'],
+                'fecha'                 => $r['fecha'],
+                'cliente_nombre'        => $r['cliente_nombre'],
+                'cliente_identificacion'=> $r['cliente_identificacion'],
+                'total'                 => (float)$r['total'],
+                'saldo'                 => (float)$r['saldo'],
+                'estado'                => (int)  $r['estado'],
+                'forma_pago'            => $r['forma_pago_nombre'],
+            ], $rows),
+            'totalItems' => $total,
+            'totalPages' => $limit > 0 ? (int) ceil($total / $limit) : 1,
+            'currentPage'=> $page,
+        ];
+    }
+
+    private function fetchDetailExterna(int $id): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT ve.*, fp.nombre AS forma_pago_nombre
+             FROM ventas_externas ve
+             LEFT JOIN formas_pago fp ON fp.id = ve.forma_pago
+             WHERE ve.id = :id'
+        );
+        $stmt->execute([':id' => $id]);
+        $venta = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$venta) {
+            throw new \RuntimeException('Venta externa no encontrada.', 404);
+        }
+
+        $dStmt = $this->db->prepare(
+            'SELECT ved.*, p.nombre AS producto_nombre
+             FROM ventas_externas_detalle ved
+             LEFT JOIN productos p ON p.id = ved.producto
+             WHERE ved.venta_externa = :id ORDER BY ved.id ASC'
+        );
+        $dStmt->execute([':id' => $id]);
+        $detalles = $dStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return [
+            'venta' => [
+                'id'         => (int)   $venta['id'],
+                'numero'     => $venta['numero'],
+                'fecha'      => $venta['fecha'],
+                'subtotal'   => (float) $venta['subtotal'],
+                'descuento'  => (float) $venta['descuento'],
+                'impuesto'   => (float) $venta['impuesto'],
+                'total'      => (float) $venta['total'],
+                'saldo'      => (float) $venta['saldo'],
+                'estado'     => (int)   $venta['estado'],
+                'referencia' => $venta['referencia'],
+                'forma_pago' => $venta['forma_pago_nombre'],
+            ],
+            'cliente' => [
+                'nombre'         => $venta['cliente_nombre'],
+                'identificacion' => $venta['cliente_identificacion'] ?? '—',
+                'telefono'       => $venta['cliente_telefono']       ?? '—',
+            ],
+            'detalles' => array_map(fn($d) => [
+                'id'              => (int)   $d['id'],
+                'descripcion'     => $d['producto_nombre'] ?? $d['descripcion'],
+                'cantidad'        => (float) $d['cantidad'],
+                'precio_unitario' => (float) $d['precio_unitario'],
+                'descuento'       => (float) $d['descuento'],
+                'subtotal'        => (float) $d['subtotal'],
+            ], $detalles),
+        ];
+    }
+
+    private function createVentaExterna(): array
+    {
+        $data = json_decode((string) file_get_contents('php://input'), true);
+        if (!is_array($data)) {
+            throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
+        }
+
+        $instId    = (int)    ($data['institucion']           ?? 0);
+        $nombre    = trim((string) ($data['cliente_nombre']   ?? 'Anónimo'));
+        $cedula    = trim((string) ($data['cliente_identificacion'] ?? '')) ?: null;
+        $telefono  = trim((string) ($data['cliente_telefono'] ?? '')) ?: null;
+        $items     = is_array($data['items'] ?? null) ? $data['items'] : [];
+        $descuento = (float) ($data['descuento'] ?? 0);
+        $formaPago = isset($data['forma_pago']) && $data['forma_pago'] !== '' ? (int) $data['forma_pago'] : null;
+        $referencia= trim((string) ($data['referencia'] ?? '')) ?: null;
+
+        if ($instId <= 0) {
+            throw new \RuntimeException('El campo institucion es requerido.', 400);
+        }
+        if (empty($items)) {
+            throw new \RuntimeException('Se requiere al menos un item.', 400);
+        }
+
+        $subtotal = 0.0;
+        foreach ($items as $item) {
+            $subtotal += (float)($item['cantidad'] ?? 0) * (float)($item['precio_unitario'] ?? 0);
+        }
+        $impuesto = 0.0;
+        $total    = round($subtotal - $descuento + $impuesto, 2);
+        $saldo    = ($formaPago !== null) ? 0.0 : $total;
+        $numero   = 'VEX-' . date('Ymd') . '-' . uniqid();
+        $fecha    = date('Y-m-d H:i:s');
+
+        try {
+            $this->db->beginTransaction();
+
+            $insVenta = $this->db->prepare(
+                'INSERT INTO ventas_externas
+                 (numero, fecha, cliente_nombre, cliente_identificacion, cliente_telefono,
+                  institucion, subtotal, descuento, impuesto, total, saldo, forma_pago, referencia, estado)
+                 VALUES (:num,:fec,:nom,:ced,:tel,:inst,:sub,:des,:imp,:tot,:sal,:fp,:ref,1)'
+            );
+            $insVenta->execute([
+                ':num'  => $numero,   ':fec'  => $fecha,
+                ':nom'  => $nombre,   ':ced'  => $cedula,   ':tel'  => $telefono,
+                ':inst' => $instId,   ':sub'  => $subtotal, ':des'  => $descuento,
+                ':imp'  => $impuesto, ':tot'  => $total,    ':sal'  => $saldo,
+                ':fp'   => $formaPago,':ref'  => $referencia,
+            ]);
+            $ventaExtId = (int) $this->db->lastInsertId();
+
+            $insDetalle = $this->db->prepare(
+                'INSERT INTO ventas_externas_detalle
+                 (venta_externa, producto, descripcion, cantidad, precio_unitario, descuento, subtotal)
+                 VALUES (:vid, :pid, :desc, :qty, :price, :dis, :sub)'
+            );
+
+            foreach ($items as $item) {
+                $productoId    = isset($item['producto_id']) && (int)$item['producto_id'] > 0 ? (int)$item['producto_id'] : null;
+                $qty           = (float) ($item['cantidad']        ?? 0);
+                $price         = (float) ($item['precio_unitario'] ?? 0);
+                $itemDesc      = (float) ($item['descuento']       ?? 0);
+                $itemSubtotal  = round(($qty * $price) - $itemDesc, 2);
+                $descripcion   = (string) ($item['descripcion']    ?? 'Artículo');
+
+                $insDetalle->execute([
+                    ':vid'  => $ventaExtId, ':pid'  => $productoId,
+                    ':desc' => $descripcion,':qty'  => $qty,
+                    ':price'=> $price,      ':dis'  => $itemDesc,
+                    ':sub'  => $itemSubtotal,
+                ]);
+
+                // Descontar stock si el producto lo controla
+                if ($productoId !== null) {
+                    $prod = $this->productoRepo->findById($productoId);
+                    if ($prod && (bool) $prod->getControlaStock()) {
+                        $inv = $this->inventarioRepo->findByProductoAndInstitucion($productoId, $instId);
+                        if ($inv !== null) {
+                            $stockAnt = $inv->getStockActual();
+                            $inv->setStockActual($stockAnt - $qty);
+                            $inv->setFechaActualizacion($fecha);
+                            $this->inventarioRepo->save($inv);
+                            $mov = new MovimientoInventario(
+                                null, $productoId, null, $instId, 'SALIDA',
+                                $qty, $stockAnt, $stockAnt - $qty, $numero, $fecha,
+                                'Venta externa ' . $numero
+                            );
+                            $this->movimientoRepo->save($mov);
+                        }
+                    }
+                }
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw new \RuntimeException('Error al crear venta externa: ' . $e->getMessage(), 500);
+        }
+
+        return ['id' => $ventaExtId, 'numero' => $numero, 'total' => $total, 'saldo' => $saldo];
+    }
+
+    private function cancelVentaExterna(int $id): array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM ventas_externas WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        $venta = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$venta) {
+            throw new \RuntimeException('Venta externa no encontrada.', 404);
+        }
+        if ((int) $venta['estado'] !== 1) {
+            throw new \RuntimeException('La venta ya fue anulada.', 409);
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            // Revertir stock
+            $dStmt = $this->db->prepare('SELECT * FROM ventas_externas_detalle WHERE venta_externa = :id');
+            $dStmt->execute([':id' => $id]);
+            foreach ($dStmt->fetchAll(\PDO::FETCH_ASSOC) as $d) {
+                $productoId = $d['producto'] ? (int) $d['producto'] : null;
+                if ($productoId === null) continue;
+                $prod = $this->productoRepo->findById($productoId);
+                if ($prod && (bool) $prod->getControlaStock()) {
+                    $inv = $this->inventarioRepo->findByProductoAndInstitucion($productoId, (int) $venta['institucion']);
+                    if ($inv) {
+                        $stockAnt = $inv->getStockActual();
+                        $qty      = (float) $d['cantidad'];
+                        $inv->setStockActual($stockAnt + $qty);
+                        $inv->setFechaActualizacion(date('Y-m-d H:i:s'));
+                        $this->inventarioRepo->save($inv);
+                        $mov = new MovimientoInventario(
+                            null, $productoId, null, (int) $venta['institucion'], 'ENTRADA',
+                            $qty, $stockAnt, $stockAnt + $qty, $venta['numero'], date('Y-m-d H:i:s'),
+                            'Anulación venta externa ' . $venta['numero']
+                        );
+                        $this->movimientoRepo->save($mov);
+                    }
+                }
+            }
+
+            $this->db->prepare('UPDATE ventas_externas SET estado = 2 WHERE id = :id')->execute([':id' => $id]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw new \RuntimeException('Error al anular venta externa: ' . $e->getMessage(), 500);
+        }
+
+        return ['id' => $id, 'status' => 'ANULADO', 'mensaje' => 'Venta externa anulada correctamente.'];
+    }
+
+    private function payVentaExterna(): array
+    {
+        $body = json_decode((string) file_get_contents('php://input'), true);
+        if (!is_array($body)) {
+            throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
+        }
+
+        $id        = (int)   ($body['id']        ?? 0);
+        $monto     = (float) ($body['monto']      ?? 0);
+        $formaPago = isset($body['forma_pago']) && $body['forma_pago'] !== '' ? (int) $body['forma_pago'] : null;
+        $referencia = trim((string) ($body['referencia'] ?? '')) ?: null;
+
+        if ($id <= 0 || $monto <= 0) {
+            throw new \RuntimeException('Los campos id y monto son requeridos.', 400);
+        }
+
+        $stmt = $this->db->prepare('SELECT id, saldo, estado, numero FROM ventas_externas WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        $venta = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$venta) {
+            throw new \RuntimeException('Venta externa no encontrada.', 404);
+        }
+        if ((int) $venta['estado'] !== 1) {
+            throw new \RuntimeException('La venta externa está anulada.', 409);
+        }
+
+        $saldoActual = (float) $venta['saldo'];
+        if ($saldoActual <= 0) {
+            throw new \RuntimeException('Esta venta ya no tiene saldo pendiente.', 409);
+        }
+
+        $aplicado   = min($monto, $saldoActual);
+        $nuevoSaldo = round($saldoActual - $aplicado, 2);
+
+        $upd = $this->db->prepare(
+            'UPDATE ventas_externas SET saldo = :saldo'
+            . ($formaPago !== null ? ', forma_pago = :fp' : '')
+            . ($referencia !== null ? ', referencia = :ref' : '')
+            . ' WHERE id = :id'
+        );
+        $params = [':saldo' => $nuevoSaldo, ':id' => $id];
+        if ($formaPago !== null) $params[':fp']  = $formaPago;
+        if ($referencia !== null) $params[':ref'] = $referencia;
+        $upd->execute($params);
+
+        return [
+            'id'           => $id,
+            'numero'       => $venta['numero'],
+            'monto_aplicado' => $aplicado,
+            'saldo_nuevo'  => $nuevoSaldo,
+            'mensaje'      => 'Pago de ' . number_format($aplicado, 2) . ' registrado en venta externa ' . $venta['numero'] . '.',
+        ];
     }
 }

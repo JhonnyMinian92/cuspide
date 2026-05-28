@@ -1977,6 +1977,54 @@ INSERT INTO `ventas` (`id`, `numero`, `fecha`, `persona`, `matricula`, `instituc
 	(110, 'VTA-20260518-6a0b3da28880c', '2026-05-18 18:26:10', 101, NULL, 1, 'VENTA', 10.00, 0.00, 0.00, 10.00, 0.00, 2),
 	(111, 'VTA-20260518-6a0b3dac7bd96', '2026-05-18 18:26:20', 1, NULL, 1, 'VENTA', 10.00, 0.00, 0.00, 10.00, 10.00, 1);
 
+-- Volcando estructura para tabla cuspide.ventas_externas
+CREATE TABLE IF NOT EXISTS `ventas_externas` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `numero` varchar(50) NOT NULL,
+  `fecha` datetime NOT NULL DEFAULT current_timestamp(),
+  `cliente_nombre` varchar(150) NOT NULL DEFAULT 'Anónimo',
+  `cliente_identificacion` varchar(20) DEFAULT NULL,
+  `cliente_telefono` varchar(20) DEFAULT NULL,
+  `institucion` int(11) NOT NULL,
+  `subtotal` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `descuento` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `impuesto` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `total` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `saldo` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `forma_pago` int(11) DEFAULT NULL,
+  `referencia` varchar(100) DEFAULT NULL,
+  `estado` int(11) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_VENTAS_EXTERNAS_NUMERO` (`numero`),
+  KEY `IDX_VE_INSTITUCION` (`institucion`),
+  KEY `IDX_VE_FORMA_PAGO` (`forma_pago`),
+  KEY `IDX_VE_ESTADO` (`estado`),
+  CONSTRAINT `FK_VE_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
+  CONSTRAINT `FK_VE_FORMA_PAGO` FOREIGN KEY (`forma_pago`) REFERENCES `formas_pago` (`id`),
+  CONSTRAINT `FK_VE_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Volcando datos para la tabla cuspide.ventas_externas: ~0 rows (aproximadamente)
+
+-- Volcando estructura para tabla cuspide.ventas_externas_detalle
+CREATE TABLE IF NOT EXISTS `ventas_externas_detalle` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `venta_externa` int(11) NOT NULL,
+  `producto` int(11) DEFAULT NULL,
+  `descripcion` varchar(255) NOT NULL DEFAULT '',
+  `cantidad` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `precio_unitario` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `descuento` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `subtotal` decimal(12,2) NOT NULL DEFAULT 0.00,
+  PRIMARY KEY (`id`),
+  KEY `IDX_VED_VENTA_EXTERNA` (`venta_externa`),
+  KEY `IDX_VED_PRODUCTO` (`producto`),
+  CONSTRAINT `FK_VED_PRODUCTO` FOREIGN KEY (`producto`) REFERENCES `productos` (`id`),
+  CONSTRAINT `FK_VED_VENTA_EXTERNA` FOREIGN KEY (`venta_externa`) REFERENCES `ventas_externas` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Volcando datos para la tabla cuspide.ventas_externas_detalle: ~0 rows (aproximadamente)
+
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
