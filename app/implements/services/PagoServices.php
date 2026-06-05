@@ -136,7 +136,17 @@ final class PagoServices implements PagoServiceInterface
             "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo,
                     p.identificacion,
                     TRIM(CONCAT(p.primer_nombre, ' ', p.primer_apellido)) AS nombre,
-                    'regular' AS tipo_origen
+                    'regular' AS tipo_origen,
+                    CASE
+                      WHEN v.tipo = 'MENSUALIDAD' THEN DATE(DATE_ADD(v.fecha, INTERVAL 1 MONTH))
+                      WHEN v.tipo = 'MATRICULA'   THEN (
+                        SELECT MIN(cm.fecha_vencimiento)
+                        FROM cuotas_matricula cm
+                        JOIN plan_pago_matricula ppm ON cm.plan_pago = ppm.id
+                        WHERE ppm.matricula = v.matricula AND cm.saldo > 0
+                      )
+                      ELSE DATE(DATE_ADD(v.fecha, INTERVAL 30 DAY))
+                    END AS fecha_vencimiento
              FROM ventas v
              JOIN personas p ON p.id = v.persona
              WHERE v.saldo > 0 AND v.estado = 1 AND v.institucion = :inst1
@@ -144,7 +154,8 @@ final class PagoServices implements PagoServiceInterface
              SELECT ve.id, ve.numero, ve.fecha, ve.total, ve.saldo, 'EXTERNA' AS tipo,
                     COALESCE(ve.cliente_identificacion, '') AS identificacion,
                     ve.cliente_nombre AS nombre,
-                    'externa' AS tipo_origen
+                    'externa' AS tipo_origen,
+                    DATE(DATE_ADD(ve.fecha, INTERVAL 30 DAY)) AS fecha_vencimiento
              FROM ventas_externas ve
              WHERE ve.saldo > 0 AND ve.estado = 1 AND ve.institucion = :inst2
              ORDER BY fecha ASC"
@@ -153,15 +164,16 @@ final class PagoServices implements PagoServiceInterface
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
         return array_map(fn($r) => [
-            'id'             => (int)   $r['id'],
-            'numero'         => $r['numero'],
-            'fecha'          => $r['fecha'],
-            'total'          => (float) $r['total'],
-            'saldo'          => (float) $r['saldo'],
-            'tipo'           => $r['tipo'],
-            'identificacion' => $r['identificacion'],
-            'nombre'         => $r['nombre'],
-            'tipo_origen'    => $r['tipo_origen'],
+            'id'               => (int)   $r['id'],
+            'numero'           => $r['numero'],
+            'fecha'            => $r['fecha'],
+            'total'            => (float) $r['total'],
+            'saldo'            => (float) $r['saldo'],
+            'tipo'             => $r['tipo'],
+            'identificacion'   => $r['identificacion'],
+            'nombre'           => $r['nombre'],
+            'tipo_origen'      => $r['tipo_origen'],
+            'fecha_vencimiento'=> $r['fecha_vencimiento'] ?? null,
         ], $rows);
     }
 
@@ -189,7 +201,7 @@ final class PagoServices implements PagoServiceInterface
 
         $db = Database::getInstance();
         $stmtCuotaSig = $db->prepare(
-            'SELECT cm.saldo FROM cuotas_matricula cm
+            'SELECT cm.saldo, cm.fecha_vencimiento FROM cuotas_matricula cm
              JOIN plan_pago_matricula ppm ON cm.plan_pago = ppm.id
              JOIN ventas v ON ppm.matricula = v.matricula
              WHERE v.id = :vid AND cm.saldo > 0
@@ -198,28 +210,75 @@ final class PagoServices implements PagoServiceInterface
 
         $ventasData = [];
         foreach ($ventas as $v) {
-            $cuotaSiguiente = null;
-            if ($v->getTipo() === 'MATRICULA' && (float) $v->getSaldo() > 0) {
+            $cuotaSiguiente    = null;
+            $fechaVencimiento  = null;
+            $tipo              = $v->getTipo();
+            $fecha             = $v->getFecha();
+
+            if ($tipo === 'MATRICULA' && (float) $v->getSaldo() > 0) {
                 $stmtCuotaSig->execute([':vid' => $v->getId()]);
-                $cuotaRow = $stmtCuotaSig->fetch(\PDO::FETCH_ASSOC);
+                $cuotaRow       = $stmtCuotaSig->fetch(\PDO::FETCH_ASSOC);
                 $cuotaSiguiente = $cuotaRow ? (float) $cuotaRow['saldo'] : null;
+                $fechaVencimiento = $cuotaRow['fecha_vencimiento'] ?? null;
+            } elseif ($tipo === 'MENSUALIDAD') {
+                $fechaVencimiento = date('Y-m-d', strtotime($fecha . ' +1 month'));
+            } else {
+                $fechaVencimiento = date('Y-m-d', strtotime($fecha . ' +30 days'));
             }
+
             $ventasData[] = [
-                'id'              => $v->getId(),
-                'numero'          => $v->getNumero(),
-                'fecha'           => $v->getFecha(),
-                'total'           => $v->getTotal(),
-                'saldo'           => $v->getSaldo(),
-                'tipo'            => $v->getTipo(),
-                'estado'          => $v->getEstado() !== null ? $v->getEstado()->getId() : null,
-                'cuota_siguiente' => $cuotaSiguiente,
+                'id'               => $v->getId(),
+                'numero'           => $v->getNumero(),
+                'fecha'            => $fecha,
+                'total'            => $v->getTotal(),
+                'saldo'            => $v->getSaldo(),
+                'tipo'             => $tipo,
+                'estado'           => $v->getEstado() !== null ? $v->getEstado()->getId() : null,
+                'cuota_siguiente'  => $cuotaSiguiente,
+                'fecha_vencimiento'=> $fechaVencimiento,
+            ];
+        }
+
+        // Obtener la FK matricula para cada venta MATRICULA (para agrupar mensualidades en frontend)
+        $stmtFKMap = $db->prepare(
+            "SELECT id, matricula FROM ventas WHERE persona = :pid AND tipo = 'MATRICULA'"
+        );
+        $stmtFKMap->execute([':pid' => $personaId]);
+        $ventaMatriculaFKMap = [];
+        foreach ($stmtFKMap->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $ventaMatriculaFKMap[(int) $row['id']] = $row['matricula'] !== null ? (int) $row['matricula'] : null;
+        }
+        foreach ($ventasData as &$vd) {
+            $vd['matricula_id'] = ($vd['tipo'] === 'MATRICULA') ? ($ventaMatriculaFKMap[$vd['id']] ?? null) : null;
+        }
+        unset($vd);
+
+        // Obtener TODAS las mensualidades del alumno (pagadas + pendientes) para el desglose por matrícula
+        $stmtAllMens = $db->prepare(
+            "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.matricula AS matricula_id
+             FROM ventas v
+             WHERE v.persona = :pid AND v.tipo = 'MENSUALIDAD' AND v.estado IN (1, 2)
+             ORDER BY v.matricula ASC, v.fecha ASC"
+        );
+        $stmtAllMens->execute([':pid' => $personaId]);
+        $mensualidadesPorMatricula = [];
+        foreach ($stmtAllMens->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $m) {
+            $key = $m['matricula_id'] !== null ? (int) $m['matricula_id'] : 0;
+            $mensualidadesPorMatricula[$key][] = [
+                'id'     => (int)   $m['id'],
+                'numero' => $m['numero'],
+                'fecha'  => $m['fecha'] ? substr($m['fecha'], 0, 10) : null,
+                'total'  => (float) $m['total'],
+                'saldo'  => (float) $m['saldo'],
+                'pagada' => (float) $m['saldo'] <= 0.005,
             ];
         }
 
         return [
-            'persona_id' => $personaId,
-            'pagos'      => $pagosData,
-            'facturas'   => $ventasData,
+            'persona_id'                  => $personaId,
+            'pagos'                       => $pagosData,
+            'facturas'                    => $ventasData,
+            'mensualidades_por_matricula' => $mensualidadesPorMatricula,
         ];
     }
 
