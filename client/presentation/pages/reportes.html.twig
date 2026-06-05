@@ -1523,8 +1523,8 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
 
     switch (reportType) {
       case 'pagos':
-        headers = ['Estado', 'Cliente', 'Identificación', 'N° Pago', 'Fecha', 'Forma de Pago', 'Monto'];
-        rows = data.map(p => [parseInt(p.estado_id || 1) === 1 ? 'Cobrado' : 'Anulado', p.nombre_cliente, p.identificacion, p.numero, p.fecha, p.forma_pago || 'Efectivo', parseFloat(p.monto || 0).toFixed(2)]);
+        headers = ['Estado', 'Cliente', 'Identificación', 'N° Pago', 'Fecha', 'Forma de Pago', 'Monto', 'Asignaturas', 'Actividades'];
+        rows = data.map(p => [parseInt(p.estado_id || 1) === 1 ? 'Cobrado' : 'Anulado', p.nombre_cliente, p.identificacion, p.numero, p.fecha, p.forma_pago || 'Efectivo', parseFloat(p.monto || 0).toFixed(2), p.clases_nombres || '', p.actividades_nombres || '']);
         break;
       case 'ventas':
         headers = ['Estado', 'Cliente', 'Identificación', 'N° Factura', 'Tipo', 'Origen', 'Fecha', 'Total', 'Saldo', '% Pagado'];

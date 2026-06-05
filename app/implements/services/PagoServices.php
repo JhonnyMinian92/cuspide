@@ -576,10 +576,21 @@ final class PagoServices implements PagoServiceInterface
                         COALESCE(per.primer_apellido, ''), ' ',
                         COALESCE(per.segundo_apellido, '')
                     )) AS nombre_cliente,
-                    per.identificacion
+                    per.identificacion,
+                    (SELECT GROUP_CONCAT(c.nombre SEPARATOR '; ')
+                     FROM clases_matricula cm
+                     JOIN clases c ON c.id = cm.clase
+                     WHERE cm.matricula = COALESCE(p.matricula, v.matricula)
+                       AND cm.estado = 1) AS clases_nombres,
+                    (SELECT GROUP_CONCAT(a.nombre SEPARATOR '; ')
+                     FROM actividades_matricula am
+                     JOIN actividades a ON a.id = am.actividad
+                     WHERE am.matricula = COALESCE(p.matricula, v.matricula)
+                       AND am.estado = 1) AS actividades_nombres
              FROM pagos p
              JOIN personas per ON per.id = p.persona
              LEFT JOIN formas_pago fp ON fp.id = p.forma_pago
+             LEFT JOIN ventas v ON v.id = p.venta
              WHERE p.institucion = :inst";
 
         if ($desde) $sql .= " AND DATE(p.fecha) >= :desde";
@@ -602,7 +613,9 @@ final class PagoServices implements PagoServiceInterface
                        ve.estado AS estado_id,
                        fp.nombre AS forma_pago,
                        ve.cliente_nombre AS nombre_cliente,
-                       COALESCE(ve.cliente_identificacion, '') AS identificacion
+                       COALESCE(ve.cliente_identificacion, '') AS identificacion,
+                       NULL AS clases_nombres,
+                       NULL AS actividades_nombres
                    FROM ventas_externas ve
                    LEFT JOIN formas_pago fp ON fp.id = ve.forma_pago
                    WHERE ve.institucion = :inst
@@ -629,17 +642,19 @@ final class PagoServices implements PagoServiceInterface
             // Normalizar: ventas_externas usa estado=2 para anulado, pagos usa 4
             if ($origen === 'externa' && $estadoId === 2) $estadoId = 4;
             return [
-                'id'             => (int)   $r['id'],
-                'numero'         => $r['numero'],
-                'fecha'          => $r['fecha'],
-                'monto'          => (float) $r['monto'],
-                'referencia'     => $r['referencia'],
-                'observacion'    => $r['observacion'] ?? null,
-                'estado_id'      => $estadoId,
-                'forma_pago'     => $r['forma_pago'],
-                'nombre_cliente' => trim((string) $r['nombre_cliente']),
-                'identificacion' => $r['identificacion'],
-                'tipo_origen'    => $origen,
+                'id'                 => (int)   $r['id'],
+                'numero'             => $r['numero'],
+                'fecha'              => $r['fecha'],
+                'monto'              => (float) $r['monto'],
+                'referencia'         => $r['referencia'],
+                'observacion'        => $r['observacion'] ?? null,
+                'estado_id'          => $estadoId,
+                'forma_pago'         => $r['forma_pago'],
+                'nombre_cliente'     => trim((string) $r['nombre_cliente']),
+                'identificacion'     => $r['identificacion'],
+                'tipo_origen'        => $origen,
+                'clases_nombres'     => $r['clases_nombres']     ?? null,
+                'actividades_nombres'=> $r['actividades_nombres'] ?? null,
             ];
         };
 
