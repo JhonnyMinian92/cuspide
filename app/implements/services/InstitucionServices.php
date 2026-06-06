@@ -274,6 +274,22 @@ class InstitucionServices implements InstitucionServiceInterface
                 }
             }
 
+            // 8. Create 4 academic periods starting from the current year
+            $currentYear = (int) date('Y');
+            $stmtPeriodo = $db->prepare(
+                "INSERT INTO periodos_academicos (nombre, fecha_inicio, fecha_fin, institucion, estado) VALUES (:nombre, :fecha_inicio, :fecha_fin, :institucion, :estado)"
+            );
+            for ($i = 0; $i < 4; $i++) {
+                $year = $currentYear + $i;
+                $stmtPeriodo->execute([
+                    ':nombre'       => "Periodo Lectivo {$year}",
+                    ':fecha_inicio' => "{$year}-01-01",
+                    ':fecha_fin'    => "{$year}-12-31",
+                    ':institucion'  => $instId,
+                    ':estado'       => 1,
+                ]);
+            }
+
             $db->commit();
 
             return [
