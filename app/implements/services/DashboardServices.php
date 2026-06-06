@@ -262,7 +262,8 @@ final class DashboardServices
                     (SELECT COUNT(*) FROM clases_matricula cm WHERE cm.matricula = mat.id AND cm.estado = 1) AS clases_count,
                     (SELECT GROUP_CONCAT(c.nombre SEPARATOR '; ') FROM clases_matricula cm JOIN clases c ON c.id = cm.clase WHERE cm.matricula = mat.id AND cm.estado = 1) AS clases_nombres,
                     (SELECT COUNT(*) FROM actividades_matricula am WHERE am.matricula = mat.id AND am.estado = 1) AS actividades_count,
-                    (SELECT GROUP_CONCAT(a.nombre SEPARATOR '; ') FROM actividades_matricula am JOIN actividades a ON a.id = am.actividad WHERE am.matricula = mat.id AND am.estado = 1) AS actividades_nombres
+                    (SELECT GROUP_CONCAT(a.nombre SEPARATOR '; ') FROM actividades_matricula am JOIN actividades a ON a.id = am.actividad WHERE am.matricula = mat.id AND am.estado = 1) AS actividades_nombres,
+                    (SELECT GROUP_CONCAT(DISTINCT cd.nombre SEPARATOR '; ') FROM actividades_matricula am JOIN actividades a ON a.id = am.actividad JOIN categorias_deportivas cd ON cd.id = a.categoria_deportiva WHERE am.matricula = mat.id AND am.estado = 1) AS categorias_nombres
              FROM matricula mat
              JOIN personas p ON p.id = mat.persona
              LEFT JOIN persona_institucion pi ON pi.id_persona = p.id AND pi.id_institucion = mat.institucion
@@ -304,10 +305,11 @@ final class DashboardServices
             'fecha_registro'    => $r['fecha_registro'],
             'fecha_inicio'      => $r['fecha_inicio'],
             'fecha_fin'         => $r['fecha_fin'],
-            'clases_count'      => (int) $r['clases_count'],
-            'clases_nombres'    => $r['clases_nombres'],
-            'actividades_count' => (int) $r['actividades_count'],
+            'clases_count'       => (int) $r['clases_count'],
+            'clases_nombres'     => $r['clases_nombres'],
+            'actividades_count'  => (int) $r['actividades_count'],
             'actividades_nombres' => $r['actividades_nombres'],
+            'categorias_nombres' => $r['categorias_nombres'],
         ], $rows);
     }
 

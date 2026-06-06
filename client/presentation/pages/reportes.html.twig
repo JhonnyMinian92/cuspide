@@ -1543,8 +1543,8 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
         });
         break;
       case 'matriculas':
-        headers = ['Alumno', 'Identificación', 'Membresía', 'Registro', 'Vigencia Inicio', 'Vigencia Fin', 'Clases', 'Actividades'];
-        rows = data.map(m => [m.nombre, m.identificacion, m.membresia, m.fecha_registro, m.fecha_inicio, m.fecha_fin, m.clases_nombres, m.actividades_nombres]);
+        headers = ['Alumno', 'Identificación', 'Membresía', 'Registro', 'Vigencia Inicio', 'Vigencia Fin', 'Clases', 'Actividades', 'Categoría Deportiva'];
+        rows = data.map(m => [m.nombre, m.identificacion, m.membresia, m.fecha_registro, m.fecha_inicio, m.fecha_fin, m.clases_nombres, m.actividades_nombres, m.categorias_nombres || '']);
         break;
       case 'gastos':
         headers = ['N°', 'Fecha', 'Descripción', 'Tipo', 'Monto'];
