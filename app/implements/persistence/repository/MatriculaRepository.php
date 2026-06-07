@@ -65,4 +65,29 @@ class MatriculaRepository
 
     return array_map(fn($row) => new Matricula($row['id'], $row['fecha_registro'], $row['persona'], $row['fecha_inicio'], $row['fecha_fin'], $row['membresia'], $row['institucion'], $row['estado']), $rows ?: []);
   }
+
+  public function findByPersonaId(int $personaId): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT m.id, m.fecha_registro, m.fecha_inicio, m.fecha_fin,
+              m.membresia AS membresia_id,
+              mem.titulo  AS membresia,
+              i.nombre    AS institucion,
+              e.nombre    AS estado
+       FROM matricula m
+       LEFT JOIN membresias mem ON mem.id = m.membresia
+       JOIN instituciones   i   ON i.id   = m.institucion
+       JOIN estados         e   ON e.id   = m.estado
+       WHERE m.persona = :pid
+       ORDER BY m.fecha_registro DESC"
+    );
+    $stmt->execute([':pid' => $personaId]);
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
+
+  public function disable(int $id): void
+  {
+    $stmt = $this->db->prepare('UPDATE matricula SET estado = 2 WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+  }
 }

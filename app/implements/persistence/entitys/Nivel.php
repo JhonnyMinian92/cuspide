@@ -7,24 +7,17 @@ require_once __DIR__ . '/../repository/NivelRepository.php';
 class Nivel
 {
   private ?int $id;
-  private string $nemonico;
   private string $nombre;
 
-  public function __construct(?int $id, string $nemonico, string $nombre)
+  public function __construct(?int $id, string $nombre)
   {
     $this->id = $id;
-    $this->nemonico = $nemonico;
     $this->nombre = $nombre;
   }
 
   public function getId(): ?int
   {
     return $this->id;
-  }
-
-  public function getNemonico(): string
-  {
-    return $this->nemonico;
   }
 
   public function getNombre(): string
@@ -37,11 +30,6 @@ class Nivel
     $this->id = $id;
   }
 
-  public function setNemonico(string $nemonico): void
-  {
-    $this->nemonico = $nemonico;
-  }
-
   public function setNombre(string $nombre): void
   {
     $this->nombre = $nombre;
@@ -49,14 +37,12 @@ class Nivel
 
   public static function from(int $id): ?self
   {
+    if ($id === 0) return null;
     try {
-      $repositorio = new \Repositories\NivelRepository();
-      $entity = $repositorio->findById($id);
-      if ($entity) {
-        return $entity;
-      }
+      $repo = new \Repositories\NivelRepository();
+      return $repo->findById($id);
     } catch (\Exception $e) {
+      return null;
     }
-    return new self($id, '', '');
   }
 }

@@ -1,0 +1,470 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'membresias' %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Membresías{% endblock %}
+
+{% block content %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+.mem-card{border-radius:14px;border:1px solid var(--card-border);background:var(--card-bg);box-shadow:var(--card-shadow);transition:transform .18s ease,box-shadow .18s ease;overflow:hidden;display:flex;flex-direction:column;}
+.mem-card:hover{transform:translateY(-3px);box-shadow:0 20px 50px rgba(0,0,0,.32);}
+.mem-card-accent{height:5px;width:100%;}
+.mem-card-body{padding:1.4rem;flex:1;display:flex;flex-direction:column;}
+.mem-card-precio{font-size:2rem;font-weight:800;letter-spacing:-0.02em;line-height:1.1;}
+.mem-card-footer{padding:.9rem 1.4rem;border-top:1px solid var(--card-border);background:var(--app-bg-soft);}
+.mem-card.mem-inactive{opacity:.6;}
+.accent-0{background:linear-gradient(90deg,#e8b84b,#f0c96b);}
+.accent-1{background:linear-gradient(90deg,#3b82f6,#60a5fa);}
+.accent-2{background:linear-gradient(90deg,#10b981,#34d399);}
+.accent-3{background:linear-gradient(90deg,#8b5cf6,#a78bfa);}
+.accent-4{background:linear-gradient(90deg,#ef4444,#f87171);}
+.accent-5{background:linear-gradient(90deg,#f59e0b,#fbbf24);}
+.periodo-badge-semanal{background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.3);}
+.periodo-badge-mensual{background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);}
+.periodo-badge-trimestral{background:rgba(139,92,246,.15);color:#8b5cf6;border:1px solid rgba(139,92,246,.3);}
+.periodo-badge-anual{background:rgba(232,184,75,.15);color:#e8b84b;border:1px solid rgba(232,184,75,.3);}
+</style>
+
+<!-- Sección superior -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-start gap-3 mb-4">
+      <div>
+        <h6 class="fw-bold mb-1">Planes de Membresía</h6>
+        <p class="text-muted small mb-0">Consulta, edita o crea planes de membresía para los socios del club.</p>
+      </div>
+      <div class="d-flex gap-2 flex-shrink-0">
+        <a href="/matriculas" class="btn btn-sm btn-outline-secondary align-self-center">
+          <i class="bi bi-arrow-left me-1"></i>Matrículas
+        </a>
+        <button type="button" class="btn btn-brand" id="btn-nueva-membresia">
+          <i class="bi bi-plus-lg me-1"></i>Nuevo Plan
+        </button>
+      </div>
+    </div>
+
+    <div class="row g-3 align-items-center mb-4">
+      <div class="col-12 col-lg-10">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="mem-search"
+            placeholder="Buscar plan por título..." autocomplete="off">
+        </div>
+      </div>
+      <div class="col-12 col-lg-2">
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-mem-limpiar">
+          <i class="bi bi-x-circle me-1"></i>Limpiar
+        </button>
+      </div>
+    </div>
+
+    <div id="mem-cards-wrap">
+      <div class="row g-4" id="mem-cards-row">
+        <div class="col-12 text-center text-muted py-5">
+          <span class="spinner-border spinner-border-sm me-2"></span>Cargando planes...
+        </div>
+      </div>
+      <div id="mem-no-results" class="d-none mt-3">
+        <div class="alert mb-0" style="background:var(--info-bg);color:var(--info-text);border:1px solid var(--info-border);">
+          <i class="bi bi-info-circle me-2"></i>
+          Sin resultados para "<span id="mem-no-results-q"></span>". Puedes crear un nuevo plan a continuación.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Formulario Crear / Editar -->
+<div class="card chart-card d-none" id="form-mem-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h6 class="fw-bold mb-1" id="form-mem-title">
+          <i class="bi bi-star me-2"></i>Nuevo Plan de Membresía
+        </h6>
+        <p class="text-muted small mb-0">Los campos marcados con * son obligatorios.</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-mem-form-cerrar">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <form id="form-mem" novalidate>
+      <input type="hidden" id="mem-id" value="">
+      <div class="row g-3">
+
+        <!-- Título -->
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Título *</label>
+          <input type="text" class="form-control" id="mem-titulo"
+            placeholder="Ej: Plan Mensual Básico" required maxlength="120">
+        </div>
+
+        <!-- Precio -->
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Precio ($) *</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control" id="mem-precio"
+              placeholder="0.00" min="0" step="0.01" required>
+          </div>
+        </div>
+
+        <!-- Descuento -->
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Descuento (%)</label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="mem-porcentaje"
+              placeholder="0" min="0" max="100" step="1" value="0">
+            <span class="input-group-text">%</span>
+          </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Descripción</label>
+          <textarea class="form-control" id="mem-descripcion" rows="3"
+            placeholder="Beneficios incluidos en este plan..."></textarea>
+        </div>
+
+        <!-- Período + Caducidad + URL -->
+        <div class="col-md-6">
+          <div class="row g-3">
+
+            <!-- Período de cobro -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">Período de Cobro *</label>
+              <select class="form-select" id="mem-periodo" required>
+                <option value="semanal">Semanal — cada 7 días</option>
+                <option value="mensual" selected>Mensual — cada 30 días</option>
+                <option value="trimestral">Trimestral — cada 90 días</option>
+                <option value="anual">Anual — cada 365 días</option>
+              </select>
+              <div class="form-text">Define cómo se dividen los pagos pendientes de la matrícula.</div>
+            </div>
+
+            <!-- Fecha de caducidad -->
+            <div class="col-7">
+              <label class="form-label fw-semibold">Fecha de Caducidad *</label>
+              <input type="date" class="form-control" id="mem-fecha-fin" required>
+            </div>
+
+            <!-- URL botón -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">URL Botón <span class="text-muted fw-normal">(opcional)</span></label>
+              <input type="text" class="form-control" id="mem-url-boton" placeholder="https://...">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Estado activo -->
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="mem-activo" checked>
+            <label class="form-check-label fw-semibold" for="mem-activo">Plan activo</label>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="d-flex gap-2 justify-content-end mt-4">
+        <button type="button" class="btn btn-outline-secondary" id="btn-mem-cancelar">
+          <i class="bi bi-x-lg me-1"></i>Cancelar
+        </button>
+        <button type="submit" class="btn btn-brand" id="btn-mem-submit">
+          <i class="bi bi-check-lg me-1"></i>Guardar Plan
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Helpers ── */
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
+}
+function formatMoney(v) {
+  return '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function debounce(fn, ms) {
+  var t;
+  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null, a); }, ms); };
+}
+function formatDate(s) {
+  if (!s) return '—';
+  var d = String(s).substring(0, 10).split('-');
+  return d.length === 3 ? d[2] + '/' + d[1] + '/' + d[0] : s;
+}
+
+var PERIODO_META = {
+  semanal:    { label: 'Semanal',    cls: 'periodo-badge-semanal',    icon: 'bi-calendar-week'  },
+  mensual:    { label: 'Mensual',    cls: 'periodo-badge-mensual',    icon: 'bi-calendar-month' },
+  trimestral: { label: 'Trimestral', cls: 'periodo-badge-trimestral', icon: 'bi-calendar3'       },
+  anual:      { label: 'Anual',      cls: 'periodo-badge-anual',      icon: 'bi-calendar-check'  }
+};
+
+function periodoBadge(periodo) {
+  var meta = PERIODO_META[periodo] || { label: periodo, cls: 'bg-secondary', icon: 'bi-calendar' };
+  return '<span class="badge ' + meta.cls + ' rounded-pill">' +
+    '<i class="bi ' + meta.icon + ' me-1"></i>' + meta.label + '</span>';
+}
+
+/* ── Estado ── */
+var membresiasList = [];
+
+function apiCall(method, endpoint, action, body, params) {
+  return Cuspide.api.call(method, CONFIG.ENDPOINTS[endpoint], action, body, params);
+}
+
+/* ─────────────────────────────────────────────
+   CARGAR MEMBRESÍAS
+───────────────────────────────────────────── */
+function loadMembresias() {
+  document.getElementById('mem-cards-row').innerHTML =
+    '<div class="col-12 text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Cargando planes...</div>';
+  document.getElementById('mem-no-results').classList.add('d-none');
+
+  apiCall('GET', 'membresias', 'list', null, null)
+    .then(function(data) {
+      membresiasList = Array.isArray(data) ? data : [];
+      renderCards(membresiasList);
+    })
+    .catch(function(err) {
+      document.getElementById('mem-cards-row').innerHTML =
+        '<div class="col-12 text-center text-danger py-5">' +
+        '<i class="bi bi-exclamation-triangle fs-3 d-block mb-2"></i>' +
+        esc(err.message || 'Error al cargar membresías.') + '</div>';
+    });
+}
+
+/* ─────────────────────────────────────────────
+   RENDER CARDS
+───────────────────────────────────────────── */
+function renderCards(items) {
+  var row       = document.getElementById('mem-cards-row');
+  var noResults = document.getElementById('mem-no-results');
+
+  if (!items.length) {
+    row.innerHTML = '<div class="col-12 text-center text-muted py-5">' +
+      '<i class="bi bi-star fs-2 d-block mb-2 opacity-25"></i>No hay planes registrados.</div>';
+    return;
+  }
+
+  noResults.classList.add('d-none');
+  row.innerHTML = items.map(function(m, idx) {
+    var accentClass  = 'accent-' + (idx % 6);
+    var isActive     = parseInt(m.estado) === 1;
+    var descuento    = parseFloat(m.porcentaje || 0);
+    var hoy          = new Date();
+    var finDate      = m.fecha_fin ? new Date(m.fecha_fin) : null;
+    var diasRest     = finDate ? Math.round((finDate - hoy) / 86400000) : null;
+
+    var expBadge = '';
+    if (diasRest !== null) {
+      if (diasRest < 0) {
+        expBadge = '<span class="badge bg-danger ms-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Vencido</span>';
+      } else if (diasRest <= 30) {
+        expBadge = '<span class="badge bg-warning text-dark ms-1"><i class="bi bi-clock me-1"></i>Vence en ' + diasRest + 'd</span>';
+      }
+    }
+
+    var descBadge = descuento > 0
+      ? '<span class="badge ms-1" style="background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);">' +
+          '<i class="bi bi-tag me-1"></i>' + descuento + '% dto.</span>'
+      : '';
+
+    var estadoBadge = isActive
+      ? '<span class="badge rounded-pill bg-success"><i class="bi bi-check-circle me-1"></i>Activo</span>'
+      : '<span class="badge rounded-pill bg-secondary"><i class="bi bi-slash-circle me-1"></i>Inactivo</span>';
+
+    return '<div class="col-12 col-sm-6 col-xl-4">' +
+      '<div class="mem-card' + (!isActive ? ' mem-inactive' : '') + '">' +
+        '<div class="mem-card-accent ' + accentClass + '"></div>' +
+        '<div class="mem-card-body">' +
+          '<div class="d-flex justify-content-between align-items-start mb-2">' +
+            '<div class="fw-bold fs-6">' + esc(m.titulo) + descBadge + '</div>' +
+            estadoBadge +
+          '</div>' +
+          '<div class="mem-card-precio mb-1" style="color:var(--brand-color);">' +
+            formatMoney(m.precio) +
+            '<span class="fs-6 text-muted fw-normal">/plan</span>' +
+          '</div>' +
+          '<div class="mb-2">' + periodoBadge(m.periodo || 'mensual') + '</div>' +
+          (m.descripcion
+            ? '<p class="text-muted small mt-1 mb-0" style="flex:1;">' + esc(m.descripcion) + '</p>'
+            : '<p class="text-muted small mt-1 mb-0 fst-italic" style="flex:1;">Sin descripción.</p>') +
+          '<div class="mt-3 small text-muted">' +
+            '<i class="bi bi-calendar-check me-1"></i>' +
+            'Válido hasta: <strong>' + formatDate(m.fecha_fin) + '</strong>' +
+            expBadge +
+          '</div>' +
+        '</div>' +
+        '<div class="mem-card-footer d-flex justify-content-end">' +
+          '<button type="button" class="btn btn-sm btn-outline-primary" onclick="editarMembresia(' + m.id + ')">' +
+            '<i class="bi bi-pencil me-1"></i>Editar' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ─────────────────────────────────────────────
+   BÚSQUEDA (filtro cliente, debounce 350ms)
+───────────────────────────────────────────── */
+var doMemSearch = debounce(function(q) {
+  var noResults = document.getElementById('mem-no-results');
+  if (!q) { renderCards(membresiasList); noResults.classList.add('d-none'); return; }
+
+  var filtered = membresiasList.filter(function(m) {
+    return (m.titulo || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
+  });
+  renderCards(filtered);
+  if (!filtered.length) {
+    document.getElementById('mem-no-results-q').textContent = q;
+    noResults.classList.remove('d-none');
+    document.getElementById('mem-id').value = '';
+    document.getElementById('form-mem').reset();
+    document.getElementById('mem-periodo').value  = 'mensual';
+    document.getElementById('mem-activo').checked = true;
+    document.getElementById('mem-titulo').value   = q;
+    document.getElementById('form-mem-title').innerHTML = '<i class="bi bi-star me-2"></i>Nuevo Plan de Membresía';
+    document.getElementById('form-mem-card').classList.remove('d-none');
+    document.getElementById('form-mem-card').scrollIntoView({ behavior: 'smooth' });
+  } else {
+    noResults.classList.add('d-none');
+  }
+}, 350);
+
+document.getElementById('mem-search').addEventListener('input', function() { doMemSearch(this.value.trim()); });
+document.getElementById('btn-mem-limpiar').addEventListener('click', function() {
+  document.getElementById('mem-search').value = '';
+  renderCards(membresiasList);
+  document.getElementById('mem-no-results').classList.add('d-none');
+});
+
+/* ─────────────────────────────────────────────
+   EDITAR MEMBRESÍA
+───────────────────────────────────────────── */
+function editarMembresia(id) {
+  var m = membresiasList.find(function(x) { return x.id == id; });
+  if (!m) return;
+
+  document.getElementById('mem-id').value         = m.id;
+  document.getElementById('mem-titulo').value      = m.titulo || '';
+  document.getElementById('mem-precio').value      = m.precio || '';
+  document.getElementById('mem-porcentaje').value  = m.porcentaje || 0;
+  document.getElementById('mem-descripcion').value = m.descripcion || '';
+  document.getElementById('mem-url-boton').value   = m.url_boton || '';
+  document.getElementById('mem-fecha-fin').value   = m.fecha_fin ? String(m.fecha_fin).substring(0, 10) : '';
+  document.getElementById('mem-periodo').value     = m.periodo || 'mensual';
+  document.getElementById('mem-activo').checked    = parseInt(m.estado) === 1;
+
+  document.getElementById('form-mem-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Plan: ' + esc(m.titulo);
+  document.getElementById('form-mem-card').classList.remove('d-none');
+  document.getElementById('form-mem-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ─────────────────────────────────────────────
+   MOSTRAR / CERRAR FORMULARIO
+───────────────────────────────────────────── */
+function mostrarFormNuevo() {
+  document.getElementById('mem-id').value = '';
+  document.getElementById('form-mem').reset();
+  document.getElementById('mem-periodo').value  = 'mensual';
+  document.getElementById('mem-activo').checked = true;
+  document.getElementById('form-mem-title').innerHTML = '<i class="bi bi-star me-2"></i>Nuevo Plan de Membresía';
+  document.getElementById('form-mem-card').classList.remove('d-none');
+  document.getElementById('form-mem-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cerrarForm() {
+  document.getElementById('form-mem-card').classList.add('d-none');
+  document.getElementById('mem-id').value = '';
+  document.getElementById('form-mem').reset();
+  document.getElementById('mem-no-results').classList.add('d-none');
+  document.getElementById('mem-search').value = '';
+  renderCards(membresiasList);
+}
+
+document.getElementById('btn-nueva-membresia').addEventListener('click', mostrarFormNuevo);
+document.getElementById('btn-mem-form-cerrar').addEventListener('click', cerrarForm);
+document.getElementById('btn-mem-cancelar').addEventListener('click', cerrarForm);
+
+/* ─────────────────────────────────────────────
+   GUARDAR (POST / PUT)
+───────────────────────────────────────────── */
+document.getElementById('form-mem').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  var id          = document.getElementById('mem-id').value;
+  var titulo      = document.getElementById('mem-titulo').value.trim();
+  var precio      = document.getElementById('mem-precio').value;
+  var porcentaje  = document.getElementById('mem-porcentaje').value || 0;
+  var descripcion = document.getElementById('mem-descripcion').value.trim();
+  var urlBoton    = document.getElementById('mem-url-boton').value.trim();
+  var fechaFin    = document.getElementById('mem-fecha-fin').value;
+  var periodo     = document.getElementById('mem-periodo').value;
+  var activo      = document.getElementById('mem-activo').checked ? 1 : 0;
+
+  if (!titulo)   { showToast('El título es obligatorio.', 'warning'); document.getElementById('mem-titulo').focus(); return; }
+  if (!precio || parseFloat(precio) < 0) { showToast('Ingresa un precio válido.', 'warning'); document.getElementById('mem-precio').focus(); return; }
+  if (!fechaFin) { showToast('La fecha de caducidad es obligatoria.', 'warning'); document.getElementById('mem-fecha-fin').focus(); return; }
+
+  var body = {
+    titulo:      titulo,
+    precio:      parseFloat(precio),
+    porcentaje:  parseFloat(porcentaje),
+    descripcion: descripcion,
+    url_boton:   urlBoton,
+    fecha_fin:   fechaFin,
+    periodo:     periodo,
+    estado:      activo
+  };
+
+  var btn = document.getElementById('btn-mem-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  apiCall(id ? 'PUT' : 'POST', 'membresias', 'save', body, id ? { id: id } : null)
+    .then(function() {
+      showToast(id ? 'Plan actualizado correctamente.' : 'Plan creado correctamente.', 'success');
+      cerrarForm();
+      loadMembresias();
+    })
+    .catch(function(err) {
+      showToast(err.message || 'Error al guardar el plan.', 'error');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Plan';
+    });
+});
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadMembresias();
+});
+</script>
+{% endblock %}

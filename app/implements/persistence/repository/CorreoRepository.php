@@ -3,7 +3,10 @@
 namespace Repositories;
 
 require_once __DIR__ . '/../conexion/Database.php';
+require_once __DIR__ . '/../entitys/Persona.php'; // Required for Persona entity
 require_once __DIR__ . '/../entitys/Correo.php';
+require_once __DIR__ . '/../entitys/TipoContacto.php'; // Assuming these entities exist
+require_once __DIR__ . '/../entitys/Estado.php'; // Assuming these entities exist
 
 use Core\Database;
 use Entitys\Correo;
@@ -67,5 +70,32 @@ class CorreoRepository
     }
 
     return $correos;
+  }
+
+  public function syncForPersona(int $personaId, array $newCorreos): void
+  {
+    // Delete existing emails for this persona
+    $stmt = $this->db->prepare('DELETE FROM correos WHERE persona = :personaId');
+    $stmt->execute([':personaId' => $personaId]);
+
+    // Insert new emails
+    foreach ($newCorreos as $correoData) {
+      $email = $correoData['email'] ?? '';
+      if ($email === '') continue;
+
+      // Assuming default values for tipo, estado if not provided by request
+      // For now, using dummy IDs. Adjust as per your actual default IDs.
+      $defaultTipoId = 1;    // Example: ID for 'Personal'
+      $defaultEstadoId = 1;  // Example: ID for 'Activo'
+
+      $correo = new Correo(
+        null,
+        $email,
+        $defaultTipoId,
+        $personaId,
+        $defaultEstadoId
+      );
+      $this->save($correo);
+    }
   }
 }

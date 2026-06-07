@@ -1,0 +1,603 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'dashboard' %}
+
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Panel de Control{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+/* ── KPI cards ── */
+.kpi-card {
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--card-bg);
+  position: relative;
+  overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--kpi-color, #3b82f6);
+  border-radius: 16px 16px 0 0;
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0,0,0,.28);
+}
+.kpi-label {
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--app-text-muted);
+  font-weight: 600;
+  margin-bottom: .3rem;
+}
+.kpi-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--app-text);
+  line-height: 1.1;
+}
+.kpi-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  background: var(--kpi-icon-bg, rgba(59,130,246,.15));
+  color: var(--kpi-color, #3b82f6);
+}
+
+/* ── Section cards ── */
+.dash-card {
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--card-bg);
+}
+.dash-card-header {
+  padding: .9rem 1.2rem .55rem;
+  border-bottom: 1px solid var(--card-border);
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+}
+.dash-card-title { font-size: .84rem; font-weight: 700; color: var(--app-text); }
+.dash-card-sub   { font-size: .7rem; color: var(--app-text-faint); margin-top: .08rem; }
+
+/* ── Shared table styles ── */
+.dash-table thead th {
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--app-text-muted); border-bottom: 1px solid var(--table-border);
+  font-weight: 600; padding: .5rem .75rem; white-space: nowrap;
+}
+.dash-table tbody td {
+  font-size: .81rem; color: var(--app-text-soft);
+  border-color: var(--table-border); padding: .48rem .75rem; vertical-align: middle;
+}
+.dash-table tbody tr:hover td { background: var(--table-hover); }
+
+/* ── Membresía badge ── */
+.mem-badge {
+  display: inline-block; padding: .18rem .55rem;
+  border-radius: 20px; font-size: .68rem; font-weight: 600; line-height: 1.5;
+  background: rgba(139,92,246,.18); color: #a78bfa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════════════
+     KPI ROW  (6 tarjetas · institución del JWT)
+══════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-4">
+
+  <!-- Total Alumnos -->
+  <div class="col-6 col-sm-4 col-xl-2">
+    <div class="kpi-card p-3 h-100" style="--kpi-color:#3b82f6;--kpi-icon-bg:rgba(59,130,246,.14);">
+      <div class="kpi-label">Total Alumnos</div>
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <div class="kpi-value" id="stat-alumnos">—</div>
+        <div class="kpi-icon"><i class="bi bi-people-fill"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Matrículas del Mes -->
+  <div class="col-6 col-sm-4 col-xl-2">
+    <div class="kpi-card p-3 h-100" style="--kpi-color:#8b5cf6;--kpi-icon-bg:rgba(139,92,246,.14);">
+      <div class="kpi-label">Matrículas (Mes)</div>
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <div class="kpi-value" id="stat-matriculas">—</div>
+        <div class="kpi-icon"><i class="bi bi-journal-check"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ingresos del Mes -->
+  <div class="col-6 col-sm-4 col-xl-2">
+    <div class="kpi-card p-3 h-100" style="--kpi-color:#10b981;--kpi-icon-bg:rgba(16,185,129,.14);">
+      <div class="kpi-label">Ingresos (Mes)</div>
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <div class="kpi-value" id="stat-ingresos">—</div>
+        <div class="kpi-icon"><i class="bi bi-cash-coin"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gastos del Mes -->
+  <div class="col-6 col-sm-4 col-xl-2">
+    <div class="kpi-card p-3 h-100" style="--kpi-color:#f59e0b;--kpi-icon-bg:rgba(245,158,11,.14);">
+      <div class="kpi-label">Gastos (Mes)</div>
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <div class="kpi-value" id="stat-gastos">—</div>
+        <div class="kpi-icon"><i class="bi bi-bag-dash-fill"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Balance del Mes -->
+  <div class="col-6 col-sm-4 col-xl-2">
+    <div class="kpi-card p-3 h-100" style="--kpi-color:#0d9488;--kpi-icon-bg:rgba(13,148,136,.14);">
+      <div class="kpi-label">Balance (Mes)</div>
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <div class="kpi-value" id="stat-balance">—</div>
+        <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagos Pendientes del Mes -->
+  <div class="col-6 col-sm-4 col-xl-2">
+    <div class="kpi-card p-3 h-100" style="--kpi-color:#ef4444;--kpi-icon-bg:rgba(239,68,68,.14);">
+      <div class="kpi-label">Pendientes (Mes)</div>
+      <div class="d-flex align-items-center justify-content-between gap-2">
+        <div class="kpi-value" id="stat-pendientes">—</div>
+        <div class="kpi-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     FILA 2 · Gráfica Ingresos/Gastos + Membresías
+══════════════════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+
+  <!-- Ingresos vs Gastos + Balance (barras + línea) -->
+  <div class="col-12 col-lg-8">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <div>
+          <div class="dash-card-title">
+            <i class="bi bi-bar-chart-line-fill me-2" style="color:#10b981;"></i>Ingresos · Gastos · Balance
+          </div>
+          <div class="dash-card-sub">Últimos 6 meses · institución del JWT activo</div>
+        </div>
+      </div>
+      <div style="padding:1rem 1.2rem 1.2rem;height:280px;position:relative;">
+        <canvas id="chart-ingresos-gastos"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Membresías activas — consumo año en curso -->
+  <div class="col-12 col-lg-4">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <div>
+          <div class="dash-card-title">
+            <i class="bi bi-pie-chart-fill me-2" style="color:#8b5cf6;"></i>Membresías Activas
+          </div>
+          <div class="dash-card-sub" id="membresias-sub">Cargando...</div>
+        </div>
+      </div>
+      <div style="padding:1rem 1.2rem 1.2rem;height:280px;position:relative;display:flex;align-items:center;justify-content:center;">
+        <canvas id="chart-membresias"></canvas>
+        <div id="membresias-empty" class="text-center text-muted small position-absolute d-none">
+          <i class="bi bi-pie-chart fs-2 d-block mb-2 opacity-25"></i>
+          Sin matrículas este año
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     FILA 3 · Últimas Matrículas + Pagos Pendientes
+══════════════════════════════════════════════════════ -->
+<div class="row g-3">
+
+  <!-- Últimas matrículas registradas -->
+  <div class="col-12 col-lg-5">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <div>
+          <div class="dash-card-title">
+            <i class="bi bi-journal-plus me-2" style="color:#8b5cf6;"></i>Últimas Matrículas
+          </div>
+          <div class="dash-card-sub">10 registros más recientes de tu institución</div>
+        </div>
+      </div>
+      <div style="max-height:290px;overflow-y:auto;overflow-x:auto;">
+        <table class="table dash-table mb-0">
+          <thead>
+            <tr>
+              <th class="ps-3">Alumno</th>
+              <th>Membresía</th>
+              <th class="pe-3">Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="matriculas-tbody">
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">
+                <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagos pendientes (ventas con saldo > 0) -->
+  <div class="col-12 col-lg-7">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <div>
+          <div class="dash-card-title">
+            <i class="bi bi-clock-history me-2 text-danger"></i>Pagos Pendientes
+          </div>
+          <div class="dash-card-sub">Ventas con saldo pendiente de cobro</div>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary flex-shrink-0" id="btn-refresh" title="Actualizar todo">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <div style="max-height:290px;overflow-y:auto;overflow-x:auto;">
+        <table class="table dash-table mb-0">
+          <thead>
+            <tr>
+              <th class="ps-3">Identificación</th>
+              <th>Nombre</th>
+              <th>N° Venta</th>
+              <th>Total</th>
+              <th class="pe-3">Saldo</th>
+            </tr>
+          </thead>
+          <tbody id="vencimientos-tbody">
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">
+                <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  /* ─── Helpers ─────────────────────────────────────────────────────────── */
+
+  function fmt(v) {
+    return '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+
+  function fmtDate(s) {
+    if (!s) return '—';
+    var d = new Date(s + 'T00:00:00');
+    return isNaN(d) ? s : d.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  var ES_MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  function monthLabel(ym) {
+    var p = ym.split('-');
+    return ES_MONTHS[parseInt(p[1], 10) - 1] + ' \'' + p[0].slice(2);
+  }
+
+  function spinner(cols) {
+    return '<tr><td colspan="' + cols + '" class="text-center text-muted py-4">'
+      + '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  }
+
+  /* ─── Chart.js global defaults (dark theme) ──────────────────────────── */
+
+  Chart.defaults.color       = '#94a3b8';
+  Chart.defaults.borderColor = 'rgba(148,163,184,0.10)';
+  Chart.defaults.font.family = "'Inter','Segoe UI',sans-serif";
+  Chart.defaults.font.size   = 11;
+  Chart.defaults.plugins.legend.labels.boxWidth = 10;
+
+  var chartIG  = null;
+  var chartMem = null;
+
+  /* ─── KPI STATS ───────────────────────────────────────────────────────── */
+
+  async function loadStats() {
+    try {
+      var d = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.dashboard, 'stats');
+
+      // Total alumnos activos de la institución
+      document.getElementById('stat-alumnos').textContent    = d.totalAlumnos       ?? '—';
+      // Matrículas registradas este mes
+      document.getElementById('stat-matriculas').textContent = d.matriculasMes      ?? '—';
+      // Ingresos (pagos cobrados) del mes
+      document.getElementById('stat-ingresos').textContent   = d.ingresosMes   != null ? fmt(d.ingresosMes)   : '—';
+      // Gastos del mes
+      document.getElementById('stat-gastos').textContent     = d.gastosMes     != null ? fmt(d.gastosMes)     : '—';
+      // Cantidad de ventas con saldo pendiente creadas este mes
+      document.getElementById('stat-pendientes').textContent = d.pagosPendientesMes ?? '—';
+
+      // Balance = ingresos - gastos (color dinámico)
+      var balEl = document.getElementById('stat-balance');
+      if (d.balanceMes != null) {
+        balEl.textContent  = fmt(d.balanceMes);
+        balEl.style.color  = d.balanceMes < 0 ? '#ef4444' : d.balanceMes > 0 ? '#10b981' : '';
+      } else {
+        balEl.textContent = '—';
+      }
+    } catch (e) {
+      ['stat-alumnos','stat-matriculas','stat-ingresos','stat-gastos','stat-balance','stat-pendientes']
+        .forEach(function (id) { var el = document.getElementById(id); if (el) el.textContent = '—'; });
+    }
+  }
+
+  /* ─── GRÁFICA INGRESOS / GASTOS / BALANCE ─────────────────────────────
+     Tipo mixto: barras para ingresos y gastos,
+     línea discontinua dorada para el balance (diferencia real).
+  ─────────────────────────────────────────────────────────────────────── */
+
+  async function loadChartIngresosGastos() {
+    try {
+      var d = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.dashboard, 'chart_ingresos_gastos');
+      var labels = (d.labels || []).map(monthLabel);
+      var ctx    = document.getElementById('chart-ingresos-gastos').getContext('2d');
+
+      if (chartIG) chartIG.destroy();
+
+      chartIG = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            /* Ingresos — barra verde */
+            {
+              type: 'bar',
+              label: 'Ingresos',
+              data: d.ingresos || [],
+              backgroundColor: 'rgba(16,185,129,.65)',
+              borderColor: '#10b981',
+              borderWidth: 1.5,
+              borderRadius: 6,
+              borderSkipped: false,
+              order: 2,
+            },
+            /* Gastos — barra roja */
+            {
+              type: 'bar',
+              label: 'Gastos',
+              data: d.gastos || [],
+              backgroundColor: 'rgba(239,68,68,.60)',
+              borderColor: '#ef4444',
+              borderWidth: 1.5,
+              borderRadius: 6,
+              borderSkipped: false,
+              order: 3,
+            },
+            /* Balance (diferencia) — línea dorada discontinua */
+            {
+              type: 'line',
+              label: 'Balance',
+              data: d.balance || [],
+              borderColor: '#e8b84b',
+              backgroundColor: 'transparent',
+              borderWidth: 2.5,
+              borderDash: [6, 4],
+              pointBackgroundColor: '#e8b84b',
+              pointBorderColor: '#e8b84b',
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              fill: false,
+              tension: 0.3,
+              order: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              labels: { usePointStyle: true, pointStyle: 'circle', padding: 14 },
+            },
+            tooltip: {
+              callbacks: {
+                label: function (c) {
+                  return '  ' + c.dataset.label + ': ' + fmt(c.parsed.y);
+                },
+                afterBody: function (items) {
+                  /* Resaltar si el balance es negativo */
+                  var bal = items.find(function (i) { return i.dataset.label === 'Balance'; });
+                  if (bal && bal.parsed.y < 0) {
+                    return ['  ⚠ Gastos superan ingresos este mes'];
+                  }
+                  return [];
+                },
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: false,
+              ticks: { callback: function (v) { return '$' + v.toLocaleString(); } },
+            },
+          },
+        },
+      });
+    } catch (e) { console.error('chart_ingresos_gastos', e); }
+  }
+
+  /* ─── GRÁFICA MEMBRESÍAS (consumo año en curso) ───────────────────────── */
+
+  async function loadChartMembresias() {
+    try {
+      var res    = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.dashboard, 'chart_membresias');
+      var rows   = res.items || [];
+      var anio   = res.anio  || new Date().getFullYear();
+      var subEl  = document.getElementById('membresias-sub');
+      var emptyEl= document.getElementById('membresias-empty');
+      var canvas = document.getElementById('chart-membresias');
+
+      subEl.textContent = 'Matrículas del año ' + anio + ' · por tipo de plan';
+
+      if (rows.length === 0) {
+        canvas.classList.add('d-none');
+        emptyEl.classList.remove('d-none');
+        return;
+      }
+
+      canvas.classList.remove('d-none');
+      emptyEl.classList.add('d-none');
+
+      var labels = rows.map(function (r) { return r.titulo; });
+      var datos  = rows.map(function (r) { return r.total; });
+      var total  = datos.reduce(function (a, b) { return a + b; }, 0);
+      var PALETTE = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#0d9488','#ec4899','#64748b'];
+      var ctx = canvas.getContext('2d');
+
+      if (chartMem) chartMem.destroy();
+      chartMem = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: datos,
+            backgroundColor: PALETTE.slice(0, labels.length),
+            borderColor: 'var(--card-bg)',
+            borderWidth: 3,
+            hoverOffset: 8,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '64%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true, pointStyle: 'circle',
+                padding: 10, font: { size: 11 },
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: function (c) {
+                  var pct = total > 0 ? (c.parsed / total * 100).toFixed(1) : 0;
+                  return '  ' + c.label + ': ' + c.parsed + ' (' + pct + '%)';
+                },
+              },
+            },
+          },
+        },
+      });
+    } catch (e) { console.error('chart_membresias', e); }
+  }
+
+  /* ─── ÚLTIMAS MATRÍCULAS (tabla) ─────────────────────────────────────── */
+
+  async function loadUltimasMatriculas() {
+    var tbody = document.getElementById('matriculas-tbody');
+    tbody.innerHTML = spinner(3);
+    try {
+      var rows = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.dashboard, 'ultimas_matriculas');
+      if (!Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">'
+          + '<i class="bi bi-inbox fs-3 d-block mb-2 opacity-25"></i>Sin matrículas registradas.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(function (r) {
+        return '<tr>'
+          + '<td class="ps-3">'
+          +   '<div class="fw-semibold" style="font-size:.82rem;color:var(--app-text);">' + esc(r.nombre) + '</div>'
+          +   '<div style="font-size:.69rem;color:var(--app-text-faint);">' + esc(r.identificacion) + '</div>'
+          + '</td>'
+          + '<td><span class="mem-badge">' + esc(r.membresia) + '</span></td>'
+          + '<td class="pe-3" style="font-size:.76rem;color:var(--app-text-faint);white-space:nowrap;">'
+          +   fmtDate(r.fecha_registro)
+          + '</td>'
+          + '</tr>';
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-4">'
+        + '<i class="bi bi-exclamation-triangle me-2"></i>' + esc(e.message || 'Error.') + '</td></tr>';
+    }
+  }
+
+  /* ─── PAGOS PENDIENTES (tabla) ────────────────────────────────────────── */
+
+  async function loadVencidos() {
+    var tbody = document.getElementById('vencimientos-tbody');
+    tbody.innerHTML = spinner(5);
+    try {
+      var rows = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.dashboard, 'vencidos');
+      if (!Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">'
+          + '<i class="bi bi-check-circle-fill text-success me-2"></i>Sin pagos pendientes.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(function (r) {
+        return '<tr>'
+          + '<td class="ps-3">' + esc(r.identificacion) + '</td>'
+          + '<td>' + esc(r.nombre) + '</td>'
+          + '<td><span class="badge bg-secondary">' + esc(r.numero) + '</span></td>'
+          + '<td>' + fmt(r.total) + '</td>'
+          + '<td class="fw-bold text-danger pe-3">' + fmt(r.saldo) + '</td>'
+          + '</tr>';
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">'
+        + '<i class="bi bi-exclamation-triangle me-2"></i>' + esc(e.message || 'Error.') + '</td></tr>';
+    }
+  }
+
+  /* ─── Init ────────────────────────────────────────────────────────────── */
+
+  function loadAll() {
+    loadStats();
+    loadVencidos();
+    loadUltimasMatriculas();
+    loadChartIngresosGastos();
+    loadChartMembresias();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    checkAuth();
+    loadAll();
+    document.getElementById('btn-refresh').addEventListener('click', loadAll);
+  });
+
+}());
+</script>
+{% endblock %}

@@ -1,0 +1,752 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'personas' %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Gestión de Personal{% endblock %}
+
+{% block content %}
+<!-- Acceso rápido -->
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="/contratos" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Volver a Contratos
+  </a>
+</div>
+
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+.dynamic-row{display:flex;gap:.5rem;align-items:center;margin-bottom:.4rem;}
+.dynamic-row input{flex:1;}
+#persona-tabs{border-bottom:1px solid var(--card-border,#dee2e6);}
+#persona-tabs .nav-link{color:var(--app-text,#495057);opacity:.65;border:none;border-bottom:2px solid transparent;border-radius:0;padding:.65rem 1.1rem;font-size:.88rem;transition:opacity .15s,border-color .15s;}
+#persona-tabs .nav-link:hover:not(.active){opacity:1;}
+#persona-tabs .nav-link.active{color:var(--brand-color,#e8b84b);opacity:1;border-bottom-color:var(--brand-color,#e8b84b);background:transparent;font-weight:600;}
+.tab-content>.tab-pane{padding:1.25rem 0 .25rem;}
+</style>
+
+<!-- Barra superior -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mb-4">
+      <div>
+        <h6 class="fw-bold mb-1">Personal Registrado</h6>
+        <p class="text-muted small mb-0">Total: <strong id="personas-count">—</strong> empleados activos en tu institución.</p>
+      </div>
+      <div class="d-flex gap-2 flex-shrink-0">
+        <button type="button" class="btn btn-brand" id="btn-nuevo-empleado">
+          <i class="bi bi-person-plus-fill me-1"></i>Nuevo Empleado
+        </button>
+      </div>
+    </div>
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-lg-10">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="persona-search"
+            placeholder="Buscar por nombre, apellido o identificación..." autocomplete="off">
+        </div>
+      </div>
+      <div class="col-12 col-lg-2">
+        <button type="button" class="btn btn-outline-secondary w-100" id="btn-limpiar-busqueda">
+          <i class="bi bi-x-circle me-1"></i>Limpiar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de resultados -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Lista de Personal</h6>
+      <small class="text-muted" id="personas-result-info">Últimos 20 registros</small>
+    </div>
+    <div class="table-responsive table-container">
+      <table class="table table-hover align-middle mb-0" style="min-width:520px;">
+        <thead class="table-light">
+          <tr>
+            <th>Identificación</th>
+            <th>Nombre Completo</th>
+            <th>Cargo</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="personas-tbody">
+          <tr><td colspan="5" class="text-center text-muted py-4">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Persona (Empleado) -->
+<div class="modal fade" id="modal-persona" tabindex="-1" aria-labelledby="modal-persona-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header border-bottom-0 pb-1">
+        <h5 class="modal-title" id="modal-persona-label">
+          <i class="bi bi-person-badge me-2"></i>Ficha del Empleado
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body pt-0">
+
+        <!-- Spinner -->
+        <div id="modal-spinner" class="text-center py-5 d-none">
+          <span class="spinner-border text-primary mb-2"></span>
+          <p class="text-muted small mb-0">Cargando ficha...</p>
+        </div>
+
+        <!-- Error -->
+        <div id="modal-error" class="alert alert-danger mt-2 d-none" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <span id="modal-error-msg"></span>
+        </div>
+
+        <form id="form-persona" novalidate>
+          <input type="hidden" id="persona-id">
+
+          <!-- ── Nav Tabs ── -->
+          <ul class="nav nav-tabs" id="persona-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-personal" type="button" role="tab">
+                <i class="bi bi-person me-1"></i>Personal
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-contacto" type="button" role="tab">
+                <i class="bi bi-telephone me-1"></i>Contacto
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-institucion" type="button" role="tab">
+                <i class="bi bi-building me-1"></i>Institución
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-medica" type="button" role="tab">
+                <i class="bi bi-heart-pulse me-1"></i>Ficha Médica
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-acceso" type="button" role="tab">
+                <i class="bi bi-key me-1"></i>Acceso
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="persona-tabs-content">
+
+            <!-- ══ TAB 1: DATOS PERSONALES ══ -->
+            <div class="tab-pane fade show active" id="tab-personal" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Identificación *</label>
+                  <input type="text" class="form-control" id="p-identificacion" placeholder="Ej: 0701234567" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Primer Nombre *</label>
+                  <input type="text" class="form-control" id="p-primer-nombre" placeholder="Ej: Juan" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Segundo Nombre</label>
+                  <input type="text" class="form-control" id="p-segundo-nombre">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Primer Apellido *</label>
+                  <input type="text" class="form-control" id="p-primer-apellido" placeholder="Ej: Pérez" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Segundo Apellido</label>
+                  <input type="text" class="form-control" id="p-segundo-apellido">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Fecha Nacimiento</label>
+                  <input type="date" class="form-control" id="p-fecha-nac">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Género</label>
+                  <select class="form-select" id="p-genero">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Etnia</label>
+                  <select class="form-select" id="p-etnia">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Nacionalidad</label>
+                  <select class="form-select" id="p-nacionalidad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Ciudad</label>
+                  <select class="form-select" id="p-ciudad">
+                    <option value="">Sin especificar</option>
+                  </select>
+                </div>
+                <div class="col-md-12">
+                  <label class="form-label fw-semibold">Dirección</label>
+                  <input type="text" class="form-control" id="p-direccion" placeholder="Dirección de domicilio">
+                </div>
+              </div>
+            </div><!-- /tab-personal -->
+
+            <!-- ══ TAB 2: CONTACTO ══ -->
+            <div class="tab-pane fade" id="tab-contacto" role="tabpanel">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-phone me-1"></i>Teléfonos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-telefono">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="telefonos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="telefono-placeholder">Sin teléfonos registrados.</p>
+                </div>
+                <div class="col-md-6">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold mb-0">
+                      <i class="bi bi-envelope me-1"></i>Correos Electrónicos
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-correo">
+                      <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                  </div>
+                  <div id="correos-container"></div>
+                  <p class="text-muted small mt-1 mb-0" id="correo-placeholder">Sin correos registrados.</p>
+                </div>
+              </div>
+            </div><!-- /tab-contacto -->
+
+            <!-- ══ TAB 3: INSTITUCIÓN ══ -->
+            <div class="tab-pane fade" id="tab-institucion" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Rol / Cargo *</label>
+                  <select class="form-select" id="p-tipo-persona" required>
+                    <option value="">Seleccionar rol</option>
+                  </select>
+                  <div class="form-text">Determina el rol de la persona en la institución.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Estado en la Institución</label>
+                  <select class="form-select" id="p-estado-pi">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+            </div><!-- /tab-institucion -->
+
+            <!-- ══ TAB 4: FICHA MÉDICA ══ -->
+            <div class="tab-pane fade" id="tab-medica" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Grupo Sanguíneo</label>
+                  <select class="form-select" id="p-grupo-sanguineo">
+                    <option value="">Sin especificar</option>
+                    <option value="A+">A+</option><option value="A-">A-</option>
+                    <option value="B+">B+</option><option value="B-">B-</option>
+                    <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                    <option value="O+">O+</option><option value="O-">O-</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Nombre — Contacto de Emergencia</label>
+                  <input type="text" class="form-control" id="p-contacto-nombre" placeholder="Ej: María García">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Teléfono — Contacto de Emergencia</label>
+                  <input type="text" class="form-control" id="p-contacto-telefono" placeholder="Ej: 0987654321">
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Alergias</label>
+                  <textarea class="form-control" id="p-alergias" rows="3"
+                    placeholder="Describa las alergias conocidas (alimentos, medicamentos, etc.)..."></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Enfermedades Preexistentes</label>
+                  <textarea class="form-control" id="p-enfermedades" rows="3"
+                    placeholder="Enfermedades crónicas o condiciones previas..."></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Medicamentos Actuales</label>
+                  <textarea class="form-control" id="p-medicamentos" rows="3"
+                    placeholder="Medicamentos que toma actualmente y dosis..."></textarea>
+                </div>
+              </div>
+            </div><!-- /tab-medica -->
+
+            <!-- ══ TAB 5: ACCESO AL SISTEMA ══ -->
+            <div class="tab-pane fade" id="tab-acceso" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Usuario</label>
+                  <input type="text" class="form-control" id="p-username" autocomplete="new-password" placeholder="Ej: juan.perez">
+                  <div class="form-text">Opcional. Permite a la persona acceder al sistema.</div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Contraseña</label>
+                  <input type="password" class="form-control" id="p-password" autocomplete="new-password" placeholder="Dejar en blanco para no cambiar">
+                  <div class="form-text">Si se deja en blanco, la contraseña actual no se modificará.</div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Rol de Usuario</label>
+                  <select class="form-select" id="p-tipo-user">
+                    <option value="">— Seleccionar rol —</option>
+                  </select>
+                </div>
+              </div>
+            </div><!-- /tab-acceso -->
+
+          </div><!-- /tab-content -->
+        </form>
+      </div><!-- /modal-body -->
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-brand" id="btn-guardar-persona">
+          <i class="bi bi-check-lg me-1"></i>Guardar Cambios
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* ══════════════════════════════════════════════════════════
+   UTILIDADES
+══════════════════════════════════════════════════════════ */
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
+}
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function debounce(fn, ms) {
+  var timer;
+  return function() {
+    var a = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function() { fn.apply(null, a); }, ms);
+  };
+}
+
+/* ══════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════════════════════════ */
+var personasList      = [];
+var bsModal           = null;
+var catalogGeneros    = [];
+var catalogEtnias     = [];
+var catalogNacs       = [];
+var catalogCiudades   = [];
+var catalogTypeUsers  = [];
+var catalogTipos      = [];
+var institucionId     = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+
+/* ══════════════════════════════════════════════════════════
+   CATÁLOGOS
+══════════════════════════════════════════════════════════ */
+async function loadCatalogs() {
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'catalogs', null, null);
+    catalogGeneros   = data.generos        || [];
+    catalogEtnias    = data.etnias         || [];
+    catalogNacs      = data.nacionalidades || [];
+    catalogCiudades  = data.ciudades       || [];
+    catalogTipos     = data.tipos_persona  || [];
+    catalogTypeUsers = data.type_users     || [];
+
+    populateSelect('p-genero',       catalogGeneros,   'Sin especificar');
+    populateSelect('p-etnia',        catalogEtnias,    'Sin especificar');
+    populateSelect('p-nacionalidad', catalogNacs,      'Sin especificar');
+    populateSelect('p-tipo-user',    catalogTypeUsers, '— Seleccionar rol —', 'nemonico', 'nombre');
+    var employeeTypes = catalogTipos.filter(function(t) { return t.nemonico !== 'TIPO_EST' && t.nemonico !== 'TIPO_DEV' && t.nemonico !== 'TIPO_SOCIO'; });
+    populateSelect('p-tipo-persona', employeeTypes, 'Seleccionar rol');
+    populateCiudadSelect(catalogCiudades);
+  } catch (err) {
+    console.warn('Catálogos no disponibles:', err);
+  }
+}
+
+function populateSelect(id, items, placeholder, valueKey = 'id', textKey = 'nombre') {
+  var sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">' + esc(placeholder) + '</option>' +
+    items.map(function(i) { return '<option value="' + esc(i[valueKey]) + '">' + esc(i[textKey]) + '</option>'; }).join('');
+  sel.value = ''; // Reset selected value
+}
+
+function populateCiudadSelect(ciudades) {
+  var sel = document.getElementById('p-ciudad');
+  if (!sel) return;
+  var groups = {};
+  ciudades.forEach(function(c) {
+    var p = c.provincia || 'Otras';
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(c);
+  });
+  var html = '<option value="">Sin especificar</option>';
+  Object.keys(groups).sort().forEach(function(prov) {
+    html += '<optgroup label="' + esc(prov) + '">';
+    groups[prov].forEach(function(c) {
+      html += '<option value="' + esc(c.id) + '">' + esc(c.nombre) + '</option>';
+    });
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TABLA DE PERSONAL
+══════════════════════════════════════════════════════════ */
+async function loadEmpleados(q) {
+  var tbody = document.getElementById('personas-tbody');
+  var infoEl = document.getElementById('personas-result-info');
+  var params = { limit: 50 };
+  if (q) {
+    params.q = q;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' +
+      '<span class="spinner-border spinner-border-sm me-2"></span>Buscando...</td></tr>';
+  } else {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' +
+      '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  }
+
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'employees', null, params);
+    personasList = data.items || [];
+    document.getElementById('personas-count').textContent = data.total !== undefined ? data.total : personasList.length;
+    renderTable(personasList, q);
+    if (q) {
+      infoEl.textContent = personasList.length + ' resultado(s) para "' + q + '"';
+    } else {
+      infoEl.textContent = 'Últimos ' + personasList.length + ' registros';
+    }
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">' +
+      '<i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar.') + '</td></tr>';
+  }
+}
+
+var doSearch = debounce(function(q) {
+  loadEmpleados(q);
+}, 350);
+
+function renderTable(items) {
+  var tbody = document.getElementById('personas-tbody');
+  if (!items || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5">' +
+      '<i class="bi bi-person-x fs-2 d-block mb-2 opacity-25"></i>Sin resultados.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(function(p) {
+    var badge = parseInt(p.pi_estado) === 1
+      ? '<span class="badge rounded-pill bg-success">Activo</span>'
+      : '<span class="badge rounded-pill bg-secondary">Inactivo</span>';
+    return '<tr>' +
+      '<td><code>' + esc(p.identificacion) + '</code></td>' +
+      '<td class="fw-semibold">' + esc(p.nombre_completo) + '</td>' +
+      '<td><span class="badge bg-primary">' + esc(p.tipo || 'Empleado') + '</span></td>' +
+      '<td>' + badge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="verPersona(' + p.id + ')">' +
+          '<i class="bi bi-eye me-1"></i>Ver</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="editarPersona(' + p.id + ')">' +
+          '<i class="bi bi-pencil"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════
+   FILAS DINÁMICAS (TELÉFONOS / CORREOS)
+══════════════════════════════════════════════════════════ */
+function addTelefonoRow(numero, disabled) {
+  document.getElementById('telefono-placeholder').classList.add('d-none');
+  var div = document.createElement('div');
+  div.className = 'dynamic-row';
+  div.innerHTML = '<input type="tel" class="form-control form-control-sm" placeholder="Número" ' +
+    'value="' + esc(numero || '') + '"' + (disabled ? ' disabled' : '') + '>' +
+    (disabled ? '' : '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+      'onclick="this.closest(\'.dynamic-row\').remove();syncPlaceholders()"><i class="bi bi-x-lg"></i></button>');
+  document.getElementById('telefonos-container').appendChild(div);
+}
+
+function addCorreoRow(email, disabled) {
+  document.getElementById('correo-placeholder').classList.add('d-none');
+  var div = document.createElement('div');
+  div.className = 'dynamic-row';
+  div.innerHTML = '<input type="email" class="form-control form-control-sm" placeholder="correo@ejemplo.com" ' +
+    'value="' + esc(email || '') + '"' + (disabled ? ' disabled' : '') + '>' +
+    (disabled ? '' : '<button type="button" class="btn btn-sm btn-outline-danger" ' +
+      'onclick="this.closest(\'.dynamic-row\').remove();syncPlaceholders()"><i class="bi bi-x-lg"></i></button>');
+  document.getElementById('correos-container').appendChild(div);
+}
+
+function syncPlaceholders() {
+  var tels   = document.querySelectorAll('#telefonos-container .dynamic-row');
+  var mails  = document.querySelectorAll('#correos-container .dynamic-row');
+  document.getElementById('telefono-placeholder').classList.toggle('d-none', tels.length > 0);
+  document.getElementById('correo-placeholder').classList.toggle('d-none',   mails.length > 0);
+}
+
+function clearDynamicRows() {
+  document.getElementById('telefonos-container').innerHTML = '';
+  document.getElementById('correos-container').innerHTML  = '';
+  document.getElementById('telefono-placeholder').classList.remove('d-none');
+  document.getElementById('correo-placeholder').classList.remove('d-none');
+}
+
+function getTelefonos() {
+  return Array.from(document.querySelectorAll('#telefonos-container .dynamic-row input'))
+    .map(function(i) { return { numero: i.value.trim() }; }).filter(function(t) { return t.numero; });
+}
+
+function getCorreos() {
+  return Array.from(document.querySelectorAll('#correos-container .dynamic-row input'))
+    .map(function(i) { return { email: i.value.trim() }; }).filter(function(c) { return c.email; });
+}
+
+/* ══════════════════════════════════════════════════════════
+   HELPERS MODAL
+══════════════════════════════════════════════════════════ */
+function goToFirstTab() {
+  var first = document.querySelector('#persona-tabs .nav-link');
+  if (first) bootstrap.Tab.getOrCreateInstance(first).show();
+}
+
+function setFormDisabled(disabled) {
+  var fields = document.querySelectorAll('#form-persona input, #form-persona select, #form-persona textarea');
+  fields.forEach(function(el) { el.disabled = disabled; });
+
+  ['btn-add-telefono','btn-add-correo'].forEach(function(bid) {
+    var b = document.getElementById(bid);
+    if (b) b.classList.toggle('d-none', disabled);
+  });
+  document.querySelectorAll('#telefonos-container .dynamic-row button, #correos-container .dynamic-row button')
+    .forEach(function(b) { b.classList.toggle('d-none', disabled); });
+  document.getElementById('btn-guardar-persona').classList.toggle('d-none', disabled);
+}
+
+function showModalSpinner(show) {
+  document.getElementById('modal-spinner').classList.toggle('d-none', !show);
+  document.getElementById('form-persona').classList.toggle('d-none',   show);
+}
+
+function showModalError(msg) {
+  var el = document.getElementById('modal-error');
+  el.classList.remove('d-none');
+  document.getElementById('modal-error-msg').textContent = msg || 'Error al cargar el perfil.';
+}
+
+function hideModalError() {
+  document.getElementById('modal-error').classList.add('d-none');
+}
+
+function resetForm() {
+  document.getElementById('form-persona').reset();
+  clearDynamicRows();
+  hideModalError();
+  goToFirstTab();
+  var selects = document.querySelectorAll('#form-persona select');
+  selects.forEach(function(sel) { sel.value = ''; });
+  document.getElementById('p-estado-pi').value = '1';
+}
+
+function fillFormFromProfile(profile, editMode) {
+  document.getElementById('p-identificacion').value   = profile.identificacion   || '';
+  document.getElementById('p-primer-nombre').value    = profile.primer_nombre    || '';
+  document.getElementById('p-segundo-nombre').value   = profile.segundo_nombre   || '';
+  document.getElementById('p-primer-apellido').value  = profile.primer_apellido  || '';
+  document.getElementById('p-segundo-apellido').value = profile.segundo_apellido || '';
+  document.getElementById('p-fecha-nac').value        = profile.fecha_nacimiento ? String(profile.fecha_nacimiento).substring(0, 10) : '';
+  document.getElementById('p-direccion').value        = profile.direccion        || '';
+  document.getElementById('p-genero').value           = profile.genero_id || '';
+  document.getElementById('p-etnia').value            = profile.etnia_id || '';
+  document.getElementById('p-nacionalidad').value     = profile.nacionalidad_id || '';
+  document.getElementById('p-ciudad').value           = profile.ciudad_id || '';
+  document.getElementById('p-tipo-persona').value     = profile.tipo_persona_id || '';
+  document.getElementById('p-estado-pi').value        = (profile.pi_estado !== undefined && profile.pi_estado !== null) ? profile.pi_estado : 1;
+  document.getElementById('p-grupo-sanguineo').value   = profile.grupo_sanguineo || '';
+  document.getElementById('p-contacto-nombre').value   = profile.contacto_emergencia_nombre || '';
+  document.getElementById('p-contacto-telefono').value = profile.contacto_emergencia_telefono || '';
+  document.getElementById('p-alergias').value          = profile.alergias || '';
+  document.getElementById('p-enfermedades').value      = profile.enfermedades_preexistentes || '';
+  document.getElementById('p-medicamentos').value      = profile.medicamentos_actuales || '';
+  document.getElementById('p-username').value          = profile.username || '';
+  document.getElementById('p-tipo-user').value         = profile.tipo_user || '';
+
+  clearDynamicRows();
+  var tels  = Array.isArray(profile.telefonos) ? profile.telefonos : [];
+  var mails = Array.isArray(profile.correos)   ? profile.correos   : [];
+  if (tels.length)  { tels.forEach(function(t) { addTelefonoRow(t.numero, !editMode); }); }
+  else if (editMode){ addTelefonoRow('', false); }
+  if (mails.length) { mails.forEach(function(c) { addCorreoRow(c.email, !editMode); }); }
+  else if (editMode){ addCorreoRow('', false); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   VER / EDITAR / NUEVO
+══════════════════════════════════════════════════════════ */
+function verPersona(id)    { abrirModal(id, false); }
+function editarPersona(id) { abrirModal(id, true);  }
+
+async function abrirModal(id, editMode) {
+  resetForm();
+  document.getElementById('modal-persona-label').innerHTML =
+    '<i class="bi bi-person-badge me-2"></i>' + (editMode ? 'Editar Empleado' : 'Ficha del Empleado');
+
+  if (!bsModal) bsModal = new bootstrap.Modal(document.getElementById('modal-persona'));
+  bsModal.show();
+  showModalSpinner(true);
+
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'profile', null, { id: id });
+    var profile = (data && data.persona) ? data.persona : (data || {});
+    document.getElementById('persona-id').value = id;
+    fillFormFromProfile(profile, editMode);
+    showModalSpinner(false);
+    setFormDisabled(!editMode);
+  } catch (err) {
+    showModalSpinner(false);
+    showModalError(err.message || 'No se pudo cargar la ficha del empleado.');
+  }
+}
+
+function abrirNuevo() {
+  resetForm();
+  document.getElementById('persona-id').value = '';
+  document.getElementById('modal-persona-label').innerHTML =
+    '<i class="bi bi-person-plus-fill me-2"></i>Nuevo Empleado';
+  addTelefonoRow('', false);
+  addCorreoRow('', false);
+  setFormDisabled(false);
+  if (!bsModal) bsModal = new bootstrap.Modal(document.getElementById('modal-persona'));
+  bsModal.show();
+}
+
+/* ══════════════════════════════════════════════════════════
+   GUARDAR
+══════════════════════════════════════════════════════════ */
+document.getElementById('btn-guardar-persona').addEventListener('click', async function() {
+  var id = document.getElementById('persona-id').value;
+
+  if (!document.getElementById('p-identificacion').value.trim() || !document.getElementById('p-primer-nombre').value.trim() || !document.getElementById('p-primer-apellido').value.trim() || !document.getElementById('p-tipo-persona').value) {
+    goToFirstTab();
+    showToast('Identificación, nombres, apellidos y rol son obligatorios.', 'warning');
+    return;
+  }
+
+  var body = {
+    identificacion:   document.getElementById('p-identificacion').value.trim(),
+    primer_nombre:    document.getElementById('p-primer-nombre').value.trim(),
+    segundo_nombre:   document.getElementById('p-segundo-nombre').value.trim(),
+    primer_apellido:  document.getElementById('p-primer-apellido').value.trim(),
+    segundo_apellido: document.getElementById('p-segundo-apellido').value.trim(),
+    fecha_nacimiento: document.getElementById('p-fecha-nac').value || null,
+    genero:           document.getElementById('p-genero').value || null,
+    etnia:            document.getElementById('p-etnia').value || null,
+    nacionalidad:     document.getElementById('p-nacionalidad').value || null,
+    ciudad:           document.getElementById('p-ciudad').value || null,
+    direccion:        document.getElementById('p-direccion').value.trim(),
+    institucion:      institucionId,
+    tipo_persona_id:  document.getElementById('p-tipo-persona').value,
+    pi_estado:        parseInt(document.getElementById('p-estado-pi').value || '1'),
+    grupo_sanguineo:  document.getElementById('p-grupo-sanguineo').value || null,
+    contacto_emergencia_nombre:   document.getElementById('p-contacto-nombre').value.trim(),
+    contacto_emergencia_telefono: document.getElementById('p-contacto-telefono').value.trim(),
+    alergias:         document.getElementById('p-alergias').value.trim(),
+    enfermedades_preexistentes: document.getElementById('p-enfermedades').value.trim(),
+    medicamentos_actuales: document.getElementById('p-medicamentos').value.trim(),
+    telefonos:        getTelefonos(),
+    correos:          getCorreos(),
+    username:         document.getElementById('p-username').value.trim(),
+    password:         document.getElementById('p-password').value,
+    tipo_user:        document.getElementById('p-tipo-user').value,
+  };
+
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  try {
+    var method = id ? 'PUT' : 'POST';
+    var params = id ? { id: id } : null;
+    await Cuspide.api.call(method, CONFIG.ENDPOINTS.personas, 'saveemployee', body, params);
+    showToast(id ? 'Empleado actualizado.' : 'Empleado registrado.', 'success');
+    if (bsModal) bsModal.hide();
+    loadEmpleados();
+  } catch (err) {
+    showToast(err.message || 'Error al guardar.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Cambios';
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadCatalogs();
+  loadEmpleados();
+
+  /* Evita "Blocked aria-hidden on focused element" al cerrar el modal */
+  document.getElementById('modal-persona').addEventListener('hide.bs.modal', function() {
+    if (document.activeElement && this.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  });
+
+  document.getElementById('persona-search').addEventListener('input', function() {
+    doSearch(this.value.trim() || null);
+  });
+
+  document.getElementById('btn-limpiar-busqueda').addEventListener('click', function() {
+    document.getElementById('persona-search').value = '';
+    loadEmpleados();
+  });
+
+  document.getElementById('btn-nuevo-empleado').addEventListener('click', abrirNuevo);
+
+  document.getElementById('btn-add-telefono').addEventListener('click', function() {
+    addTelefonoRow('', false);
+  });
+
+  document.getElementById('btn-add-correo').addEventListener('click', function() {
+    addCorreoRow('', false);
+  });
+});
+</script>
+{% endblock %}

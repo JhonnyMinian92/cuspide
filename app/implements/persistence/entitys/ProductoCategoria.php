@@ -11,11 +11,11 @@ class ProductoCategoria
   private ?int $id;
   private string $nombre;
   private string $nemonico;
-  private string $descripcion;
+  private ?string $descripcion;
   private int $institucion;
   private int $estado;
 
-  public function __construct(?int $id, string $nombre, string $nemonico, string $descripcion, mixed $institucion, mixed $estado)
+  public function __construct(?int $id, string $nombre, string $nemonico, ?string $descripcion, mixed $institucion, mixed $estado)
   {
     $this->id = $id;
     $this->nombre = $nombre;
@@ -25,19 +25,55 @@ class ProductoCategoria
     $this->estado = $this->extractId($estado);
   }
 
-  public function getId(): ?int { return $this->id; }
-  public function getNombre(): string { return $this->nombre; }
-  public function getNemonico(): string { return $this->nemonico; }
-  public function getDescripcion(): string { return $this->descripcion; }
-  public function getInstitucion(): ?Institucion { return $this->institucion === null ? null : Institucion::from($this->institucion); }
-  public function getEstado(): ?Estado { return $this->estado === null ? null : Estado::from($this->estado); }
+  public function getId(): ?int
+  {
+    return $this->id;
+  }
+  public function getNombre(): string
+  {
+    return $this->nombre;
+  }
+  public function getNemonico(): string
+  {
+    return $this->nemonico;
+  }
+  public function getDescripcion(): ?string
+  {
+    return $this->descripcion;
+  }
+  public function getInstitucion(): ?Institucion
+  {
+    return $this->institucion === null ? null : Institucion::from($this->institucion);
+  }
+  public function getEstado(): ?Estado
+  {
+    return $this->estado === null ? null : Estado::from($this->estado);
+  }
 
-  public function setId(?int $id): void { $this->id = $id; }
-  public function setNombre(string $nombre): void { $this->nombre = $nombre; }
-  public function setNemonico(string $nemonico): void { $this->nemonico = $nemonico; }
-  public function setDescripcion(string $descripcion): void { $this->descripcion = $descripcion; }
-  public function setInstitucion(mixed $institucion): void { $this->institucion = $this->extractId($institucion); }
-  public function setEstado(mixed $estado): void { $this->estado = $this->extractId($estado); }
+  public function setId(?int $id): void
+  {
+    $this->id = $id;
+  }
+  public function setNombre(string $nombre): void
+  {
+    $this->nombre = $nombre;
+  }
+  public function setNemonico(string $nemonico): void
+  {
+    $this->nemonico = $nemonico;
+  }
+  public function setDescripcion(?string $descripcion): void
+  {
+    $this->descripcion = $descripcion;
+  }
+  public function setInstitucion(mixed $institucion): void
+  {
+    $this->institucion = $this->extractId($institucion);
+  }
+  public function setEstado(mixed $estado): void
+  {
+    $this->estado = $this->extractId($estado);
+  }
 
   private function extractId(mixed $value): ?int
   {
@@ -58,6 +94,6 @@ class ProductoCategoria
       if ($entity) return $entity;
     } catch (\Exception $e) {
     }
-    return new self($id, '', '', '', 0, 0);
+    return new self($id, '', '', null, 0, 0);
   }
 }

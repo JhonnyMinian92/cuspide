@@ -51,4 +51,26 @@ class PeriodoAcademicoRepository
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ? new PeriodoAcademico($row['id'], $row['nombre'], $row['fecha_inicio'], $row['fecha_fin'], $row['institucion'], $row['estado']) : null;
   }
+
+  public function findByInstitucion(int $institucionId): array
+  {
+    $stmt = $this->db->prepare(
+      'SELECT * FROM periodos_academicos WHERE institucion = :inst AND estado = 1 ORDER BY fecha_inicio DESC'
+    );
+    $stmt->execute([':inst' => $institucionId]);
+    return array_map(fn($r) => new PeriodoAcademico($r['id'], $r['nombre'], $r['fecha_inicio'], $r['fecha_fin'], $r['institucion'], $r['estado']),
+      $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+  }
+
+  public function findActualByInstitucion(int $institucionId): ?PeriodoAcademico
+  {
+    $stmt = $this->db->prepare(
+      "SELECT * FROM periodos_academicos WHERE institucion = :inst AND estado = 1
+       AND fecha_inicio <= CURDATE() AND fecha_fin >= CURDATE()
+       ORDER BY fecha_inicio DESC LIMIT 1"
+    );
+    $stmt->execute([':inst' => $institucionId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ? new PeriodoAcademico($row['id'], $row['nombre'], $row['fecha_inicio'], $row['fecha_fin'], $row['institucion'], $row['estado']) : null;
+  }
 }

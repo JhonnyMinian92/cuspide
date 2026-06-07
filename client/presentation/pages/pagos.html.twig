@@ -1,0 +1,2014 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'pagos' %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Gestión de Pagos{% endblock %}
+
+{% block head %}
+<style>
+/* ── Tipo badges ── */
+.tipo-badge { font-size:.7rem; font-weight:600; padding:.2rem .55rem; border-radius:20px; white-space:nowrap; }
+.tipo-MATRICULA   { background:rgba(59,130,246,.13);color:#2563eb;border:1px solid rgba(59,130,246,.35); }
+.tipo-MENSUALIDAD { background:rgba(245,158,11,.13);color:#d97706;border:1px solid rgba(245,158,11,.35); }
+.tipo-VENTA       { background:rgba(139,92,246,.13);color:#7c3aed;border:1px solid rgba(139,92,246,.35); }
+.tipo-EXTERNA     { background:rgba(107,114,128,.13);color:#6b7280;border:1px solid rgba(107,114,128,.35); }
+
+/* ── Overdue rows ── */
+tr.row-overdue td { background:rgba(239,68,68,.05)!important; }
+tr.row-overdue td:first-child { border-left:3px solid #ef4444; }
+tr.row-near-due td { background:rgba(245,158,11,.05)!important; }
+tr.row-near-due td:first-child { border-left:3px solid #f59e0b; }
+
+/* ── Factura cards (cobrar) ── */
+.factura-card { border-radius:10px; border:1px solid var(--app-border); transition:box-shadow .15s; }
+.factura-card:hover { box-shadow:0 2px 12px rgba(0,0,0,.1); }
+.factura-overdue  { border-left:3px solid #ef4444 !important; }
+.factura-near-due { border-left:3px solid #f59e0b !important; }
+.factura-ok       { border-left:3px solid #22c55e !important; }
+
+/* ── Filter buttons ── */
+.btn-filtro.active { font-weight:700; }
+
+/* ── Pending mobile cards ── */
+.pend-card { border-radius:10px; padding:.85rem 1rem; margin-bottom:.6rem;
+             background:var(--card-bg); border:1px solid var(--card-border); }
+.pend-card.pend-overdue  { border-left:3px solid #ef4444; }
+.pend-card.pend-near-due { border-left:3px solid #f59e0b; }
+.pend-card.pend-ok       { border-left:3px solid var(--app-border); }
+
+@media (max-width:575px) {
+  .pend-table-wrap { display:none !important; }
+  .pend-cards-wrap { display:block !important; }
+}
+@media (min-width:576px) {
+  .pend-cards-wrap { display:none !important; }
+  .pend-table-wrap { display:block !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+  <p class="text-muted small mb-0"><i class="bi bi-building me-1"></i>Cobros, historial y reverso de pagos de tu institución.</p>
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-pendientes">
+    <i class="bi bi-arrow-repeat me-1"></i>Actualizar
+  </button>
+</div>
+
+<!-- Tabs de navegación -->
+<ul class="nav nav-pills mb-4 gap-1" id="pagos-tabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-tab="cobrar">
+    <i class="bi bi-cash-coin me-1"></i>Cobrar
+  </button></li>
+  <li class="nav-item"><button class="nav-link" data-tab="reverso">
+    <i class="bi bi-arrow-counterclockwise me-1"></i>Reverso
+  </button></li>
+  <li class="nav-item"><button class="nav-link" data-tab="pendientes">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>Pendientes
+  </button></li>
+</ul>
+
+<!-- ══════════════════════════════════════════════
+     TAB: COBRAR
+═══════════════════════════════════════════════ -->
+<div id="tab-cobrar">
+
+  <div class="card chart-card">
+    <div class="card-body p-4">
+      <h6 class="fw-bold mb-1"><i class="bi bi-cash-coin me-2" style="color:var(--brand-color);"></i>Registrar Cobro</h6>
+      <p class="text-muted small mb-4">Busca al cliente, revisa sus facturas pendientes y registra el pago.</p>
+
+      <!-- Paso 1 -->
+      <div class="mb-4">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">Buscar cliente</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="pago-search"
+            placeholder="Cédula, nombre o apellido..." autocomplete="off">
+          <span class="input-group-text d-none" id="pago-search-spinner">
+            <span class="spinner-border spinner-border-sm"></span>
+          </span>
+        </div>
+        <div id="pago-search-results" class="d-none mt-2">
+          <div class="list-group" id="pago-search-list"></div>
+        </div>
+      </div>
+
+      <!-- Cliente seleccionado -->
+      <div id="pago-cliente-info" class="d-none mb-4">
+        <div class="p-3 rounded d-flex justify-content-between align-items-center"
+          style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+          <div class="d-flex align-items-center gap-3">
+            <div class="avatar-circle" id="pago-cliente-avatar" style="width:40px;height:40px;">?</div>
+            <div>
+              <div class="fw-bold" id="pago-cliente-nombre">—</div>
+              <div class="d-flex gap-2 mt-1">
+                <code class="small" id="pago-cliente-cedula">—</code>
+                <span class="badge bg-secondary rounded-pill small" id="pago-cliente-tipo">—</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cambiar-cliente">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Paso 2: facturas -->
+      <div id="pago-facturas-section" class="d-none mb-4">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          2 · Facturas pendientes <span class="text-muted fw-normal">(FIFO: más antigua → más reciente)</span>
+        </label>
+        <div id="pago-facturas-loading" class="text-muted small">
+          <span class="spinner-border spinner-border-sm me-1"></span> Cargando...
+        </div>
+        <div id="pago-facturas-list" class="d-none"></div>
+        <div id="pago-total-adeudado" class="d-none mt-3 p-3 rounded" style="background:var(--danger-bg);border:1px solid var(--danger-border);">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-semibold" style="color:var(--danger-text);">Total adeudado:</span>
+            <span class="fw-bold fs-5" style="color:var(--danger-text);" id="pago-total-valor">$0.00</span>
+          </div>
+        </div>
+        <div id="pago-sin-deuda" class="d-none alert alert-success mt-2">
+          <i class="bi bi-check-circle-fill me-2"></i>Este cliente no tiene deudas pendientes.
+        </div>
+      </div>
+
+      <!-- Paso 3: formulario de pago -->
+      <div id="pago-form-section" class="d-none">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          3 · Registrar pago
+        </label>
+        <form id="form-pago" autocomplete="off">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Monto a pagar *</label>
+              <div class="input-group">
+                <span class="input-group-text fw-bold">$</span>
+                <input type="number" class="form-control form-control-lg fw-bold" id="pago-monto"
+                  name="monto" step="0.01" min="0.01" required placeholder="0.00">
+              </div>
+              <div class="form-text" id="pago-monto-hint"></div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Forma de Pago *</label>
+              <select class="form-select" id="pago-forma" name="forma_pago" required>
+                <option value="">— Cargando... —</option>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Referencia <span class="text-muted small">(opcional)</span></label>
+              <input type="text" class="form-control" id="pago-referencia" name="referencia"
+                placeholder="Nº transferencia, recibo...">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Observación <span class="text-muted small">(opcional)</span></label>
+              <input type="text" class="form-control" id="pago-observacion" name="observacion"
+                placeholder="Nota del pago...">
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-brand btn-lg w-100 fw-bold" id="btn-registrar-pago">
+              <i class="bi bi-check-circle-fill me-2"></i>Registrar Pago
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Resultado del pago -->
+      <div id="pago-resultado" class="d-none mt-4"></div>
+
+      <!-- Paso 3: Pagos realizados -->
+      <div id="pago-historial-section" class="d-none mt-4 pt-3" style="border-top:1px solid var(--app-border);">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          3 · Pagos realizados
+        </label>
+        <div id="pago-historial-list" class="d-flex flex-column gap-2"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TAB: REVERSO
+═══════════════════════════════════════════════ -->
+<div id="tab-reverso" class="d-none">
+
+  <div class="card chart-card">
+    <div class="card-body p-4">
+      <h6 class="fw-bold mb-1"><i class="bi bi-arrow-counterclockwise me-2 text-danger"></i>Reverso de Pago</h6>
+      <p class="text-muted small mb-4">Busca un pago registrado, verifica su detalle y anúlalo. El saldo de las facturas afectadas se restaura automáticamente.</p>
+
+      <!-- Buscar por cliente para ver historial de pagos -->
+      <div class="mb-4">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          Busca por cliente
+        </label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person-search"></i></span>
+          <input type="search" class="form-control" id="reverso-cliente-search"
+            placeholder="Cédula, nombre o apellido del cliente..." autocomplete="off">
+          <span class="input-group-text d-none" id="reverso-cliente-spinner">
+            <span class="spinner-border spinner-border-sm"></span>
+          </span>
+        </div>
+        <div id="reverso-cliente-results" class="d-none mt-2">
+          <div class="list-group" id="reverso-cliente-list"></div>
+        </div>
+      </div>
+
+      <!-- Lista de pagos del cliente -->
+      <div id="reverso-historial-section" class="d-none mb-4">
+        <label class="form-label fw-semibold small text-uppercase" style="letter-spacing:.05em;">
+          Pagos registrados — <span id="reverso-cliente-nombre-label" class="text-muted fw-normal">—</span>
+        </label>
+        <div id="reverso-pagos-list"></div>
+      </div>
+
+      <!-- Detalle del pago seleccionado -->
+      <div id="reverso-detalle-card" class="d-none">
+        <div class="p-4 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <div class="fw-bold fs-6" id="rev-numero">—</div>
+              <div class="text-muted small" id="rev-fecha">—</div>
+            </div>
+            <span class="badge rounded-pill" id="rev-estado-badge">—</span>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-sm-4">
+              <div class="text-muted small">Monto</div>
+              <div class="fw-bold fs-5" id="rev-monto">—</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="text-muted small">Forma de Pago</div>
+              <div class="fw-semibold" id="rev-forma">—</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="text-muted small">Referencia</div>
+              <div id="rev-referencia">—</div>
+            </div>
+          </div>
+          <!-- Detalle de facturas cubiertas -->
+          <div class="mb-3">
+            <div class="text-muted small fw-semibold mb-1 text-uppercase" style="letter-spacing:.05em;">Facturas cubiertas por este pago</div>
+            <div id="rev-detalles-list" class="d-flex flex-column gap-1"></div>
+          </div>
+          <div id="rev-observacion-row" class="mb-3 text-muted small d-none">
+            <i class="bi bi-chat-left-text me-1"></i><span id="rev-observacion"></span>
+          </div>
+          <div id="rev-motivo-anulacion-row" class="mb-3 d-none">
+            <div class="text-muted small fw-semibold mb-1 text-uppercase" style="letter-spacing:.05em;">Motivo de Anulación</div>
+            <div class="p-2 rounded" style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);font-size:.85rem;" id="rev-motivo-anulacion-text"></div>
+          </div>
+          <!-- Botón anular -->
+          <div id="rev-anular-section" class="d-none">
+            <div class="alert alert-warning py-2 px-3 mb-3" style="font-size:.83rem;">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              <strong>Atención:</strong> Anular este pago restaurará el saldo de todas las facturas cubiertas. Esta acción no se puede deshacer.
+            </div>
+            <button type="button" class="btn btn-danger w-100 fw-bold" id="btn-anular-pago">
+              <i class="bi bi-x-circle-fill me-2"></i>Anular Pago
+            </button>
+          </div>
+          <div id="rev-ya-anulado" class="d-none alert alert-secondary py-2 px-3" style="font-size:.83rem;">
+            <i class="bi bi-info-circle-fill me-1"></i>Este pago ya fue anulado anteriormente.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TAB: PENDIENTES
+═══════════════════════════════════════════════ -->
+<div id="tab-pendientes" class="d-none">
+
+  <div class="card chart-card">
+    <div class="card-body p-4">
+
+      <!-- Encabezado -->
+      <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+        <div>
+          <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Facturas Pendientes</h6>
+          <p class="text-muted small mb-0">Facturas de toda la institución con saldo por cobrar.</p>
+        </div>
+        <span class="badge rounded-pill fs-6 fw-bold"
+          style="background:var(--danger-bg);color:var(--danger-text);border:1px solid var(--danger-border);"
+          id="pendientes-total-badge">$0.00</span>
+      </div>
+
+      <!-- Búsqueda por persona -->
+      <div class="mb-3">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person-search"></i></span>
+          <input type="search" class="form-control" id="pendientes-persona-search"
+            placeholder="Buscar persona (cédula o nombre) para ver sus pendientes..." autocomplete="off">
+          <span class="input-group-text d-none" id="pendientes-persona-spinner">
+            <span class="spinner-border spinner-border-sm"></span>
+          </span>
+        </div>
+        <div id="pendientes-persona-results" class="d-none mt-1">
+          <div class="list-group shadow-sm" id="pendientes-persona-list"></div>
+        </div>
+      </div>
+      <!-- Persona activa como filtro -->
+      <div id="pendientes-persona-activa" class="d-none mb-3">
+        <div class="p-2 rounded d-flex justify-content-between align-items-center"
+          style="background:var(--app-surface-soft);border:1px solid var(--brand-color);border-left:3px solid var(--brand-color);">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-person-fill" style="color:var(--brand-color);"></i>
+            <div>
+              <span class="fw-semibold small" id="pendientes-persona-nombre-activa">—</span>
+              <code class="ms-2 small text-muted" id="pendientes-persona-cedula-activa">—</code>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-limpiar-persona-filtro" title="Ver todos los pendientes">
+            <i class="bi bi-x-lg me-1"></i>Ver todos
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros de vencimiento -->
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary btn-filtro active" id="btn-filtro-todos" onclick="setFiltroVencimiento('all')">
+          <i class="bi bi-list-ul me-1"></i>Todos
+          <span class="badge rounded-pill bg-secondary ms-1" id="cnt-todos">0</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-danger btn-filtro" id="btn-filtro-vencidos" onclick="setFiltroVencimiento('overdue')">
+          <i class="bi bi-exclamation-circle-fill me-1"></i>Vencidos
+          <span class="badge rounded-pill bg-danger ms-1" id="cnt-vencidos">0</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-warning btn-filtro" id="btn-filtro-porvencer" onclick="setFiltroVencimiento('upcoming')">
+          <i class="bi bi-clock me-1"></i>Por vencer <small class="text-muted">(≤15d)</small>
+          <span class="badge rounded-pill bg-warning text-dark ms-1" id="cnt-porvencer">0</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success btn-filtro" id="btn-filtro-aldia" onclick="setFiltroVencimiento('ok')">
+          <i class="bi bi-check-circle me-1"></i>Al día
+          <span class="badge rounded-pill bg-success ms-1" id="cnt-aldia">0</span>
+        </button>
+      </div>
+
+      <!-- Búsqueda -->
+      <div class="mb-3">
+        <input type="search" class="form-control form-control-sm" id="pendientes-filter"
+          placeholder="Filtrar por nombre, cédula o N° factura...">
+      </div>
+
+      <div id="pendientes-loading" class="text-center py-4 text-muted">
+        <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+      </div>
+
+      <div id="pendientes-container" class="d-none">
+
+        <!-- Tabla (sm y superior) -->
+        <div class="pend-table-wrap table-responsive" style="max-height:540px;overflow-y:auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size:.83rem;min-width:660px;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Cliente</th>
+                <th>Factura / Tipo</th>
+                <th>Vencimiento</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Saldo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="pendientes-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Cards (móvil) -->
+        <div class="pend-cards-wrap" id="pendientes-cards"></div>
+
+        <div class="mt-2 text-muted small" id="pendientes-info"></div>
+      </div>
+
+      <div id="pendientes-empty" class="d-none text-center py-4 text-muted">
+        <i class="bi bi-check-circle-fill fs-2 d-block mb-2 text-success opacity-50"></i>
+        Sin facturas pendientes.
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     ÚLTIMOS 20 COBROS (siempre visible)
+═══════════════════════════════════════════════ -->
+<div class="card chart-card mt-4" id="card-recent-pagos">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h6 class="fw-bold mb-1"><i class="bi bi-clock-history me-2" style="color:var(--brand-color);"></i>Últimos 20 Cobros</h6>
+        <p class="text-muted small mb-0">Pagos más recientes registrados en la institución.</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-refresh-recent">
+        <i class="bi bi-arrow-repeat"></i>
+      </button>
+    </div>
+    <div id="recent-loading" class="text-center py-3 text-muted">
+      <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+    </div>
+    <div id="recent-container" class="d-none">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+          <thead class="table-light">
+            <tr>
+              <th>Fecha</th>
+              <th>N° Pago</th>
+              <th>Cliente</th>
+              <th class="text-end">Monto</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="recent-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="recent-empty" class="d-none text-center py-4 text-muted">
+      <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+      Sin cobros registrados.
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Motivo de Anulación -->
+<div class="modal fade" id="modal-anulacion" tabindex="-1" aria-labelledby="modal-anulacion-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-anulacion-label">
+          <i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Pago
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <div class="fw-semibold small text-muted mb-1">Número de pago</div>
+          <code id="modal-anulacion-numero">—</code>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="modal-motivo-select">Motivo de anulación *</label>
+          <select class="form-select" id="modal-motivo-select">
+            <option value="">— Seleccionar motivo —</option>
+            <option value="falta_pago">Falta de pago</option>
+            <option value="cancelacion">Cancelación solicitada por el cliente</option>
+            <option value="error_registro">Error en el registro del pago</option>
+            <option value="vencimiento">Vencimiento del plazo de pago</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="modal-motivo-texto">Descripción <span class="text-muted fw-normal small">(se guardará en el registro)</span></label>
+          <textarea class="form-control" id="modal-motivo-texto" rows="4" maxlength="255" placeholder="Ingrese o edite el motivo..."></textarea>
+          <div class="form-text text-end"><span id="modal-motivo-contador">0</span>/255 caracteres</div>
+        </div>
+        <div class="alert alert-warning py-2 px-3 mb-0" id="modal-anulacion-desc" style="font-size:.83rem;">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          <strong>Atención:</strong> Esta acción es irreversible. El saldo de todas las facturas cubiertas por este pago será restaurado.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger fw-bold" id="btn-modal-anular-confirmar">
+          <i class="bi bi-x-circle-fill me-2"></i>Anular Pago
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Comprobante de Pago -->
+<div class="modal fade" id="modal-pago-detalle" tabindex="-1" aria-labelledby="modal-pago-detalle-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-pago-detalle-label">Comprobante de Pago</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="modal-pago-detalle-body">
+        <!-- JS injected -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-outline-secondary" id="btn-imprimir-pago" onclick="imprimirTicketPago()" disabled>
+          <i class="bi bi-printer me-1"></i>Imprimir Ticket
+        </button>
+        <button type="button" class="btn btn-brand" id="btn-descargar-pago-pdf" onclick="descargarPDFPago()" disabled>
+          <i class="bi bi-file-earmark-pdf me-1"></i>Descargar PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Cobrar Venta Externa -->
+<div class="modal fade" id="modal-cobrar-venta-ext" tabindex="-1" aria-labelledby="modal-cve-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-cve-label">
+          <i class="bi bi-cash-coin me-2" style="color:var(--brand-color);"></i>Cobrar Venta Externa
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cve-id">
+        <div class="mb-3 p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+          <div class="text-muted small">Número de venta</div>
+          <code id="cve-numero">—</code>
+          <span class="ms-3 text-muted small">Saldo pendiente:</span>
+          <span class="fw-bold ms-1" style="color:var(--danger-text);" id="cve-saldo-max">$0.00</span>
+        </div>
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold">Monto a cobrar *</label>
+            <div class="input-group">
+              <span class="input-group-text fw-bold">$</span>
+              <input type="number" class="form-control fw-bold" id="cve-monto"
+                step="0.01" min="0.01" required placeholder="0.00">
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold">Forma de Pago *</label>
+            <select class="form-select" id="cve-forma" required>
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Referencia <span class="text-muted small">(opcional)</span></label>
+            <input type="text" class="form-control" id="cve-referencia" placeholder="Nº transferencia, recibo...">
+          </div>
+        </div>
+        <div class="alert alert-danger mt-3 d-none py-2" id="cve-error"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-brand fw-bold" id="btn-cve-confirmar">
+          <i class="bi bi-check-circle-fill me-2"></i>Registrar Cobro
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toast-container"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Estado global ── */
+var pagoCliente              = null;
+var facturasPendientes       = [];
+var allPendientes            = [];
+var filtroVencimiento        = 'all';
+var formasPago               = [];
+var selectedPagoId           = null;
+var selectedVentaId          = null;
+var selectedVentaExtId       = null;
+var modalAnularMode          = 'pago';
+var currentPagoDetalle       = null;
+var currentVentaExtDetalle   = null;
+var reversoCliente           = null;
+var personaFiltroIdentificacion = null;
+var personaFiltroNombre         = null;
+
+/* ── Helpers ── */
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function fmt(n) { return '$' + parseFloat(n || 0).toFixed(2); }
+function debounce(fn, ms) {
+  var t;
+  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null, a); }, ms); };
+}
+
+function apiGet(path, action, params) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  var url  = base + '/index.php?api=' + encodeURIComponent(action);
+  if (params) {
+    Object.keys(params).forEach(function(k) {
+      if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
+        url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+      }
+    });
+  }
+  return Cuspide.api.request(url, { auth: true });
+}
+function apiPost(path, action, body) {
+  var base = (CONFIG.API_BASE_URL + path).replace(/\/+$/, '');
+  return Cuspide.api.request(base + '/index.php?api=' + encodeURIComponent(action), {
+    method: 'POST', auth: true, body: body
+  });
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  var icons = { success: 'check-circle-fill', danger: 'x-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
+  var toast = document.createElement('div');
+  toast.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+  toast.role = 'alert';
+  toast.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type]||'info-circle-fill') + ' me-2"></i>' + esc(msg) + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+  var c = document.getElementById('toast-container');
+  if (c) c.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 5000);
+}
+
+/* ── TABS ── */
+document.querySelectorAll('[data-tab]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('[data-tab]').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    var tab = btn.getAttribute('data-tab');
+    ['cobrar','reverso','pendientes'].forEach(function(t) {
+      document.getElementById('tab-' + t).classList.toggle('d-none', t !== tab);
+    });
+    if (tab === 'pendientes') loadPendientes();
+  });
+});
+
+/* ════════════════════════════════════════
+   FORMAS DE PAGO — carga dinámica
+═══════════════════════════════════════ */
+function loadFormasPago() {
+  apiGet(CONFIG.ENDPOINTS.pagos, 'formas', {})
+    .then(function(data) {
+      formasPago = Array.isArray(data) ? data : [];
+      var opts = '<option value="">— Seleccionar —</option>'
+        + formasPago.map(function(f) { return '<option value="' + f.id + '">' + esc(f.nombre) + '</option>'; }).join('');
+      document.getElementById('pago-forma').innerHTML = opts;
+      document.getElementById('cve-forma').innerHTML  = opts;
+    })
+    .catch(function() {
+      document.getElementById('pago-forma').innerHTML = '<option value="">— Error al cargar —</option>';
+      document.getElementById('cve-forma').innerHTML  = '<option value="">— Error al cargar —</option>';
+    });
+}
+
+/* ── Cobro de venta externa — confirmar ── */
+document.getElementById('btn-cve-confirmar').addEventListener('click', function() {
+  var id        = parseInt(document.getElementById('cve-id').value);
+  var monto     = parseFloat(document.getElementById('cve-monto').value);
+  var formaPago = document.getElementById('cve-forma').value;
+  var referencia= document.getElementById('cve-referencia').value.trim() || null;
+  var errEl     = document.getElementById('cve-error');
+
+  errEl.classList.add('d-none');
+
+  if (!monto || monto <= 0) { errEl.textContent = 'Ingresa un monto válido.'; errEl.classList.remove('d-none'); return; }
+  if (!formaPago)            { errEl.textContent = 'Selecciona la forma de pago.'; errEl.classList.remove('d-none'); return; }
+
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+
+  apiPost(CONFIG.ENDPOINTS.ventas, 'pay_externa', { id: id, monto: monto, forma_pago: formaPago, referencia: referencia })
+    .then(function(data) {
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cobrar-venta-ext')).hide();
+      showToast(data.mensaje || 'Cobro registrado correctamente.', 'success');
+      allPendientes = [];
+      loadPendientes();
+    })
+    .catch(function(err) {
+      errEl.textContent = err.message || 'Error al registrar el cobro.';
+      errEl.classList.remove('d-none');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registrar Cobro';
+    });
+});
+
+/* ════════════════════════════════════════
+   TAB PENDIENTES
+═══════════════════════════════════════ */
+document.getElementById('btn-refresh-pendientes').addEventListener('click', function() {
+  loadPendientes();
+});
+
+/* ── Helpers de vencimiento ── */
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+function vencimientoStatus(fechaVenc) {
+  if (!fechaVenc) return 'unknown';
+  var now  = new Date(todayStr());
+  var due  = new Date(fechaVenc);
+  var diff = Math.round((due - now) / 86400000);
+  if (diff < 0)  return 'overdue';
+  if (diff <= 15) return 'upcoming';
+  return 'ok';
+}
+
+function tipoBadge(tipo) {
+  var cls = 'tipo-' + (tipo || 'VENTA');
+  var icon = tipo === 'MATRICULA'   ? 'bi-journal-bookmark'
+           : tipo === 'MENSUALIDAD' ? 'bi-calendar-check'
+           : tipo === 'VENTA'       ? 'bi-cart3'
+           :                          'bi-box-arrow-in-right';
+  return '<span class="tipo-badge ' + cls + '"><i class="bi ' + icon + ' me-1"></i>' + esc(tipo || 'VENTA') + '</span>';
+}
+
+function loadPendientes() {
+  document.getElementById('pendientes-loading').classList.remove('d-none');
+  document.getElementById('pendientes-container').classList.add('d-none');
+  document.getElementById('pendientes-empty').classList.add('d-none');
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'pending', {})
+    .then(function(data) {
+      allPendientes = Array.isArray(data) ? data : [];
+      applyFiltroYRender();
+    })
+    .catch(function(err) {
+      document.getElementById('pendientes-loading').innerHTML = '<div class="text-danger small">' + esc(err.message) + '</div>';
+    })
+    .finally(function() {
+      document.getElementById('pendientes-loading').classList.add('d-none');
+    });
+}
+
+function applyFiltroYRender() {
+  var q = (document.getElementById('pendientes-filter').value || '').trim().toLowerCase();
+
+  /* Aplicar filtro por persona seleccionada primero */
+  var base = personaFiltroIdentificacion
+    ? allPendientes.filter(function(p) {
+        return (p.identificacion || '') === personaFiltroIdentificacion;
+      })
+    : allPendientes;
+
+  /* Aplicar filtro de texto libre sobre la base ya filtrada */
+  if (q) {
+    base = base.filter(function(p) {
+      return (p.nombre||'').toLowerCase().includes(q)
+          || (p.identificacion||'').includes(q)
+          || (p.numero||'').toLowerCase().includes(q);
+    });
+  }
+
+  /* Calcular contadores sobre la base (con persona si aplica, sin texto) */
+  var baseContador = personaFiltroIdentificacion
+    ? allPendientes.filter(function(p) { return (p.identificacion||'') === personaFiltroIdentificacion; })
+    : allPendientes;
+
+  var counts = { overdue: 0, upcoming: 0, ok: 0 };
+  baseContador.forEach(function(p) {
+    var s = vencimientoStatus(p.fecha_vencimiento);
+    if (s === 'overdue')  counts.overdue++;
+    else if (s === 'upcoming') counts.upcoming++;
+    else counts.ok++;
+  });
+  document.getElementById('cnt-todos').textContent    = baseContador.length;
+  document.getElementById('cnt-vencidos').textContent = counts.overdue;
+  document.getElementById('cnt-porvencer').textContent= counts.upcoming;
+  document.getElementById('cnt-aldia').textContent    = counts.ok;
+
+  /* Aplicar filtro de vencimiento */
+  var filtered = filtroVencimiento === 'all' ? base : base.filter(function(p) {
+    return vencimientoStatus(p.fecha_vencimiento) === filtroVencimiento;
+  });
+
+  renderPendientes(filtered);
+}
+
+function setFiltroVencimiento(mode) {
+  filtroVencimiento = mode;
+  document.querySelectorAll('.btn-filtro').forEach(function(b) { b.classList.remove('active'); });
+  var map = { all: 'btn-filtro-todos', overdue: 'btn-filtro-vencidos', upcoming: 'btn-filtro-porvencer', ok: 'btn-filtro-aldia' };
+  var btn = document.getElementById(map[mode]);
+  if (btn) btn.classList.add('active');
+  applyFiltroYRender();
+}
+
+function renderPendientes(items) {
+  var totalSaldo = items.reduce(function(acc, p) { return acc + parseFloat(p.saldo || 0); }, 0);
+  document.getElementById('pendientes-total-badge').textContent = fmt(totalSaldo);
+
+  if (!items.length) {
+    document.getElementById('pendientes-container').classList.add('d-none');
+    document.getElementById('pendientes-empty').classList.remove('d-none');
+    return;
+  }
+  document.getElementById('pendientes-empty').classList.add('d-none');
+  document.getElementById('pendientes-container').classList.remove('d-none');
+
+  /* Ordenar: vencidos primero, luego por fecha_vencimiento asc */
+  var sorted = items.slice().sort(function(a, b) {
+    var sa = vencimientoStatus(a.fecha_vencimiento);
+    var sb = vencimientoStatus(b.fecha_vencimiento);
+    var order = { overdue: 0, upcoming: 1, ok: 2, unknown: 3 };
+    if (order[sa] !== order[sb]) return order[sa] - order[sb];
+    var da = a.fecha_vencimiento || a.fecha;
+    var db = b.fecha_vencimiento || b.fecha;
+    return new Date(da) - new Date(db);
+  });
+
+  /* ── Tabla (desktop) ── */
+  var tbody = document.getElementById('pendientes-tbody');
+  tbody.innerHTML = sorted.map(function(p) {
+    var saldo   = parseFloat(p.saldo || 0);
+    var total   = parseFloat(p.total || 0);
+    var pct     = total > 0 ? Math.round((1 - saldo / total) * 100) : 0;
+    var status  = vencimientoStatus(p.fecha_vencimiento);
+    var rowCls  = status === 'overdue' ? 'row-overdue' : status === 'upcoming' ? 'row-near-due' : '';
+
+    var vencBadge = '';
+    if (!p.fecha_vencimiento) {
+      vencBadge = '<span class="badge bg-secondary" style="font-size:.65rem;">—</span>';
+    } else if (status === 'overdue') {
+      vencBadge = '<span class="badge bg-danger ms-1" style="font-size:.65rem;"><i class="bi bi-exclamation-circle me-1"></i>VENCIDO</span>';
+    } else if (status === 'upcoming') {
+      var daysLeft = Math.round((new Date(p.fecha_vencimiento) - new Date(todayStr())) / 86400000);
+      vencBadge = '<span class="badge bg-warning text-dark ms-1" style="font-size:.65rem;"><i class="bi bi-clock me-1"></i>' + daysLeft + 'd</span>';
+    }
+
+    var accionCobrar = p.tipo_origen === 'externa'
+      ? 'onclick="abrirCobrarVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\',' + p.saldo + ')"'
+      : 'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')"';
+    var accionAnular = p.tipo_origen === 'externa'
+      ? 'onclick="abrirAnularVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\')"'
+      : 'onclick="abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\',\'' + esc(p.tipo || 'VENTA') + '\')"';
+
+    return '<tr class="' + rowCls + '">' +
+      '<td>' +
+        '<div class="fw-semibold" style="font-size:.82rem;">' + esc(p.nombre) + '</div>' +
+        '<code style="font-size:.7rem;">' + esc(p.identificacion) + '</code>' +
+      '</td>' +
+      '<td>' +
+        '<div class="fw-semibold" style="font-size:.78rem;">' + esc(p.numero) + '</div>' +
+        tipoBadge(p.tipo) +
+        '<div style="font-size:.7rem;color:var(--app-text-muted);margin-top:.15rem;">' + esc(p.fecha ? p.fecha.split(' ')[0] : '') + '</div>' +
+      '</td>' +
+      '<td>' +
+        '<div style="font-size:.78rem;">' + esc(p.fecha_vencimiento || '—') + '</div>' +
+        vencBadge +
+      '</td>' +
+      '<td class="text-end" style="font-size:.82rem;color:var(--app-text-muted);">' + fmt(total) + '</td>' +
+      '<td class="text-end fw-bold" style="color:var(--danger-text);">' + fmt(saldo) + '</td>' +
+      '<td>' +
+        '<div class="d-flex gap-1">' +
+          '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' + accionCobrar + '>' +
+            '<i class="bi bi-cash"></i>' +
+          '</button>' +
+          '<button type="button" class="btn btn-xs btn-outline-danger btn-sm" title="Anular" ' + accionAnular + '>' +
+            '<i class="bi bi-x-circle"></i>' +
+          '</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  /* ── Cards (móvil) ── */
+  var cardsEl = document.getElementById('pendientes-cards');
+  cardsEl.innerHTML = sorted.map(function(p) {
+    var saldo  = parseFloat(p.saldo  || 0);
+    var total  = parseFloat(p.total  || 0);
+    var pct    = total > 0 ? Math.round((1 - saldo / total) * 100) : 0;
+    var status = vencimientoStatus(p.fecha_vencimiento);
+    var cardCls = status === 'overdue' ? 'pend-overdue' : status === 'upcoming' ? 'pend-near-due' : 'pend-ok';
+
+    var accionCobrar = p.tipo_origen === 'externa'
+      ? 'abrirCobrarVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\',' + p.saldo + ')'
+      : 'cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')';
+    var accionAnular = p.tipo_origen === 'externa'
+      ? 'abrirAnularVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\')'
+      : 'abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\',\'' + esc(p.tipo || 'VENTA') + '\')';
+
+    var vencText = !p.fecha_vencimiento ? '—'
+      : (status === 'overdue'  ? '<span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Vencido el ' + esc(p.fecha_vencimiento) + '</span>'
+      : status === 'upcoming' ? '<span class="text-warning fw-semibold"><i class="bi bi-clock me-1"></i>Vence el ' + esc(p.fecha_vencimiento) + '</span>'
+      : '<span class="text-muted">Vence el ' + esc(p.fecha_vencimiento) + '</span>');
+
+    return '<div class="pend-card ' + cardCls + '">'
+      + '<div class="d-flex justify-content-between align-items-start mb-2">'
+      +   '<div>'
+      +     '<div class="fw-semibold" style="font-size:.88rem;">' + esc(p.nombre) + '</div>'
+      +     '<code style="font-size:.72rem;">' + esc(p.identificacion) + '</code>'
+      +   '</div>'
+      +   tipoBadge(p.tipo)
+      + '</div>'
+      + '<div class="d-flex justify-content-between align-items-center mb-1">'
+      +   '<code style="font-size:.74rem;color:var(--app-text-muted);">' + esc(p.numero) + '</code>'
+      +   '<span style="font-size:.72rem;">' + vencText + '</span>'
+      + '</div>'
+      + '<div class="progress mb-2" style="height:4px;background:var(--app-border);">'
+      +   '<div class="progress-bar bg-success" style="width:' + pct + '%"></div>'
+      + '</div>'
+      + '<div class="d-flex justify-content-between align-items-center">'
+      +   '<div>'
+      +     '<span class="text-muted" style="font-size:.78rem;text-decoration:line-through;">' + fmt(total) + '</span>'
+      +     '<span class="fw-bold ms-2" style="color:var(--danger-text);">' + fmt(saldo) + '</span>'
+      +   '</div>'
+      +   '<div class="d-flex gap-1">'
+      +     '<button type="button" class="btn btn-brand btn-sm" style="font-size:.75rem;" onclick="' + accionCobrar + '">'
+      +       '<i class="bi bi-cash me-1"></i>Cobrar'
+      +     '</button>'
+      +     '<button type="button" class="btn btn-outline-danger btn-sm" style="font-size:.75rem;" onclick="' + accionAnular + '">'
+      +       '<i class="bi bi-x-circle"></i>'
+      +     '</button>'
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  var vencidos = sorted.filter(function(p) { return vencimientoStatus(p.fecha_vencimiento) === 'overdue'; }).length;
+  document.getElementById('pendientes-info').innerHTML =
+    items.length + ' factura(s) · Saldo total: <strong>' + fmt(totalSaldo) + '</strong>'
+    + (vencidos > 0 ? ' · <span class="text-danger fw-semibold">' + vencidos + ' vencida(s)</span>' : '');
+}
+
+document.getElementById('pendientes-filter').addEventListener('input', debounce(function() {
+  applyFiltroYRender();
+}, 220));
+
+/* ════════════════════════════════════════
+   TAB COBRAR — búsqueda de cliente
+═══════════════════════════════════════ */
+var doSearch = debounce(function(q) {
+  if (q.length < 2) { document.getElementById('pago-search-results').classList.add('d-none'); return; }
+  document.getElementById('pago-search-spinner').classList.remove('d-none');
+  apiGet(CONFIG.ENDPOINTS.personas, 'search', { q: q })
+    .then(function(data) { renderSearchList(Array.isArray(data) ? data : []); })
+    .catch(function() { document.getElementById('pago-search-results').classList.add('d-none'); })
+    .finally(function() { document.getElementById('pago-search-spinner').classList.add('d-none'); });
+}, 300);
+
+function renderSearchList(items) {
+  var wrap = document.getElementById('pago-search-results');
+  var list = document.getElementById('pago-search-list');
+  if (!items.length) { wrap.classList.add('d-none'); return; }
+  wrap.classList.remove('d-none');
+  list.innerHTML = items.map(function(p) {
+    return '<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2" ' +
+      'onclick="selectCliente(' + p.id + ',\'' + esc(p.nombre_completo) + '\',\'' + esc(p.identificacion) + '\',\'' + esc(p.tipo) + '\')">' +
+      '<div><div class="fw-semibold small">' + esc(p.nombre_completo) + '</div><code class="small">' + esc(p.identificacion) + '</code></div>' +
+      '<span class="badge bg-secondary rounded-pill">' + esc(p.tipo) + '</span>' +
+    '</button>';
+  }).join('');
+}
+
+function selectCliente(id, nombre, cedula, tipo) {
+  pagoCliente = { id: id, nombre: nombre, cedula: cedula, tipo: tipo };
+  document.getElementById('pago-search-results').classList.add('d-none');
+  document.getElementById('pago-search').value = '';
+  document.getElementById('pago-cliente-avatar').textContent = (nombre.charAt(0)||'?').toUpperCase();
+  document.getElementById('pago-cliente-nombre').textContent = nombre;
+  document.getElementById('pago-cliente-cedula').textContent = cedula;
+  document.getElementById('pago-cliente-tipo').textContent   = tipo;
+  document.getElementById('pago-cliente-info').classList.remove('d-none');
+  document.getElementById('pago-resultado').classList.add('d-none');
+  document.getElementById('form-pago').reset();
+  loadFacturasPendientesCliente();
+}
+
+function loadFacturasPendientesCliente() {
+  document.getElementById('pago-facturas-section').classList.remove('d-none');
+  document.getElementById('pago-facturas-loading').classList.remove('d-none');
+  document.getElementById('pago-facturas-list').classList.add('d-none');
+  document.getElementById('pago-total-adeudado').classList.add('d-none');
+  document.getElementById('pago-sin-deuda').classList.add('d-none');
+  document.getElementById('pago-form-section').classList.add('d-none');
+  document.getElementById('pago-historial-section').classList.add('d-none');
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'history', { persona_id: pagoCliente.id })
+    .then(function(data) {
+      var facturas = (data.facturas || []).filter(function(f) { return parseFloat(f.saldo || 0) > 0; });
+      renderFacturasCliente(facturas, data.mensualidades_por_matricula || {});
+      renderPagosRealizados(data.pagos || []);
+    })
+    .catch(function(err) {
+      document.getElementById('pago-facturas-loading').innerHTML = '<div class="text-danger small">' + esc(err.message) + '</div>';
+    })
+    .finally(function() {
+      document.getElementById('pago-facturas-loading').classList.add('d-none');
+    });
+}
+
+function renderFacturasCliente(facturas, mensPorMatricula) {
+  mensPorMatricula = mensPorMatricula || {};
+  facturasPendientes = facturas;
+  var list = document.getElementById('pago-facturas-list');
+
+  if (!facturas.length) {
+    document.getElementById('pago-sin-deuda').classList.remove('d-none');
+    return;
+  }
+
+  var totalSaldo = facturas.reduce(function(acc, f) { return acc + parseFloat(f.saldo || 0); }, 0);
+  var totalCuotasSig = facturas
+    .filter(function(f) { return f.cuota_siguiente != null; })
+    .reduce(function(acc, f) { return acc + parseFloat(f.cuota_siguiente || 0); }, 0);
+
+  /* Ordenar: vencidos primero, luego fecha asc */
+  var sorted = facturas.slice().sort(function(a, b) {
+    var sa = vencimientoStatus(a.fecha_vencimiento);
+    var sb = vencimientoStatus(b.fecha_vencimiento);
+    var ord = { overdue: 0, upcoming: 1, ok: 2, unknown: 3 };
+    if (ord[sa] !== ord[sb]) return ord[sa] - ord[sb];
+    return new Date(a.fecha) - new Date(b.fecha);
+  });
+
+  /* Para alumnos: las MENSUALIDADES con MATRICULA padre en la lista
+     se muestran en el desglose, no como tarjetas independientes */
+  var matriculaIdsEnLista = {};
+  sorted.forEach(function(f) {
+    if (f.tipo === 'MATRICULA' && f.matricula_id != null) {
+      matriculaIdsEnLista[f.matricula_id] = true;
+    }
+  });
+  var displaySorted = sorted.filter(function(f) {
+    if (f.tipo !== 'MENSUALIDAD') return true;
+    return f.matricula_id == null || !matriculaIdsEnLista[f.matricula_id];
+  });
+
+  list.innerHTML = displaySorted.map(function(f, idx) {
+    var saldo  = parseFloat(f.saldo || 0);
+    var total  = parseFloat(f.total || 0);
+    var pct    = total > 0 ? Math.round((1 - saldo / total) * 100) : 0;
+    var status = vencimientoStatus(f.fecha_vencimiento);
+
+    var borderCls = status === 'overdue'  ? 'factura-overdue'
+                  : status === 'upcoming' ? 'factura-near-due'
+                  : 'factura-ok';
+
+    var fifo = idx === 0
+      ? '<span class="badge ms-1" style="background:var(--brand-color);color:var(--brand-text);font-size:.65rem;">FIFO</span>'
+      : '';
+
+    var vencInfo = '';
+    if (f.fecha_vencimiento) {
+      if (status === 'overdue') {
+        vencInfo = '<span class="badge bg-danger ms-1" style="font-size:.65rem;"><i class="bi bi-exclamation-circle me-1"></i>Vencido</span>';
+      } else if (status === 'upcoming') {
+        var dLeft = Math.round((new Date(f.fecha_vencimiento) - new Date(todayStr())) / 86400000);
+        vencInfo = '<span class="badge bg-warning text-dark ms-1" style="font-size:.65rem;"><i class="bi bi-clock me-1"></i>Vence en ' + dLeft + 'd</span>';
+      }
+    }
+
+    var cuotaBadge = f.cuota_siguiente != null
+      ? '<div class="mt-2"><span class="badge rounded-pill" style="background:var(--brand-color);color:var(--brand-text);font-size:.68rem;">'
+          + '<i class="bi bi-calendar2-check me-1"></i>Cuota del período: ' + fmt(f.cuota_siguiente) + '</span></div>'
+      : '';
+
+    var vencLine = f.fecha_vencimiento
+      ? '<div style="font-size:.7rem;color:var(--app-text-muted);">Venc: ' + esc(f.fecha_vencimiento) + '</div>'
+      : '';
+
+    /* ── Desglose de mensualidades (exclusivo para tarjetas MATRICULA) ── */
+    var mensBreakdown = '';
+    if (f.tipo === 'MATRICULA' && f.matricula_id != null) {
+      var mens = mensPorMatricula[f.matricula_id] || [];
+      if (mens.length > 0) {
+        var nPagadas    = mens.filter(function(m) { return m.pagada; }).length;
+        var nPendientes = mens.filter(function(m) { return !m.pagada; }).length;
+        var mensRows = mens.map(function(m) {
+          var mLabel  = m.fecha ? m.fecha.slice(0, 7) : esc(m.numero);
+          var iconCls = m.pagada ? 'bi-check-circle-fill text-success' : 'bi-circle text-warning';
+          var estadoTxt = m.pagada
+            ? '<span style="font-size:.67rem;color:var(--bs-success);">Pagada</span>'
+            : '<span style="font-size:.67rem;color:#d97706;font-weight:600;">' + fmt(m.saldo) + ' pend.</span>';
+          return '<div class="d-flex align-items-center gap-2 px-2 py-1 rounded" '
+            + 'style="background:var(--app-bg);border:1px solid var(--app-border);margin-bottom:2px;">'
+            + '<i class="bi ' + iconCls + '" style="font-size:.78rem;flex-shrink:0;"></i>'
+            + '<span class="flex-grow-1" style="font-size:.72rem;color:var(--app-text-muted);">' + esc(mLabel) + '</span>'
+            + '<span class="fw-semibold" style="font-size:.72rem;">' + fmt(m.total) + '</span>'
+            + estadoTxt
+            + '</div>';
+        }).join('');
+
+        mensBreakdown = '<div class="mt-2 pt-2" style="border-top:1px dashed var(--app-border);">'
+          + '<div class="d-flex justify-content-between align-items-center mb-1">'
+          + '<span style="font-size:.67rem;font-weight:700;color:var(--app-text-muted);text-transform:uppercase;letter-spacing:.05em;">'
+          + '<i class="bi bi-calendar-month me-1"></i>Mensualidades (' + mens.length + ')</span>'
+          + '<span style="font-size:.67rem;">'
+          + '<i class="bi bi-check-circle-fill text-success me-1"></i>' + nPagadas + ' pagada(s)'
+          + '&nbsp;&nbsp;<i class="bi bi-circle text-warning me-1"></i>' + nPendientes + ' pendiente(s)'
+          + '</span>'
+          + '</div>'
+          + mensRows
+          + '</div>';
+      }
+    }
+
+    return '<div class="factura-card p-3 mb-2 ' + borderCls + '" '
+      + 'style="background:var(--app-surface-soft);">'
+      + '<div class="d-flex justify-content-between align-items-start">'
+      +   '<div style="flex:1;min-width:0;">'
+      +     '<div class="d-flex flex-wrap align-items-center gap-1 mb-1">'
+      +       '<span class="fw-semibold" style="font-size:.83rem;">' + esc(f.numero) + '</span>'
+      +       fifo + vencInfo
+      +     '</div>'
+      +     '<div class="d-flex flex-wrap align-items-center gap-1 mb-1">'
+      +       tipoBadge(f.tipo)
+      +       '<span style="font-size:.73rem;color:var(--app-text-muted);">Emitida: ' + esc(f.fecha ? f.fecha.split(' ')[0] : '') + '</span>'
+      +     '</div>'
+      +     vencLine
+      +     '<div class="mt-2 d-flex align-items-center gap-2">'
+      +       '<div class="progress flex-grow-1" style="height:5px;background:var(--app-border);max-width:140px;">'
+      +         '<div class="progress-bar bg-success" style="width:' + pct + '%"></div>'
+      +       '</div>'
+      +       '<span style="font-size:.72rem;color:var(--app-text-muted);">Pagado ' + pct + '%</span>'
+      +     '</div>'
+      +     cuotaBadge
+      +   '</div>'
+      +   '<div class="text-end ms-3 flex-shrink-0">'
+      +     '<div class="text-muted" style="font-size:.75rem;text-decoration:line-through;">' + fmt(total) + '</div>'
+      +     '<div class="fw-bold fs-6" style="color:var(--danger-text);">' + fmt(saldo) + '</div>'
+      +   '</div>'
+      + '</div>'
+      + mensBreakdown
+      + '</div>';
+  }).join('');
+
+  list.classList.remove('d-none');
+  document.getElementById('pago-total-valor').textContent = fmt(totalSaldo);
+  document.getElementById('pago-total-adeudado').classList.remove('d-none');
+  document.getElementById('pago-form-section').classList.remove('d-none');
+
+  var montoSugerido = totalCuotasSig > 0 ? totalCuotasSig : totalSaldo;
+  document.getElementById('pago-monto').value = montoSugerido.toFixed(2);
+  document.getElementById('pago-monto-hint').textContent = totalCuotasSig > 0
+    ? 'Cuota(s) del período: ' + fmt(totalCuotasSig) + ' · Saldo total: ' + fmt(totalSaldo) + ' · Máximo: ' + fmt(totalSaldo)
+    : 'El sistema aplica FIFO: cubre la factura más antigua primero. Máximo: ' + fmt(totalSaldo);
+}
+
+function nombreFormaPago(id) {
+  if (!id) return '—';
+  var fp = formasPago.find(function(f) { return String(f.id) === String(id); });
+  return fp ? fp.nombre : '—';
+}
+
+function renderPagosRealizados(pagos) {
+  var section = document.getElementById('pago-historial-section');
+  var list    = document.getElementById('pago-historial-list');
+  if (!pagos.length) { section.classList.add('d-none'); return; }
+
+  var sorted = pagos.slice().sort(function(a, b) { return new Date(b.fecha) - new Date(a.fecha); });
+  section.classList.remove('d-none');
+  list.innerHTML = sorted.map(function(p) {
+    var esAnulado   = parseInt(p.estado || 1) === 4;
+    var estadoBadge = esAnulado
+      ? '<span class="badge rounded-pill bg-danger" style="font-size:.68rem;">Anulado</span>'
+      : '<span class="badge rounded-pill bg-success" style="font-size:.68rem;">Cobrado</span>';
+    var formaNombre = nombreFormaPago(p.forma_pago);
+
+    return '<div class="p-3 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);'
+      + (esAnulado ? 'opacity:.7;' : '') + '">'
+      + '<div class="d-flex justify-content-between align-items-start">'
+      +   '<div>'
+      +     '<div class="fw-semibold small">' + esc(p.numero) + '</div>'
+      +     '<div style="font-size:.75rem;color:var(--app-text-muted);">'
+      +       esc(p.fecha ? p.fecha.split(' ')[0] : '')
+      +       (formaNombre !== '—' ? ' · <i class="bi bi-credit-card me-1"></i>' + esc(formaNombre) : '')
+      +     '</div>'
+      +   '</div>'
+      +   '<div class="d-flex align-items-center gap-2">'
+      +     '<span class="fw-bold ' + (esAnulado ? 'text-muted text-decoration-line-through' : '') + '">' + fmt(p.monto) + '</span>'
+      +     estadoBadge
+      +   '</div>'
+      + '</div>'
+      + '<div class="mt-2 d-flex justify-content-end">'
+      +   '<button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem;" onclick="verDetallePagoModal(' + p.id + ')">'
+      +     '<i class="bi bi-eye me-1"></i>Ver comprobante'
+      +   '</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+/* ── Registrar pago ── */
+document.getElementById('form-pago').addEventListener('submit', function(e) {
+  e.preventDefault();
+  if (!pagoCliente) { showToast('Selecciona un cliente.', 'warning'); return; }
+
+  var monto      = parseFloat(document.getElementById('pago-monto').value);
+  var formaPago  = parseInt(document.getElementById('pago-forma').value);
+  var referencia = document.getElementById('pago-referencia').value.trim() || null;
+  var observacion= document.getElementById('pago-observacion').value.trim() || null;
+
+  if (isNaN(monto) || monto <= 0) { showToast('El monto debe ser mayor a 0.', 'warning'); return; }
+  if (!formaPago)                  { showToast('Selecciona la forma de pago.', 'warning'); return; }
+
+  var btn = document.getElementById('btn-registrar-pago');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+
+  apiPost(CONFIG.ENDPOINTS.pagos, 'register', {
+    persona:     pagoCliente.id,
+    forma_pago:  formaPago,
+    monto:       monto,
+    referencia:  referencia,
+    observacion: observacion,
+  })
+    .then(function(data) {
+      renderPagoResultado(data, monto);
+      loadFacturasPendientesCliente();
+      allPendientes = [];
+      loadRecentPagos();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al registrar pago.', 'danger'); })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registrar Pago';
+    });
+});
+
+function renderPagoResultado(data, monto) {
+  var saldadas = (data.ventas_saldadas || []);
+  var items = saldadas.length
+    ? '<ul class="mb-0 ps-3">' + saldadas.map(function(id) {
+        return '<li class="small">Factura ID #' + esc(id) + ' — saldada <i class="bi bi-check-circle-fill text-success"></i></li>';
+      }).join('') + '</ul>'
+    : '';
+  var saldoRestante = parseFloat(data.saldo_restante || 0);
+
+  var html = '<div class="alert alert-success">' +
+    '<h6 class="fw-bold mb-2"><i class="bi bi-check-circle-fill me-2"></i>Pago registrado correctamente</h6>' +
+    '<div class="row g-2 small mb-2">' +
+      '<div class="col-sm-6"><strong>Nº pago:</strong> ' + esc(data.numero_pago) + '</div>' +
+      '<div class="col-sm-6"><strong>Monto aplicado:</strong> <span class="fw-bold">' + fmt(data.monto_aplicado) + '</span></div>' +
+      (saldoRestante > 0 ? '<div class="col-12 text-warning"><strong>Saldo sobrante (abono):</strong> ' + fmt(saldoRestante) + '</div>' : '') +
+    '</div>' + items +
+    (data.pago_id ? '<div class="mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,.25);"><button type="button" class="btn btn-sm btn-outline-light fw-semibold" onclick="verDetallePagoModal(' + data.pago_id + ')"><i class="bi bi-eye me-2"></i>Ver Comprobante</button></div>' : '') +
+  '</div>';
+
+  var res = document.getElementById('pago-resultado');
+  res.innerHTML = html;
+  res.classList.remove('d-none');
+  res.scrollIntoView({ behavior: 'smooth' });
+  showToast('Pago de ' + fmt(monto) + ' registrado.', 'success');
+}
+
+/* ── Cambiar cliente ── */
+document.getElementById('btn-cambiar-cliente').addEventListener('click', function() {
+  pagoCliente = null;
+  facturasPendientes = [];
+  document.getElementById('pago-cliente-info').classList.add('d-none');
+  document.getElementById('pago-facturas-section').classList.add('d-none');
+  document.getElementById('pago-form-section').classList.add('d-none');
+  document.getElementById('pago-resultado').classList.add('d-none');
+  document.getElementById('pago-historial-section').classList.add('d-none');
+  document.getElementById('pago-search').focus();
+});
+
+/* ── Cobrar desde tabla de pendientes ── */
+function cobrarDesdeTabla(cedula, nombre) {
+  document.querySelectorAll('[data-tab]').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelector('[data-tab="cobrar"]').classList.add('active');
+  ['cobrar','reverso','pendientes'].forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('d-none', t !== 'cobrar');
+  });
+  document.getElementById('pago-search').value = cedula;
+  doSearch(cedula);
+  setTimeout(function() {
+    document.getElementById('pago-search').scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+}
+
+/* ── Ir a reverso desde tabla de pendientes ── */
+function reversoDesdeTabla(cedula, nombre) {
+  document.querySelectorAll('[data-tab]').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelector('[data-tab="reverso"]').classList.add('active');
+  ['cobrar','reverso','pendientes'].forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('d-none', t !== 'reverso');
+  });
+  document.getElementById('reverso-cliente-search').value = cedula;
+  doReversoClienteSearch(cedula);
+  setTimeout(function() {
+    document.getElementById('reverso-cliente-search').scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+}
+
+/* ════════════════════════════════════════
+   TAB REVERSO
+═══════════════════════════════════════ */
+
+/* Buscar cliente para ver historial */
+var doReversoClienteSearch = debounce(function(q) {
+  if (q.length < 2) { document.getElementById('reverso-cliente-results').classList.add('d-none'); return; }
+  document.getElementById('reverso-cliente-spinner').classList.remove('d-none');
+  apiGet(CONFIG.ENDPOINTS.personas, 'search', { q: q })
+    .then(function(data) { renderReversoClienteList(Array.isArray(data) ? data : []); })
+    .catch(function() { document.getElementById('reverso-cliente-results').classList.add('d-none'); })
+    .finally(function() { document.getElementById('reverso-cliente-spinner').classList.add('d-none'); });
+}, 300);
+
+document.getElementById('reverso-cliente-search').addEventListener('input', function() {
+  doReversoClienteSearch(this.value.trim());
+});
+
+function renderReversoClienteList(items) {
+  var wrap = document.getElementById('reverso-cliente-results');
+  var list = document.getElementById('reverso-cliente-list');
+  if (!items.length) { wrap.classList.add('d-none'); return; }
+  wrap.classList.remove('d-none');
+  list.innerHTML = items.map(function(p) {
+    return '<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2" ' +
+      'onclick="selectReversoCliente(' + p.id + ',\'' + esc(p.nombre_completo) + '\')">' +
+      '<div><div class="fw-semibold small">' + esc(p.nombre_completo) + '</div><code class="small">' + esc(p.identificacion) + '</code></div>' +
+      '<span class="badge bg-secondary rounded-pill">' + esc(p.tipo) + '</span>' +
+    '</button>';
+  }).join('');
+}
+
+function selectReversoCliente(id, nombre) {
+  reversoCliente = { id: id, nombre: nombre };
+  document.getElementById('reverso-cliente-results').classList.add('d-none');
+  document.getElementById('reverso-cliente-search').value = '';
+  document.getElementById('reverso-cliente-nombre-label').textContent = nombre;
+  document.getElementById('reverso-historial-section').classList.remove('d-none');
+  document.getElementById('reverso-detalle-card').classList.add('d-none');
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'history', { persona_id: id })
+    .then(function(data) {
+      var pagos = (data.pagos || []);
+      renderReversoHistorial(pagos);
+    })
+    .catch(function(err) {
+      document.getElementById('reverso-pagos-list').innerHTML =
+        '<div class="text-danger small">' + esc(err.message) + '</div>';
+    });
+}
+
+function renderReversoHistorial(pagos) {
+  var list = document.getElementById('reverso-pagos-list');
+  if (!pagos.length) {
+    list.innerHTML = '<div class="text-muted small py-2">Este cliente no tiene pagos registrados.</div>';
+    return;
+  }
+
+  list.innerHTML = '<div class="d-flex flex-column gap-2">' + pagos.map(function(p) {
+    var estadoId = parseInt(p.estado || 1);
+    var estadoBadge = estadoId === 4
+      ? '<span class="badge bg-danger">Anulado</span>'
+      : estadoId === 1
+        ? '<span class="badge bg-success">Activo</span>'
+        : '<span class="badge bg-secondary">Estado ' + estadoId + '</span>';
+    return '<div class="p-3 rounded d-flex justify-content-between align-items-center cursor-pointer" ' +
+      'style="background:var(--app-surface-soft);border:1px solid var(--app-border);cursor:pointer;" ' +
+      'onclick="cargarDetallePago(' + p.id + ')">' +
+      '<div>' +
+        '<div class="fw-semibold small">' + esc(p.numero) + '</div>' +
+        '<div class="text-muted" style="font-size:.75rem;">' + esc(p.fecha) + '</div>' +
+      '</div>' +
+      '<div class="d-flex align-items-center gap-2">' +
+        '<span class="fw-bold">' + fmt(p.monto) + '</span>' +
+        estadoBadge +
+        '<i class="bi bi-chevron-right text-muted small"></i>' +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function cargarDetallePago(pagoId) {
+  selectedPagoId = pagoId;
+  apiGet(CONFIG.ENDPOINTS.pagos, 'detail', { id: pagoId })
+    .then(function(det) { renderDetallePago(det); })
+    .catch(function(err) { showToast(err.message || 'Error al cargar detalle.', 'danger'); });
+}
+
+function renderDetallePago(det) {
+  selectedPagoId = det.id;
+  var esActivo  = det.estado_id === 1;
+  var esAnulado = det.estado_id === 4;
+
+  document.getElementById('rev-numero').textContent   = det.numero || '—';
+  document.getElementById('rev-fecha').textContent    = det.fecha  || '—';
+  document.getElementById('rev-monto').textContent    = fmt(det.monto);
+  document.getElementById('rev-forma').textContent    = det.forma_pago || '—';
+  document.getElementById('rev-referencia').textContent = det.referencia || '—';
+
+  var estadoBadge = document.getElementById('rev-estado-badge');
+  estadoBadge.textContent = det.estado || '—';
+  estadoBadge.className = 'badge rounded-pill ' + (esAnulado ? 'bg-danger' : esActivo ? 'bg-success' : 'bg-secondary');
+
+  var obs = document.getElementById('rev-observacion');
+  var obsRow = document.getElementById('rev-observacion-row');
+  if (det.observacion) {
+    obs.textContent = det.observacion;
+    obsRow.classList.remove('d-none');
+  } else {
+    obsRow.classList.add('d-none');
+  }
+
+  var motivoRow  = document.getElementById('rev-motivo-anulacion-row');
+  var motivoText = document.getElementById('rev-motivo-anulacion-text');
+  if (esAnulado && det.motivo_anulacion) {
+    motivoText.textContent = det.motivo_anulacion;
+    motivoRow.classList.remove('d-none');
+  } else {
+    motivoRow.classList.add('d-none');
+  }
+
+  var detallesList = document.getElementById('rev-detalles-list');
+  var detalles = det.detalles || [];
+  if (detalles.length) {
+    detallesList.innerHTML = detalles.map(function(d) {
+      return '<div class="d-flex justify-content-between align-items-center p-2 rounded" style="background:var(--app-bg);border:1px solid var(--app-border);">' +
+        '<div>' +
+          '<span class="small fw-semibold">Factura: ' + esc(d.venta_numero || '#' + d.venta_id) + '</span>' +
+          (d.cuota_id ? ' <span class="badge bg-secondary" style="font-size:.65rem;">Cuota #' + d.cuota_id + '</span>' : '') +
+        '</div>' +
+        '<span class="fw-bold small">' + fmt(d.valor) + '</span>' +
+      '</div>';
+    }).join('');
+  } else {
+    detallesList.innerHTML = '<div class="text-muted small">Sin detalle de facturas.</div>';
+  }
+
+  document.getElementById('rev-anular-section').classList.toggle('d-none', !esActivo);
+  var yaAnuladoDiv = document.getElementById('rev-ya-anulado');
+  if (!esActivo) {
+    yaAnuladoDiv.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>' +
+      (esAnulado ? 'Este pago ya fue anulado anteriormente.' : 'Este pago no puede anularse (estado: ' + esc(det.estado) + ').');
+    yaAnuladoDiv.classList.remove('d-none');
+  } else {
+    yaAnuladoDiv.classList.add('d-none');
+  }
+  document.getElementById('reverso-detalle-card').classList.remove('d-none');
+  document.getElementById('reverso-detalle-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Anular pago (reverso) — abre modal ── */
+document.getElementById('btn-anular-pago').addEventListener('click', function() {
+  if (!selectedPagoId) { showToast('No hay pago seleccionado.', 'warning'); return; }
+  modalAnularMode = 'pago';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Pago';
+  var numero = document.getElementById('rev-numero').textContent;
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-anulacion-desc').innerHTML =
+    '<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+    + '<strong>Atención:</strong> Esta acción es irreversible. El saldo de todas las facturas cubiertas por este pago será restaurado.';
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+});
+
+/* ── Anular factura pendiente — abre modal ── */
+function abrirAnularVenta(ventaId, numero, tipo) {
+  selectedVentaId = ventaId;
+  modalAnularMode = 'venta';
+  var tipoLabel = tipo === 'MATRICULA'   ? 'Matrícula'
+                : tipo === 'MENSUALIDAD' ? 'Mensualidad'
+                : 'Factura';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular ' + tipoLabel + ' Pendiente';
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-anulacion-desc').innerHTML =
+    '<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+    + '<strong>Atención:</strong> Esta acción es irreversible. La ' + tipoLabel.toLowerCase()
+    + ' quedará anulada y <strong>ya no aparecerá como pendiente</strong>, sin registrarse como pagada.';
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+}
+
+/* ── Anular venta externa desde tabla de pendientes ── */
+function abrirAnularVentaExterna(id, numero) {
+  selectedVentaExtId = id;
+  modalAnularMode = 'venta_externa';
+  document.getElementById('modal-anulacion-label').innerHTML =
+    '<i class="bi bi-x-circle-fill text-danger me-2"></i>Anular Venta Externa Pendiente';
+  document.getElementById('modal-anulacion-numero').textContent = numero;
+  document.getElementById('modal-anulacion-desc').innerHTML =
+    '<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+    + '<strong>Atención:</strong> Esta acción es irreversible. La venta externa quedará anulada y '
+    + '<strong>ya no aparecerá como pendiente</strong>, sin registrarse como pagada.';
+  document.getElementById('modal-motivo-select').value = '';
+  document.getElementById('modal-motivo-texto').value = '';
+  document.getElementById('modal-motivo-contador').textContent = '0';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).show();
+}
+
+/* ── Cobrar venta externa desde tabla de pendientes ── */
+function abrirCobrarVentaExterna(id, numero, saldo) {
+  document.getElementById('cve-id').value      = id;
+  document.getElementById('cve-numero').textContent = numero;
+  document.getElementById('cve-saldo-max').textContent = fmt(saldo);
+  document.getElementById('cve-monto').value   = parseFloat(saldo).toFixed(2);
+  document.getElementById('cve-monto').max     = parseFloat(saldo).toFixed(2);
+  document.getElementById('cve-forma').value   = '';
+  document.getElementById('cve-referencia').value = '';
+  document.getElementById('cve-error').classList.add('d-none');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cobrar-venta-ext')).show();
+}
+
+function buildVentaExtDetalleHTML(det) {
+  var v = det.venta || {};
+  var c = det.cliente || {};
+  var detallesRows = (det.detalles || []).map(function(d) {
+    return '<tr>'
+      + '<td class="ps-3">' + esc(d.descripcion) + '</td>'
+      + '<td class="text-center">' + esc(d.cantidad) + '</td>'
+      + '<td class="text-end">' + fmt(d.precio_unitario) + '</td>'
+      + '<td class="text-end pe-3 fw-semibold">' + fmt(d.subtotal) + '</td>'
+      + '</tr>';
+  }).join('') || '<tr><td colspan="4" class="text-center text-muted ps-3">Sin productos.</td></tr>';
+
+  return '<div class="row mb-3">'
+    + '<div class="col-md-6">'
+    + '<strong>Cliente:</strong><br>' + esc(c.nombre || 'Anónimo') + '<br>'
+    + (c.identificacion && c.identificacion !== '—' ? '<small class="text-muted">CI: ' + esc(c.identificacion) + '</small>' : '')
+    + (c.telefono && c.telefono !== '—' ? '<br><small class="text-muted">Tel: ' + esc(c.telefono) + '</small>' : '')
+    + '</div>'
+    + '<div class="col-md-6 text-md-end">'
+    + '<strong>Fecha:</strong><br>' + esc(new Date(v.fecha).toLocaleDateString()) + '<br>'
+    + '<span class="badge ' + (v.estado === 1 ? 'bg-success' : 'bg-danger') + ' mt-1">'
+    + (v.estado === 1 ? 'Activa' : 'Anulada') + '</span>'
+    + '</div>'
+    + '</div>'
+    + (v.forma_pago ? '<div class="mb-3"><span class="text-muted small">Forma de Pago:</span> <span class="fw-semibold">' + esc(v.forma_pago) + '</span></div>' : '')
+    + '<h6 class="fw-bold">Productos</h6>'
+    + '<div class="table-responsive border rounded mb-3">'
+    + '<table class="table table-sm table-striped mb-0">'
+    + '<thead class="table-light"><tr>'
+    + '<th class="ps-3">Descripción</th><th class="text-center">Cant.</th>'
+    + '<th class="text-end">P. Unit.</th><th class="text-end pe-3">Subtotal</th>'
+    + '</tr></thead>'
+    + '<tbody>' + detallesRows + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '<div class="d-flex justify-content-end mt-1">'
+    + '<table class="table table-sm mb-0" style="width:auto;min-width:230px;">'
+    + '<tbody>'
+    + '<tr><td class="text-muted">Subtotal:</td><td class="text-end ps-4">' + fmt(v.subtotal) + '</td></tr>'
+    + (v.descuento > 0 ? '<tr><td class="text-muted">Descuento:</td><td class="text-end ps-4 text-success">-' + fmt(v.descuento) + '</td></tr>' : '')
+    + (v.impuesto > 0 ? '<tr><td class="text-muted">Impuesto:</td><td class="text-end ps-4">' + fmt(v.impuesto) + '</td></tr>' : '')
+    + '<tr style="border-top:2px solid var(--app-border);">'
+    + '<td class="fw-bold fs-5 pt-2">Total:</td>'
+    + '<td class="text-end ps-4 fw-bold fs-5 pt-2">' + fmt(v.total) + '</td>'
+    + '</tr>'
+    + (v.saldo > 0 ? '<tr><td style="color:var(--danger-text);" class="fw-semibold">Saldo pendiente:</td>'
+      + '<td class="text-end ps-4 fw-bold" style="color:var(--danger-text);">' + fmt(v.saldo) + '</td></tr>' : '')
+    + '</tbody>'
+    + '</table>'
+    + '</div>';
+}
+
+/* ════════════════════════════════════════
+   MODAL ANULACIÓN — Motivo
+═══════════════════════════════════════ */
+var MOTIVOS = {
+  falta_pago:     'Se ha anulado el pago por motivo de falta de pago por parte del cliente.',
+  cancelacion:    'Se ha anulado el pago debido a una cancelación solicitada por el cliente.',
+  error_registro: 'Se ha anulado el pago debido a un error en el registro de la transacción.',
+  vencimiento:    'Se ha anulado el pago por vencimiento del plazo establecido para el cobro.',
+  otro:           ''
+};
+
+document.getElementById('modal-motivo-select').addEventListener('change', function() {
+  var texto = MOTIVOS[this.value] !== undefined ? MOTIVOS[this.value] : '';
+  var ta = document.getElementById('modal-motivo-texto');
+  ta.value = texto;
+  document.getElementById('modal-motivo-contador').textContent = texto.length;
+});
+
+document.getElementById('modal-motivo-texto').addEventListener('input', function() {
+  document.getElementById('modal-motivo-contador').textContent = this.value.length;
+});
+
+document.getElementById('btn-modal-anular-confirmar').addEventListener('click', function() {
+  var motivo = document.getElementById('modal-motivo-select').value;
+  var texto  = document.getElementById('modal-motivo-texto').value.trim();
+
+  if (!motivo) { showToast('Selecciona un motivo de anulación.', 'warning'); return; }
+  if (!texto)  { showToast('Ingresa una descripción para el motivo.', 'warning'); return; }
+
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-anulacion')).hide();
+
+  var confirmBtn = this;
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+
+  if (modalAnularMode === 'venta') {
+    apiPost(CONFIG.ENDPOINTS.ventas, 'cancel', { id: selectedVentaId, motivo_anulacion: texto })
+      .then(function(data) {
+        showToast(data.mensaje || 'Factura anulada correctamente.', 'success');
+        allPendientes = [];
+        loadPendientes();
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular la factura.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
+  } else if (modalAnularMode === 'venta_externa') {
+    apiPost(CONFIG.ENDPOINTS.ventas, 'cancel_externa', { id: selectedVentaExtId, motivo_anulacion: texto })
+      .then(function(data) {
+        showToast(data.mensaje || 'Venta externa anulada correctamente.', 'success');
+        allPendientes = [];
+        loadPendientes();
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular la venta externa.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
+  } else {
+    var pagoBtn = document.getElementById('btn-anular-pago');
+    pagoBtn.disabled = true;
+    pagoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Anulando...';
+
+    apiPost(CONFIG.ENDPOINTS.pagos, 'anular', { pago_id: selectedPagoId, motivo_anulacion: texto })
+      .then(function(data) {
+        showToast(data.mensaje || 'Pago anulado correctamente.', 'success');
+        cargarDetallePago(selectedPagoId);
+        allPendientes = [];
+        if (reversoCliente) selectReversoCliente(reversoCliente.id, reversoCliente.nombre);
+      })
+      .catch(function(err) { showToast(err.message || 'Error al anular el pago.', 'danger'); })
+      .finally(function() {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+        pagoBtn.disabled = false;
+        pagoBtn.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Anular Pago';
+      });
+  }
+});
+
+/* ── Búsqueda cobrar ── */
+document.getElementById('pago-search').addEventListener('input', function() {
+  doSearch(this.value.trim());
+});
+document.getElementById('pago-search').addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') document.getElementById('pago-search-results').classList.add('d-none');
+});
+
+/* ════════════════════════════════════════
+   MODAL COMPROBANTE DE PAGO
+═══════════════════════════════════════ */
+function verDetallePagoModal(pagoId) {
+  var modalEl = document.getElementById('modal-pago-detalle');
+  var body    = document.getElementById('modal-pago-detalle-body');
+  var lbl     = document.getElementById('modal-pago-detalle-label');
+
+  currentPagoDetalle     = null;
+  currentVentaExtDetalle = null;
+  document.getElementById('btn-imprimir-pago').disabled = true;
+  document.getElementById('btn-descargar-pago-pdf').disabled = true;
+  body.innerHTML = '<div class="text-center py-5"><span class="spinner-border text-primary"></span><p class="mt-2 text-muted">Cargando comprobante...</p></div>';
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'detail', { id: pagoId })
+    .then(function(det) {
+      lbl.innerHTML = 'Comprobante: <code>' + esc(det.numero) + '</code>';
+      currentPagoDetalle = det;
+      body.innerHTML = buildPagoDetalleHTML(det);
+      document.getElementById('btn-imprimir-pago').disabled = false;
+      document.getElementById('btn-descargar-pago-pdf').disabled = false;
+    })
+    .catch(function(err) {
+      body.innerHTML = '<div class="alert alert-danger">' + esc(err.message || 'Error al cargar el comprobante.') + '</div>';
+    });
+}
+
+function buildPagoDetalleHTML(det) {
+  var cliente   = pagoCliente || {};
+  var esActivo  = det.estado_id === 1;
+  var esAnulado = det.estado_id === 4;
+  var badgeCls  = esAnulado ? 'bg-danger' : esActivo ? 'bg-success' : 'bg-secondary';
+
+  var detallesRows = (det.detalles || []).map(function(d) {
+    return '<tr>'
+      + '<td class="ps-3">' + esc(d.venta_numero || '#' + d.venta_id) + '</td>'
+      + '<td class="text-end pe-3 fw-semibold">' + fmt(d.valor) + '</td>'
+      + '</tr>';
+  }).join('') || '<tr><td colspan="2" class="text-center text-muted ps-3">Sin facturas asociadas.</td></tr>';
+
+  return '<div class="row mb-3">'
+    + '<div class="col-md-6">'
+    + '<strong>Cliente:</strong><br>' + esc(cliente.nombre || '—') + '<br>'
+    + '<small class="text-muted">CI: ' + esc(cliente.cedula || '—') + '</small>'
+    + '</div>'
+    + '<div class="col-md-6 text-md-end">'
+    + '<strong>Fecha:</strong><br>' + esc(new Date(det.fecha).toLocaleDateString()) + '<br>'
+    + '<span class="badge ' + badgeCls + ' mt-1">' + esc(det.estado) + '</span>'
+    + '</div>'
+    + '</div>'
+    + '<div class="row g-3 mb-4">'
+    + '<div class="col-sm-4"><div class="text-muted small">Forma de Pago</div><div class="fw-semibold">' + esc(det.forma_pago || '—') + '</div></div>'
+    + '<div class="col-sm-4"><div class="text-muted small">Referencia</div><div>' + esc(det.referencia || '—') + '</div></div>'
+    + (det.observacion ? '<div class="col-sm-4"><div class="text-muted small">Observación</div><div>' + esc(det.observacion) + '</div></div>' : '')
+    + '</div>'
+    + '<h6 class="fw-bold">Facturas Cubiertas</h6>'
+    + '<div class="table-responsive border rounded mb-3">'
+    + '<table class="table table-sm table-striped mb-0">'
+    + '<thead class="table-light"><tr><th class="ps-3">N° Factura</th><th class="text-end pe-3">Monto Aplicado</th></tr></thead>'
+    + '<tbody>' + detallesRows + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '<div class="d-flex justify-content-end mt-1">'
+    + '<table class="table table-sm mb-0" style="width:auto;min-width:230px;">'
+    + '<tbody>'
+    + '<tr style="border-top:2px solid var(--app-border);">'
+    + '<td class="fw-bold fs-5 pt-2">Total Pagado:</td>'
+    + '<td class="text-end ps-4 fw-bold fs-5 pt-2">' + fmt(det.monto) + '</td>'
+    + '</tr>'
+    + '</tbody>'
+    + '</table>'
+    + '</div>';
+}
+
+function buildPagoTicketHTML(det, isPDF) {
+  var cliente = pagoCliente || {};
+  var e2 = function(v) { return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); };
+  var m2 = function(v) { return '$'+parseFloat(v||0).toFixed(2); };
+
+  var detRows = (det.detalles||[]).map(function(d) {
+    return '<tr><td class="desc">'+e2(d.venta_numero||'#'+d.venta_id)+'</td><td class="amt">'+m2(d.valor)+'</td></tr>';
+  }).join('');
+
+  var fs = isPDF ? '13px' : '11px';
+  var w  = isPDF ? '155mm' : '72mm';
+  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:80mm auto;margin:4mm;}';
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(det.numero)+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'4mm 3mm')+';}'
+    +'.center{text-align:center;}.title{font-size:'+(isPDF?'18px':'14px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'11px':'9px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
+    +'.row2{display:flex;justify-content:space-between;margin:2px 0;}'
+    +'table{width:100%;border-collapse:collapse;}td{padding:2px 0;vertical-align:top;}'
+    +'.desc{width:65%;}.amt{width:35%;text-align:right;}'
+    +'.total-row td{font-size:'+(isPDF?'16px':'13px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'9px')+';}'
+    +pg+'@media print{button{display:none!important;}}</style>'
+    +'</head><body><div class="ticket">'
+    +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">COMPROBANTE DE PAGO</div></div>'
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>N°:</b></span><span>'+e2(det.numero)+'</span></div>'
+    +'<div class="row2"><span><b>Fecha:</b></span><span>'+e2(new Date(det.fecha).toLocaleDateString())+'</span></div>'
+    +'<div class="row2"><span><b>Cliente:</b></span><span>'+e2(cliente.nombre||'—')+'</span></div>'
+    +'<div class="row2"><span><b>CI:</b></span><span>'+e2(cliente.cedula||'—')+'</span></div>'
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>Forma de Pago:</b></span><span>'+e2(det.forma_pago||'—')+'</span></div>'
+    +(det.referencia?'<div class="row2"><span><b>Referencia:</b></span><span>'+e2(det.referencia)+'</span></div>':'')
+    +(det.observacion?'<div class="row2"><span><b>Obs:</b></span><span>'+e2(det.observacion)+'</span></div>':'')
+    +'<hr class="div">'
+    +'<table><tbody>'+detRows+'</tbody></table>'
+    +'<hr class="div">'
+    +'<table><tbody>'
+    +'<tr class="total-row"><td>TOTAL PAGADO</td><td style="text-align:right;">'+m2(det.monto)+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="footer">&#9474; ¡Gracias por su pago! &#9474;</div>'
+    +'</div></body></html>';
+}
+
+function buildVentaExtTicketHTML(det, isPDF) {
+  var v = det.venta || {};
+  var c = det.cliente || {};
+  var e2 = function(v) { return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); };
+  var m2 = function(v) { return '$'+parseFloat(v||0).toFixed(2); };
+
+  var fs = isPDF ? '13px' : '11px';
+  var w  = isPDF ? '155mm' : '72mm';
+  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:80mm auto;margin:4mm;}';
+
+  var detRows = (det.detalles||[]).map(function(d) {
+    var qty = parseFloat(d.cantidad||1);
+    var desc = e2(d.descripcion);
+    return '<tr>'
+      + '<td class="desc">' + desc + ' x' + qty + '</td>'
+      + '<td class="amt">' + m2(d.subtotal) + '</td>'
+      + '</tr>';
+  }).join('');
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(v.numero)+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'4mm 3mm')+';}'
+    +'.center{text-align:center;}.title{font-size:'+(isPDF?'18px':'14px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'11px':'9px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
+    +'.row2{display:flex;justify-content:space-between;margin:2px 0;}'
+    +'table{width:100%;border-collapse:collapse;}td{padding:2px 0;vertical-align:top;}'
+    +'.desc{width:65%;}.amt{width:35%;text-align:right;}'
+    +'.total-row td{font-size:'+(isPDF?'16px':'13px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'9px')+';}'
+    +pg+'@media print{button{display:none!important;}}</style>'
+    +'</head><body><div class="ticket">'
+    +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">VENTA EXTERNA</div></div>'
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>N°:</b></span><span>'+e2(v.numero)+'</span></div>'
+    +'<div class="row2"><span><b>Fecha:</b></span><span>'+e2(new Date(v.fecha).toLocaleDateString())+'</span></div>'
+    +'<div class="row2"><span><b>Cliente:</b></span><span>'+e2(c.nombre||'Anónimo')+'</span></div>'
+    +(c.identificacion&&c.identificacion!=='—'?'<div class="row2"><span><b>CI:</b></span><span>'+e2(c.identificacion)+'</span></div>':'')
+    +'<hr class="div">'
+    +'<div class="row2"><span><b>Forma de Pago:</b></span><span>'+e2(v.forma_pago||'—')+'</span></div>'
+    +(v.referencia?'<div class="row2"><span><b>Referencia:</b></span><span>'+e2(v.referencia)+'</span></div>':'')
+    +'<hr class="div">'
+    +'<table><tbody>'+detRows+'</tbody></table>'
+    +'<hr class="div">'
+    +'<table><tbody>'
+    +(v.descuento>0?'<tr><td>Descuento</td><td style="text-align:right;">-'+m2(v.descuento)+'</td></tr>':'')
+    +(v.impuesto>0?'<tr><td>Impuesto</td><td style="text-align:right;">'+m2(v.impuesto)+'</td></tr>':'')
+    +'<tr class="total-row"><td>TOTAL</td><td style="text-align:right;">'+m2(v.total)+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="footer">&#9474; ¡Gracias por su compra! &#9474;</div>'
+    +'</div></body></html>';
+}
+
+function imprimirTicketPago() {
+  var html;
+  if (currentVentaExtDetalle) {
+    html = buildVentaExtTicketHTML(currentVentaExtDetalle, false);
+  } else if (currentPagoDetalle) {
+    html = buildPagoTicketHTML(currentPagoDetalle, false);
+  } else { return; }
+  var win = window.open('', '_blank', 'width=420,height=700,scrollbars=yes');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 350);
+}
+
+function descargarPDFPago() {
+  var html;
+  if (currentVentaExtDetalle) {
+    html = buildVentaExtTicketHTML(currentVentaExtDetalle, true);
+  } else if (currentPagoDetalle) {
+    html = buildPagoTicketHTML(currentPagoDetalle, true);
+  } else { return; }
+  var win = window.open('', '_blank', 'width=700,height=900,scrollbars=yes');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(function() { win.print(); }, 350);
+}
+
+/* ════════════════════════════════════════
+   ÚLTIMOS 20 COBROS
+═══════════════════════════════════════ */
+function loadRecentPagos() {
+  document.getElementById('recent-loading').classList.remove('d-none');
+  document.getElementById('recent-container').classList.add('d-none');
+  document.getElementById('recent-empty').classList.add('d-none');
+
+  apiGet(CONFIG.ENDPOINTS.pagos, 'recent', {})
+    .then(function(data) {
+      renderRecentPagos(Array.isArray(data) ? data : []);
+    })
+    .catch(function(err) {
+      var el = document.getElementById('recent-loading');
+      el.innerHTML = '<div class="text-danger small">' + esc(err.message || 'Error al cargar cobros.') + '</div>';
+      el.classList.remove('d-none');
+    })
+    .finally(function() {
+      document.getElementById('recent-loading').classList.add('d-none');
+    });
+}
+
+function renderRecentPagos(items) {
+  if (!items.length) {
+    document.getElementById('recent-empty').classList.remove('d-none');
+    return;
+  }
+  var tbody = document.getElementById('recent-tbody');
+  tbody.innerHTML = items.map(function(p) {
+    var esAnulado   = parseInt(p.estado_id || 1) === 4;
+    var esExterna   = p.tipo_origen === 'externa';
+    var estadoBadge = esAnulado
+      ? '<span class="badge bg-danger rounded-pill" style="font-size:.7rem;">Anulado</span>'
+      : '<span class="badge bg-success rounded-pill" style="font-size:.7rem;">Activo</span>';
+    var extBadge = esExterna
+      ? ' <span class="badge rounded-pill" style="font-size:.65rem;background:var(--app-border);color:var(--app-text-muted);">Ext</span>'
+      : '';
+    var verBtn = esExterna
+      ? '<button type="button" class="btn btn-sm btn-outline-secondary" title="Ver detalle" '
+          + 'onclick="verDetalleVentaExt(' + p.id + ')">'
+          + '<i class="bi bi-eye"></i>'
+          + '</button>'
+      : '<button type="button" class="btn btn-sm btn-outline-secondary" title="Ver comprobante" '
+          + 'onclick="verDetallePagoFromRecent(' + p.id + ',\'' + esc(p.nombre_cliente) + '\',\'' + esc(p.identificacion) + '\')">'
+          + '<i class="bi bi-eye"></i>'
+          + '</button>';
+    return '<tr>'
+      + '<td style="font-size:.8rem;white-space:nowrap;">' + esc(p.fecha) + '</td>'
+      + '<td><code style="font-size:.78rem;">' + esc(p.numero) + '</code>' + extBadge + '</td>'
+      + '<td>'
+      +   '<div class="fw-semibold" style="font-size:.82rem;">' + esc(p.nombre_cliente) + '</div>'
+      +   '<code style="font-size:.7rem;">' + esc(p.identificacion) + '</code>'
+      + '</td>'
+      + '<td class="text-end fw-bold">' + fmt(p.monto) + '</td>'
+      + '<td>' + estadoBadge + '</td>'
+      + '<td>' + verBtn + '</td>'
+      + '</tr>';
+  }).join('');
+  document.getElementById('recent-container').classList.remove('d-none');
+}
+
+function verDetalleVentaExt(id) {
+  var modalEl = document.getElementById('modal-pago-detalle');
+  var body    = document.getElementById('modal-pago-detalle-body');
+  var lbl     = document.getElementById('modal-pago-detalle-label');
+
+  currentPagoDetalle     = null;
+  currentVentaExtDetalle = null;
+  document.getElementById('btn-imprimir-pago').disabled = true;
+  document.getElementById('btn-descargar-pago-pdf').disabled = true;
+  body.innerHTML = '<div class="text-center py-5"><span class="spinner-border text-primary"></span>'
+    + '<p class="mt-2 text-muted">Cargando detalle...</p></div>';
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+  apiGet(CONFIG.ENDPOINTS.ventas, 'detail_externa', { id: id })
+    .then(function(det) {
+      lbl.innerHTML = 'Venta Externa: <code>' + esc(det.venta.numero) + '</code>';
+      currentVentaExtDetalle = det;
+      body.innerHTML = buildVentaExtDetalleHTML(det);
+      document.getElementById('btn-imprimir-pago').disabled = false;
+      document.getElementById('btn-descargar-pago-pdf').disabled = false;
+    })
+    .catch(function(err) {
+      body.innerHTML = '<div class="alert alert-danger">' + esc(err.message || 'Error al cargar el detalle.') + '</div>';
+    });
+}
+
+function verDetallePagoFromRecent(pagoId, nombre, cedula) {
+  pagoCliente = { id: null, nombre: nombre, cedula: cedula, tipo: '' };
+  verDetallePagoModal(pagoId);
+}
+
+document.getElementById('btn-refresh-recent').addEventListener('click', function() {
+  loadRecentPagos();
+});
+
+/* ════════════════════════════════════════
+   TAB PENDIENTES — Búsqueda por persona
+═══════════════════════════════════════ */
+var doPendientesPersonaSearch = debounce(function(q) {
+  if (q.length < 2) {
+    document.getElementById('pendientes-persona-results').classList.add('d-none');
+    return;
+  }
+  document.getElementById('pendientes-persona-spinner').classList.remove('d-none');
+  apiGet(CONFIG.ENDPOINTS.personas, 'search', { q: q })
+    .then(function(data) { renderPendientesPersonaList(Array.isArray(data) ? data : []); })
+    .catch(function() { document.getElementById('pendientes-persona-results').classList.add('d-none'); })
+    .finally(function() { document.getElementById('pendientes-persona-spinner').classList.add('d-none'); });
+}, 300);
+
+function renderPendientesPersonaList(items) {
+  var wrap = document.getElementById('pendientes-persona-results');
+  var list = document.getElementById('pendientes-persona-list');
+  if (!items.length) { wrap.classList.add('d-none'); return; }
+  wrap.classList.remove('d-none');
+  list.innerHTML = items.map(function(p) {
+    return '<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2" '
+      + 'onclick="selectPersonaPendienteFiltro(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre_completo) + '\')">'
+      + '<div><div class="fw-semibold small">' + esc(p.nombre_completo) + '</div><code class="small">' + esc(p.identificacion) + '</code></div>'
+      + '<span class="badge bg-secondary rounded-pill">' + esc(p.tipo) + '</span>'
+      + '</button>';
+  }).join('');
+}
+
+function selectPersonaPendienteFiltro(identificacion, nombre) {
+  personaFiltroIdentificacion = identificacion;
+  personaFiltroNombre = nombre;
+  document.getElementById('pendientes-persona-results').classList.add('d-none');
+  document.getElementById('pendientes-persona-search').value = '';
+  document.getElementById('pendientes-persona-nombre-activa').textContent = nombre;
+  document.getElementById('pendientes-persona-cedula-activa').textContent = identificacion;
+  document.getElementById('pendientes-persona-activa').classList.remove('d-none');
+  applyFiltroYRender();
+}
+
+document.getElementById('pendientes-persona-search').addEventListener('input', function() {
+  doPendientesPersonaSearch(this.value.trim());
+});
+document.getElementById('pendientes-persona-search').addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') document.getElementById('pendientes-persona-results').classList.add('d-none');
+});
+document.getElementById('btn-limpiar-persona-filtro').addEventListener('click', function() {
+  personaFiltroIdentificacion = null;
+  personaFiltroNombre = null;
+  document.getElementById('pendientes-persona-activa').classList.add('d-none');
+  applyFiltroYRender();
+});
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadFormasPago();
+  loadPendientes();
+  loadRecentPagos();
+});
+</script>
+{% endblock %}

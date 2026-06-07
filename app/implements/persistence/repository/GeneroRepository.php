@@ -51,4 +51,11 @@ class GeneroRepository
 
     return null;
   }
+
+  public function findAll(): array
+  {
+    $stmt = $this->db->query('SELECT * FROM generos ORDER BY id ASC');
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return array_map(fn($row) => new Genero((int)$row['id'], $row['nombre'], $row['nemonico']), $rows ?: []);
+  }
 }

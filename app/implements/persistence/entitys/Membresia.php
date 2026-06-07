@@ -16,8 +16,10 @@ class Membresia
   private string $fecha_inicio;
   private string $fecha_fin;
   private int $estado;
+  private ?int $institucion;
+  private string $periodo;
 
-  public function __construct(?int $id, string $titulo, string $precio, float $porcentaje, string $descripcion, string $url_boton, string $fecha_inicio, string $fecha_fin, mixed $estado)
+  public function __construct(?int $id, string $titulo, string $precio, float $porcentaje, string $descripcion, string $url_boton, string $fecha_inicio, string $fecha_fin, mixed $estado, mixed $institucion = null, string $periodo = 'mensual')
   {
     $this->id = $id;
     $this->titulo = $titulo;
@@ -28,6 +30,8 @@ class Membresia
     $this->fecha_inicio = $fecha_inicio;
     $this->fecha_fin = $fecha_fin;
     $this->estado = $this->extractId($estado);
+    $this->institucion = $institucion !== null ? (int) $institucion : null;
+    $this->periodo = $periodo;
   }
 
   public function getId(): ?int
@@ -68,6 +72,16 @@ class Membresia
   public function getFechaFin(): string
   {
     return $this->fecha_fin;
+  }
+
+  public function getPeriodo(): string
+  {
+    return $this->periodo;
+  }
+
+  public function setPeriodo(string $periodo): void
+  {
+    $this->periodo = $periodo;
   }
 
   public function getEstado(): ?Estado
@@ -114,6 +128,9 @@ class Membresia
   {
     $this->fecha_fin = $fecha_fin;
   }
+
+  public function getInstitucion(): ?int { return $this->institucion; }
+  public function setInstitucion(mixed $v): void { $this->institucion = $v !== null ? (int) $v : null; }
 
   public function setEstado(mixed $estado): void
   {

@@ -79,7 +79,7 @@ final class AuthServices implements AuthServiceInterface
 
         $token = Token::createJwt([
             'sub' => (string) $user->getId(),
-        ], $this->jwtSecret, 3600);
+        ], $this->jwtSecret, 7200);
 
         return $token;
     }

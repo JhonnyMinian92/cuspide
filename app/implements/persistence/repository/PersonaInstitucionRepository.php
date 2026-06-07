@@ -3,7 +3,11 @@
 namespace Repositories;
 
 require_once __DIR__ . '/../conexion/Database.php';
+require_once __DIR__ . '/../entitys/Persona.php';
 require_once __DIR__ . '/../entitys/PersonaInstitucion.php';
+require_once __DIR__ . '/../entitys/Institucion.php';
+require_once __DIR__ . '/../entitys/TipoPersona.php';
+require_once __DIR__ . '/../entitys/Estado.php';
 
 use Core\Database;
 use Entitys\PersonaInstitucion;
@@ -56,6 +60,38 @@ class PersonaInstitucionRepository
     return null;
   }
 
+  public function findByPersonaAndInstitucion(int $personaId, int $institucionId): ?PersonaInstitucion
+  {
+    $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id_persona = :personaId AND id_institucion = :institucionId LIMIT 1');
+    $stmt->execute([':personaId' => $personaId, ':institucionId' => $institucionId]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($result) {
+      return new PersonaInstitucion(
+        $result['id'],
+        $result['id_persona'],
+        $result['id_institucion'],
+        $result['tipo'],
+        $result['estado']
+      );
+    }
+    return null;
+  }
+
+  public function saveOrUpdate(int $personaId, int $institucionId, int $tipoPersonaId, int $estado): PersonaInstitucion
+  {
+    $existingId = $this->findByPersonaAndInstitucion($personaId, $institucionId)?->getId();
+
+    $personaInstitucion = new PersonaInstitucion(
+      $existingId,
+      $personaId,
+      $institucionId,
+      $tipoPersonaId,
+      $estado
+    );
+    return $this->save($personaInstitucion);
+  }
+
   public function findById($id): ?PersonaInstitucion
   {
     $stmt = $this->db->prepare('SELECT * FROM persona_institucion WHERE id = :id AND estado = 1');
@@ -73,5 +109,43 @@ class PersonaInstitucionRepository
       );
     }
     return null;
+  }
+
+  public function findByPersonaIdWithDetails(int $personaId): ?array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT pi.id,
+              pi.tipo   AS tipo_id,
+              pi.estado AS pi_estado,
+              tp.nombre AS tipo,
+              i.nombre  AS institucion,
+              i.id      AS institucion_id
+       FROM persona_institucion pi
+       LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
+       LEFT JOIN instituciones i  ON i.id  = pi.id_institucion
+       WHERE pi.id_persona = :pid
+       LIMIT 1"
+    );
+    $stmt->bindValue(':pid', $personaId, PDO::PARAM_INT);
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+  }
+
+  public function findAllByPersonaIdWithDetails(int $personaId): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT pi.id, pi.estado,
+              tp.nombre AS tipo,
+              i.nombre  AS institucion,
+              i.id      AS institucion_id
+       FROM persona_institucion pi
+       LEFT JOIN tipo_persona tp ON tp.id = pi.tipo
+       LEFT JOIN instituciones i  ON i.id  = pi.id_institucion
+       WHERE pi.id_persona = :pid"
+    );
+    $stmt->bindValue(':pid', $personaId, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
   }
 }

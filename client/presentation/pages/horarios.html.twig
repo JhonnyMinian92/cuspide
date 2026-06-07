@@ -1,0 +1,717 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'horarios' %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Horarios{% endblock %}
+
+{% block head %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}.toast-info{background:#0dcaf0;color:#212529;}
+
+/* ── Calendario semanal ── */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem;min-width:700px;}
+.cal-col-header{text-align:center;font-size:.78rem;font-weight:700;padding:.45rem .25rem;border-radius:.4rem;background:rgba(var(--bs-primary-rgb),.12);color:var(--bs-primary);}
+.cal-col{display:flex;flex-direction:column;gap:.4rem;min-height:80px;}
+.cal-card{border-radius:.5rem;padding:.5rem .65rem;font-size:.78rem;cursor:pointer;transition:filter .15s,transform .15s;border:1px solid transparent;}
+.cal-card:hover{filter:brightness(1.12);transform:translateY(-1px);}
+.cal-card-clase{background:rgba(13,110,253,.18);border-color:rgba(13,110,253,.35);color:var(--bs-primary);}
+.cal-card-actividad{background:rgba(25,135,84,.18);border-color:rgba(25,135,84,.35);color:#198754;}
+.cal-card-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-card-time{opacity:.8;font-size:.72rem;}
+.cal-card-loc{opacity:.7;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ── Toggle vista ── */
+.view-toggle .btn{font-size:.83rem;padding:.3rem .85rem;}
+
+/* ── Confirm inline ── */
+.confirm-inline{display:inline-flex;align-items:center;gap:.4rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ══ BARRA DE FILTROS Y CONTROLES ══ #}
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h6 class="fw-bold mb-1">Gestión de Horarios</h6>
+        <p class="text-muted small mb-0">Visualiza y administra los horarios de clases y actividades.</p>
+      </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        {# Filtro tipo #}
+        <div class="btn-group" role="group" id="filter-group">
+          <button type="button" class="btn btn-sm btn-primary active" data-filter="todos">Todos</button>
+          <button type="button" class="btn btn-sm btn-outline-primary" data-filter="clases">Clases</button>
+          <button type="button" class="btn btn-sm btn-outline-primary" data-filter="actividades">Actividades</button>
+        </div>
+        {# Toggle vista #}
+        <div class="btn-group view-toggle" role="group">
+          <button type="button" class="btn btn-sm btn-secondary active" id="btn-vista-cal">
+            <i class="bi bi-calendar3-week me-1"></i>Calendario
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-vista-tabla">
+            <i class="bi bi-table me-1"></i>Tabla
+          </button>
+        </div>
+        <button type="button" class="btn btn-sm btn-success" id="btn-nuevo-horario">
+          <i class="bi bi-plus-circle me-1"></i>Nuevo Horario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ══ VISTA CALENDARIO ══ #}
+<div class="card chart-card mb-4" id="view-calendar">
+  <div class="card-body p-4">
+    <h6 class="fw-bold mb-3">
+      <i class="bi bi-calendar3-week me-2 text-primary"></i>Vista Semanal
+      <span class="spinner-border spinner-border-sm ms-2 d-none" id="cal-spinner"></span>
+    </h6>
+    <div class="overflow-auto pb-2">
+      <div class="cal-grid" id="cal-grid">
+        {# Cabeceras días #}
+        <div class="cal-col-header">Lunes</div>
+        <div class="cal-col-header">Martes</div>
+        <div class="cal-col-header">Miércoles</div>
+        <div class="cal-col-header">Jueves</div>
+        <div class="cal-col-header">Viernes</div>
+        <div class="cal-col-header">Sábado</div>
+        <div class="cal-col-header">Domingo</div>
+        {# Columnas días — se rellenan por JS #}
+        <div class="cal-col" id="cal-day-1"></div>
+        <div class="cal-col" id="cal-day-2"></div>
+        <div class="cal-col" id="cal-day-3"></div>
+        <div class="cal-col" id="cal-day-4"></div>
+        <div class="cal-col" id="cal-day-5"></div>
+        <div class="cal-col" id="cal-day-6"></div>
+        <div class="cal-col" id="cal-day-7"></div>
+      </div>
+    </div>
+    <p class="text-muted small mt-2 mb-0" id="cal-empty" style="display:none;">
+      <i class="bi bi-info-circle me-1"></i>No hay horarios para el filtro seleccionado.
+    </p>
+  </div>
+</div>
+
+{# ══ VISTA TABLA ══ #}
+<div class="card chart-card mb-4 d-none" id="view-table">
+  <div class="card-body p-0">
+    <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0">
+        <i class="bi bi-table me-2 text-primary"></i>Lista de Horarios
+      </h6>
+      <span class="badge bg-secondary" id="horario-count">—</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Día</th>
+            <th>Nombre</th>
+            <th>Horario</th>
+            <th>Tipo</th>
+            <th>Cupo</th>
+            <th>Ubicación</th>
+            <th class="text-center">Estado</th>
+            <th class="text-end pe-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="horario-tbody">
+          <tr>
+            <td colspan="8" class="text-center text-muted py-5">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando horarios...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ══ PANEL DETALLE / EDICIÓN ══ #}
+<div class="card chart-card border-warning d-none" id="horario-detail-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <h6 class="fw-bold mb-0" id="detail-title">
+        <i class="bi bi-calendar-check me-2 text-warning"></i>Detalle del Horario
+      </h6>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-close-detail">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div id="detail-body" class="row g-2 text-sm">
+      {# Se rellena por JS #}
+    </div>
+  </div>
+</div>
+
+{# ══ FORMULARIO CREAR / EDITAR ══ #}
+<div class="card chart-card border-primary d-none mt-4" id="horario-form-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <h6 class="fw-bold mb-0" id="horario-form-title">
+        <i class="bi bi-plus-circle me-2 text-primary"></i>Nuevo Horario
+      </h6>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cancel-horario">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="horario-form" novalidate>
+      <input type="hidden" id="h-id">
+      <div class="row g-3">
+
+        {# Nombre #}
+        <div class="col-12 col-sm-8">
+          <label for="h-nombre" class="form-label fw-semibold">
+            Nombre <span class="text-danger">*</span>
+          </label>
+          <input type="text" class="form-control" id="h-nombre"
+            placeholder="Ej: Táctica Lun-Mié" required maxlength="120">
+          <div class="invalid-feedback">El nombre es obligatorio.</div>
+        </div>
+
+        {# Día semana #}
+        <div class="col-12 col-sm-4">
+          <label for="h-dia" class="form-label fw-semibold">
+            Día de la semana <span class="text-danger">*</span>
+          </label>
+          <select class="form-select" id="h-dia" required>
+            <option value="">Seleccionar...</option>
+            <option value="1">Lunes</option>
+            <option value="2">Martes</option>
+            <option value="3">Miércoles</option>
+            <option value="4">Jueves</option>
+            <option value="5">Viernes</option>
+            <option value="6">Sábado</option>
+            <option value="7">Domingo</option>
+          </select>
+          <div class="invalid-feedback">Selecciona el día.</div>
+        </div>
+
+        {# Toggle clase / actividad #}
+        <div class="col-12">
+          <label class="form-label fw-semibold">Tipo de horario <span class="text-danger">*</span></label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="h-tipo" id="h-tipo-clase" value="clase" checked>
+              <label class="form-check-label" for="h-tipo-clase">Para Clase</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="h-tipo" id="h-tipo-actividad" value="actividad">
+              <label class="form-check-label" for="h-tipo-actividad">Para Actividad</label>
+            </div>
+          </div>
+        </div>
+
+        {# Clase select #}
+        <div class="col-12 col-sm-6" id="wrap-clase">
+          <label for="h-clase" class="form-label fw-semibold">Clase</label>
+          <select class="form-select" id="h-clase">
+            <option value="">Sin clase asociada</option>
+          </select>
+        </div>
+
+        {# Actividad select #}
+        <div class="col-12 col-sm-6 d-none" id="wrap-actividad">
+          <label for="h-actividad" class="form-label fw-semibold">Actividad</label>
+          <select class="form-select" id="h-actividad">
+            <option value="">Sin actividad asociada</option>
+          </select>
+        </div>
+
+        {# Hora inicio / fin #}
+        <div class="col-6 col-sm-3">
+          <label for="h-hora-inicio" class="form-label fw-semibold">
+            Hora inicio <span class="text-danger">*</span>
+          </label>
+          <input type="time" class="form-control" id="h-hora-inicio" required>
+          <div class="invalid-feedback">Requerido.</div>
+        </div>
+        <div class="col-6 col-sm-3">
+          <label for="h-hora-fin" class="form-label fw-semibold">
+            Hora fin <span class="text-danger">*</span>
+          </label>
+          <input type="time" class="form-control" id="h-hora-fin" required>
+          <div class="invalid-feedback">Requerido.</div>
+        </div>
+
+        {# Fecha inicio / fin #}
+        <div class="col-6 col-sm-3">
+          <label for="h-fecha-inicio" class="form-label fw-semibold">Fecha inicio</label>
+          <input type="date" class="form-control" id="h-fecha-inicio">
+        </div>
+        <div class="col-6 col-sm-3">
+          <label for="h-fecha-fin" class="form-label fw-semibold">Fecha fin</label>
+          <input type="date" class="form-control" id="h-fecha-fin">
+        </div>
+
+        {# Cupo #}
+        <div class="col-12 col-sm-4">
+          <label for="h-cupo" class="form-label fw-semibold">
+            Cupo máximo <span class="text-danger">*</span>
+          </label>
+          <input type="number" class="form-control" id="h-cupo" min="1" max="500" required>
+          <div class="invalid-feedback">Cupo requerido.</div>
+        </div>
+
+        {# Ubicación #}
+        <div class="col-12 col-sm-8">
+          <label for="h-ubicacion" class="form-label fw-semibold">Ubicación</label>
+          <input type="text" class="form-control" id="h-ubicacion"
+            placeholder="Ej: Cancha Principal" maxlength="150">
+        </div>
+
+        {# Entrenador #}
+        <div class="col-12 col-sm-6">
+          <label for="h-entrenador" class="form-label fw-semibold">
+            Entrenador <span class="text-muted fw-normal">(ID de persona, opcional)</span>
+          </label>
+          <input type="number" class="form-control" id="h-entrenador"
+            placeholder="ID numérico" min="1">
+        </div>
+
+        {# Estado #}
+        <div class="col-12 col-sm-6 d-flex align-items-end pb-1">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="h-estado" checked>
+            <label class="form-check-label fw-semibold" for="h-estado">Activo</label>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="d-flex gap-2 mt-4 flex-wrap">
+        <button type="submit" class="btn btn-primary" id="h-btn-save">
+          <i class="bi bi-floppy me-1"></i>Guardar Horario
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btn-cancel-horario-2">
+          <i class="bi bi-x me-1"></i>Cancelar
+        </button>
+        <span id="h-delete-wrap" class="d-none ms-auto">
+          <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteHorario()">
+            <i class="bi bi-trash me-1"></i>Desactivar
+          </button>
+        </span>
+      </div>
+      <div id="h-confirm-delete" class="d-none mt-3 d-flex align-items-center gap-2">
+        <span class="text-danger fw-semibold">¿Desactivar este horario?</span>
+        <button type="button" class="btn btn-sm btn-danger" id="h-btn-confirm-delete">Sí, desactivar</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+          onclick="document.getElementById('h-confirm-delete').classList.add('d-none')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  checkAuth();
+  init();
+});
+
+/* ── Helpers ── */
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function () { t.classList.add('show'); }, 10);
+  setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 3200);
+}
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtTime(s) {
+  if (!s) return '—';
+  return String(s).slice(0, 5);
+}
+var DIAS = { 1:'Lunes', 2:'Martes', 3:'Miércoles', 4:'Jueves', 5:'Viernes', 6:'Sábado', 7:'Domingo' };
+var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+
+/* ── Estado ── */
+var allHorarios = [];
+var allClases = [];
+var allActividades = [];
+var currentFilter = 'todos'; // 'todos' | 'clases' | 'actividades'
+var currentView = 'calendar'; // 'calendar' | 'table'
+
+/* ══════════════════ INIT ══════════════════ */
+function init() {
+  loadAll();
+
+  /* Filtro tipo */
+  document.getElementById('filter-group').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    currentFilter = btn.dataset.filter;
+    document.querySelectorAll('#filter-group [data-filter]').forEach(function (b) {
+      b.classList.toggle('btn-primary', b === btn);
+      b.classList.toggle('active', b === btn);
+      b.classList.toggle('btn-outline-primary', b !== btn);
+    });
+    renderAll();
+  });
+
+  /* Toggle vista */
+  document.getElementById('btn-vista-cal').addEventListener('click', function () {
+    setView('calendar');
+  });
+  document.getElementById('btn-vista-tabla').addEventListener('click', function () {
+    setView('table');
+  });
+
+  /* Nuevo horario */
+  document.getElementById('btn-nuevo-horario').addEventListener('click', function () {
+    openForm(null);
+  });
+
+  /* Cancelar formulario */
+  ['btn-cancel-horario','btn-cancel-horario-2'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', cancelForm);
+  });
+  document.getElementById('btn-close-detail').addEventListener('click', function () {
+    document.getElementById('horario-detail-card').classList.add('d-none');
+  });
+
+  /* Toggle clase / actividad */
+  document.querySelectorAll('input[name="h-tipo"]').forEach(function (radio) {
+    radio.addEventListener('change', toggleTipo);
+  });
+
+  /* Formulario submit */
+  document.getElementById('horario-form').addEventListener('submit', saveHorario);
+
+  /* Confirm delete */
+  document.getElementById('h-btn-confirm-delete').addEventListener('click', function () {
+    var id = document.getElementById('h-id').value;
+    if (id) executeDeleteHorario(id);
+  });
+}
+
+/* ══════════════════ CARGA DE DATOS ══════════════════ */
+function loadAll() {
+  document.getElementById('cal-spinner').classList.remove('d-none');
+
+  var p1 = Cuspide.api.call('GET', CONFIG.ENDPOINTS.horarios, 'list', null, { institucion: institucionId });
+  var p2 = Cuspide.api.call('GET', CONFIG.ENDPOINTS.clases, 'list', null, { institucion: institucionId });
+  var p3 = Cuspide.api.call('GET', CONFIG.ENDPOINTS.actividades, 'list', null, { institucion: institucionId });
+
+  Promise.all([p1, p2, p3])
+    .then(function (results) {
+      allHorarios   = Array.isArray(results[0]) ? results[0] : [];
+      allClases     = Array.isArray(results[1]) ? results[1] : [];
+      allActividades = Array.isArray(results[2]) ? results[2] : [];
+      document.getElementById('horario-count').textContent = allHorarios.length;
+      renderAll();
+      populateSelects();
+    })
+    .catch(function (err) {
+      showToast('Error al cargar datos: ' + err.message, 'error');
+      renderErrorState();
+    })
+    .finally(function () {
+      document.getElementById('cal-spinner').classList.add('d-none');
+    });
+}
+
+function renderErrorState() {
+  document.getElementById('horario-tbody').innerHTML =
+    '<tr><td colspan="8" class="text-center text-danger py-4">' +
+    '<i class="bi bi-exclamation-triangle me-2"></i>Error al cargar horarios.</td></tr>';
+}
+
+/* ══════════════════ FILTRO ══════════════════ */
+function filteredHorarios() {
+  if (currentFilter === 'clases') {
+    return allHorarios.filter(function (h) { return h.clase && !h.actividad; });
+  }
+  if (currentFilter === 'actividades') {
+    return allHorarios.filter(function (h) { return h.actividad && !h.clase; });
+  }
+  return allHorarios;
+}
+
+/* ══════════════════ RENDER ══════════════════ */
+function renderAll() {
+  if (currentView === 'calendar') {
+    renderCalendar();
+  } else {
+    renderTable();
+  }
+}
+
+/* ── Vista Calendario ── */
+function renderCalendar() {
+  var list = filteredHorarios();
+  var byDay = { 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[] };
+  list.forEach(function (h) {
+    var d = parseInt(h.dia_semana);
+    if (byDay[d]) byDay[d].push(h);
+  });
+
+  var totalCards = 0;
+  for (var d = 1; d <= 7; d++) {
+    var col = document.getElementById('cal-day-' + d);
+    if (!col) continue;
+    var items = byDay[d];
+    if (items.length === 0) {
+      col.innerHTML = '<div class="text-muted text-center" style="font-size:.75rem;padding:.5rem 0;">—</div>';
+    } else {
+      totalCards += items.length;
+      col.innerHTML = items.map(function (h) {
+        var isAct = h.actividad && !h.clase;
+        var cls = isAct ? 'cal-card-actividad' : 'cal-card-clase';
+        return '<div class="cal-card ' + cls + '" onclick="showDetail(' + h.id + ')" title="' + escHtml(h.nombre) + '">' +
+          '<div class="cal-card-title">' + escHtml(h.nombre) + '</div>' +
+          '<div class="cal-card-time">' + fmtTime(h.hora_inicio) + '–' + fmtTime(h.hora_fin) + '</div>' +
+          (h.ubicacion ? '<div class="cal-card-loc"><i class="bi bi-geo-alt"></i> ' + escHtml(h.ubicacion) + '</div>' : '') +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  var emptyEl = document.getElementById('cal-empty');
+  emptyEl.style.display = totalCards === 0 ? 'block' : 'none';
+}
+
+/* ── Vista Tabla ── */
+function renderTable() {
+  var list = filteredHorarios();
+  var tbody = document.getElementById('horario-tbody');
+
+  if (list.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="8" class="text-center text-muted py-5">' +
+      '<i class="bi bi-calendar-x fs-2 d-block mb-2 opacity-25"></i>' +
+      'No hay horarios para el filtro seleccionado.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(function (h) {
+    var badge = h.estado == 1
+      ? '<span class="badge bg-success">Activo</span>'
+      : '<span class="badge bg-secondary">Inactivo</span>';
+    var tipo = h.actividad && !h.clase
+      ? '<span class="badge bg-success-subtle text-success border border-success">Actividad</span>'
+      : '<span class="badge bg-primary-subtle text-primary border border-primary">Clase</span>';
+    return '<tr>' +
+      '<td class="fw-semibold">' + escHtml(DIAS[h.dia_semana] || '—') + '</td>' +
+      '<td>' + escHtml(h.nombre) + '</td>' +
+      '<td class="text-nowrap">' + fmtTime(h.hora_inicio) + ' – ' + fmtTime(h.hora_fin) + '</td>' +
+      '<td>' + tipo + '</td>' +
+      '<td>' + (h.cupo_maximo || '—') + '</td>' +
+      '<td class="text-muted small">' + escHtml(h.ubicacion || '—') + '</td>' +
+      '<td class="text-center">' + badge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button class="btn btn-sm btn-outline-primary me-1" onclick="openForm(' + h.id + ')" title="Editar">' +
+          '<i class="bi bi-pencil"></i></button>' +
+        '<button class="btn btn-sm btn-outline-info" onclick="showDetail(' + h.id + ')" title="Detalle">' +
+          '<i class="bi bi-eye"></i></button>' +
+      '</td></tr>';
+  }).join('');
+}
+
+/* ══════════════════ DETALLE ══════════════════ */
+function showDetail(id) {
+  var h = allHorarios.find(function (x) { return x.id == id; });
+  if (!h) return;
+
+  var card = document.getElementById('horario-detail-card');
+  var body = document.getElementById('detail-body');
+
+  var rows = [
+    ['Nombre', escHtml(h.nombre)],
+    ['Día', escHtml(DIAS[h.dia_semana] || h.dia_nombre || '—')],
+    ['Hora', fmtTime(h.hora_inicio) + ' – ' + fmtTime(h.hora_fin)],
+    ['Cupo máximo', h.cupo_maximo || '—'],
+    ['Ubicación', escHtml(h.ubicacion || '—')],
+    ['Estado', h.estado == 1 ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-secondary">Inactivo</span>'],
+  ];
+  if (h.entrenador) rows.push(['Entrenador ID', h.entrenador]);
+  if (h.fecha_inicio) rows.push(['Fecha inicio', h.fecha_inicio]);
+  if (h.fecha_fin) rows.push(['Fecha fin', h.fecha_fin]);
+
+  body.innerHTML = rows.map(function (r) {
+    return '<div class="col-6 col-md-4 col-lg-3">' +
+      '<div class="text-muted small">' + r[0] + '</div>' +
+      '<div class="fw-semibold">' + r[1] + '</div>' +
+    '</div>';
+  }).join('');
+
+  card.classList.remove('d-none');
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ══════════════════ FORMULARIO ══════════════════ */
+function populateSelects() {
+  var selClase = document.getElementById('h-clase');
+  var selAct   = document.getElementById('h-actividad');
+
+  selClase.innerHTML = '<option value="">Sin clase asociada</option>';
+  allClases.forEach(function (c) {
+    if (c.estado == 1) {
+      var o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.nombre;
+      selClase.appendChild(o);
+    }
+  });
+
+  selAct.innerHTML = '<option value="">Sin actividad asociada</option>';
+  allActividades.forEach(function (a) {
+    if (a.estado == 1) {
+      var o = document.createElement('option');
+      o.value = a.id;
+      o.textContent = a.nombre;
+      selAct.appendChild(o);
+    }
+  });
+}
+
+function toggleTipo() {
+  var tipo = document.querySelector('input[name="h-tipo"]:checked').value;
+  document.getElementById('wrap-clase').classList.toggle('d-none', tipo !== 'clase');
+  document.getElementById('wrap-actividad').classList.toggle('d-none', tipo !== 'actividad');
+}
+
+function openForm(id) {
+  var card = document.getElementById('horario-form-card');
+  var form = document.getElementById('horario-form');
+  form.classList.remove('was-validated');
+  document.getElementById('h-confirm-delete').classList.add('d-none');
+
+  if (!id) {
+    /* Nuevo */
+    form.reset();
+    document.getElementById('h-id').value = '';
+    document.getElementById('h-estado').checked = true;
+    document.getElementById('h-delete-wrap').classList.add('d-none');
+    document.getElementById('horario-form-title').innerHTML =
+      '<i class="bi bi-plus-circle me-2 text-primary"></i>Nuevo Horario';
+    /* Resetear tipo */
+    document.getElementById('h-tipo-clase').checked = true;
+    toggleTipo();
+  } else {
+    /* Editar */
+    var h = allHorarios.find(function (x) { return x.id == id; });
+    if (!h) return;
+
+    document.getElementById('h-id').value = h.id;
+    document.getElementById('h-nombre').value = h.nombre || '';
+    document.getElementById('h-dia').value = h.dia_semana || '';
+    document.getElementById('h-hora-inicio').value = fmtTime(h.hora_inicio);
+    document.getElementById('h-hora-fin').value = fmtTime(h.hora_fin);
+    document.getElementById('h-fecha-inicio').value = h.fecha_inicio || '';
+    document.getElementById('h-fecha-fin').value = h.fecha_fin || '';
+    document.getElementById('h-cupo').value = h.cupo_maximo || '';
+    document.getElementById('h-ubicacion').value = h.ubicacion || '';
+    document.getElementById('h-entrenador').value = h.entrenador || '';
+    document.getElementById('h-estado').checked = h.estado == 1;
+
+    if (h.actividad && !h.clase) {
+      document.getElementById('h-tipo-actividad').checked = true;
+      document.getElementById('h-actividad').value = h.actividad || '';
+    } else {
+      document.getElementById('h-tipo-clase').checked = true;
+      document.getElementById('h-clase').value = h.clase || '';
+    }
+    toggleTipo();
+
+    document.getElementById('h-delete-wrap').classList.remove('d-none');
+    document.getElementById('horario-form-title').innerHTML =
+      '<i class="bi bi-pencil-square me-2 text-primary"></i>Editar Horario';
+  }
+
+  card.classList.remove('d-none');
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelForm() {
+  document.getElementById('horario-form-card').classList.add('d-none');
+  document.getElementById('h-id').value = '';
+  document.getElementById('horario-form').classList.remove('was-validated');
+}
+
+function saveHorario(e) {
+  e.preventDefault();
+  var form = document.getElementById('horario-form');
+  if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+  form.classList.remove('was-validated');
+
+  var id   = document.getElementById('h-id').value;
+  var tipo = document.querySelector('input[name="h-tipo"]:checked').value;
+  var claseVal      = document.getElementById('h-clase').value;
+  var actividadVal  = document.getElementById('h-actividad').value;
+  var entrenadorRaw = document.getElementById('h-entrenador').value.trim();
+
+  var body = {
+    nombre:             document.getElementById('h-nombre').value.trim(),
+    institucion:        institucionId,
+    clase:              tipo === 'clase' && claseVal ? parseInt(claseVal) : null,
+    actividad:          tipo === 'actividad' && actividadVal ? parseInt(actividadVal) : null,
+    dia_semana:         parseInt(document.getElementById('h-dia').value),
+    hora_inicio:        document.getElementById('h-hora-inicio').value,
+    hora_fin:           document.getElementById('h-hora-fin').value,
+    fecha_inicio:       document.getElementById('h-fecha-inicio').value || null,
+    fecha_fin:          document.getElementById('h-fecha-fin').value || null,
+    cupo_maximo:        parseInt(document.getElementById('h-cupo').value) || 0,
+    ubicacion:          document.getElementById('h-ubicacion').value.trim() || null,
+    entrenador:         entrenadorRaw ? parseInt(entrenadorRaw) : null,
+    estado:             document.getElementById('h-estado').checked ? 1 : 0
+  };
+
+  var btn = document.getElementById('h-btn-save');
+  btn.disabled = true;
+
+  Cuspide.api.call(id ? 'PUT' : 'POST', CONFIG.ENDPOINTS.horarios, 'save', body, id ? { id: id } : null)
+    .then(function () {
+      showToast(id ? 'Horario actualizado.' : 'Horario creado.');
+      cancelForm();
+      loadAll();
+    })
+    .catch(function (err) { showToast('Error: ' + err.message, 'error'); })
+    .finally(function () { btn.disabled = false; });
+}
+
+function confirmDeleteHorario() {
+  document.getElementById('h-confirm-delete').classList.remove('d-none');
+}
+
+function executeDeleteHorario(id) {
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.horarios, 'delete', null, { id: id })
+    .then(function () {
+      showToast('Horario desactivado.');
+      cancelForm();
+      loadAll();
+    })
+    .catch(function (err) { showToast('Error: ' + err.message, 'error'); });
+}
+
+/* ══════════════════ TOGGLE VISTA ══════════════════ */
+function setView(v) {
+  currentView = v;
+  var isCal = v === 'calendar';
+  document.getElementById('view-calendar').classList.toggle('d-none', !isCal);
+  document.getElementById('view-table').classList.toggle('d-none', isCal);
+
+  var btnCal   = document.getElementById('btn-vista-cal');
+  var btnTabla = document.getElementById('btn-vista-tabla');
+  btnCal.classList.toggle('btn-secondary', isCal);
+  btnCal.classList.toggle('active', isCal);
+  btnCal.classList.toggle('btn-outline-secondary', !isCal);
+  btnTabla.classList.toggle('btn-secondary', !isCal);
+  btnTabla.classList.toggle('active', !isCal);
+  btnTabla.classList.toggle('btn-outline-secondary', isCal);
+
+  renderAll();
+}
+</script>
+{% endblock %}

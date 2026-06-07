@@ -1,0 +1,230 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Services;
+
+require_once __DIR__ . '/../interfaces/FacturaServiceInterface.php';
+require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../utils/Token.php';
+
+use Interfaces\FacturaServiceInterface;
+use Repositories\VentaRepository;
+use Repositories\PersonaRepository;
+use RuntimeException;
+use Utils\Token;
+
+final class FacturaServices implements FacturaServiceInterface
+{
+    private string $jwtSecret;
+    private VentaRepository   $ventaRepo;
+    private PersonaRepository $personaRepo;
+
+    public function __construct()
+    {
+        $config = require __DIR__ . '/../../properties/security.php';
+        $this->jwtSecret = (string) ($config['jwt_secret'] ?? '');
+        if ($this->jwtSecret === '') {
+            throw new RuntimeException('No existe configuración de seguridad para JWT.', 500);
+        }
+        $this->ventaRepo   = new VentaRepository();
+        $this->personaRepo = new PersonaRepository();
+    }
+
+    public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
+    {
+        $payload = Token::validateBearerToken($authHeader, $this->jwtSecret);
+
+        $resource = $this->resolveResource($requestUri, $queryParams, 'facturas');
+
+        return match (true) {
+            $method === 'GET' && $resource === 'list'      => $this->fetchFacturas($queryParams),
+            $method === 'GET' && $resource === 'byclient'  => $this->fetchByClient($queryParams),
+            $method === 'GET' && $resource === 'pending'   => $this->fetchPendientes($queryParams),
+            $method === 'GET' && $resource === 'detail'    => $this->fetchDetail((int) ($queryParams['id'] ?? 0)),
+            $method === 'PUT' && $resource === 'cancel'    => $this->cancelFactura((int) ($queryParams['id'] ?? 0)),
+            default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
+        };
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private function resolveResource(string $requestUri, array $queryParams, string $controllerSegment): string
+    {
+        $tipo = strtolower(trim((string) ($queryParams['api'] ?? '')));
+        if ($tipo !== '') {
+            return $tipo;
+        }
+
+        $path     = parse_url($requestUri, PHP_URL_PATH) ?? '';
+        $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+
+        $idx = array_search($controllerSegment, $segments, true);
+        if ($idx !== false) {
+            $candidate = $segments[$idx + 1] ?? null;
+            if ($candidate !== null && strtolower($candidate) !== 'index.php') {
+                return strtolower($candidate);
+            }
+        }
+
+        if ($segments !== []) {
+            $last = strtolower((string) $segments[array_key_last($segments)]);
+            if ($last !== 'index.php') {
+                return $last;
+            }
+        }
+
+        return '';
+    }
+
+    private function resolvePersonaId(array $queryParams): int
+    {
+        if (!empty($queryParams['persona_id'])) {
+            return (int) $queryParams['persona_id'];
+        }
+
+        if (!empty($queryParams['identificacion'])) {
+            $persona = $this->personaRepo->findByIdentificacion((string) $queryParams['identificacion']);
+            if ($persona === null) {
+                throw new RuntimeException('No se encontró persona con esa identificación.', 404);
+            }
+            return (int) $persona->getId();
+        }
+
+        throw new RuntimeException('Debe proporcionar persona_id o identificacion.', 400);
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchFacturas
+    // -------------------------------------------------------------------------
+
+    private function fetchFacturas(array $queryParams): array
+    {
+        $institucion = (int) ($queryParams['institucion'] ?? 0);
+        if ($institucion <= 0) {
+            throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
+        }
+
+        $filters = [
+            'limit'  => max(1, (int) ($queryParams['limit']  ?? 100)),
+            'page'   => max(1, (int) ($queryParams['page'] ?? 1)),
+            'desde'  => $queryParams['desde'] ?? null,
+            'hasta'  => $queryParams['hasta'] ?? null,
+            'q'      => $queryParams['q'] ?? null,
+        ];
+
+        $result = $this->ventaRepo->findByInstitucion($institucion, $filters);
+
+        return [
+            'items' => array_map(fn($r) => [
+                'id'             => (int)   $r['id'],
+                'numero'         => $r['numero'],
+                'fecha'          => $r['fecha'],
+                'total'          => (float) $r['total'],
+                'saldo'          => (float) $r['saldo'],
+                'tipo'           => $r['tipo'],
+                'estado'         => (int)   $r['estado'],
+                'identificacion' => $r['identificacion'],
+                'nombre'         => $r['nombre'],
+            ], $result['items']),
+            'totalItems' => (int) $result['total'],
+            'totalPages' => (int) ceil($result['total'] / $filters['limit']),
+            'currentPage' => $filters['page'],
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchByClient
+    // -------------------------------------------------------------------------
+
+    private function fetchByClient(array $queryParams): array
+    {
+        $personaId  = $this->resolvePersonaId($queryParams);
+        $ventas     = $this->ventaRepo->findByPersona($personaId);
+
+        return array_map(fn($v) => [
+            'id'     => $v->getId(),
+            'numero' => $v->getNumero(),
+            'fecha'  => $v->getFecha(),
+            'total'  => $v->getTotal(),
+            'saldo'  => $v->getSaldo(),
+            'tipo'   => $v->getTipo(),
+            'estado' => $v->getEstado() !== null ? $v->getEstado()->getId() : null,
+            'pagada' => ((float) $v->getSaldo()) <= 0,
+        ], $ventas);
+    }
+
+    // -------------------------------------------------------------------------
+    // cancelFactura
+    // -------------------------------------------------------------------------
+
+    private function cancelFactura(int $id): array
+    {
+        if ($id <= 0) {
+            throw new RuntimeException('ID de factura inválido.', 400);
+        }
+
+        $this->ventaRepo->cancel($id);
+
+        return [
+            'id'     => $id,
+            'estado' => 'ANULADO',
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchDetail
+    // -------------------------------------------------------------------------
+
+    private function fetchDetail(int $id): array
+    {
+        if ($id <= 0) {
+            throw new RuntimeException('ID de factura inválido.', 400);
+        }
+
+        $db = \Core\Database::getInstance();
+        $stmt = $db->prepare('SELECT vd.* FROM venta_detalle vd WHERE vd.venta = :id ORDER BY vd.id ASC');
+        $stmt->execute([':id' => $id]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return array_map(static fn(array $row): array => [
+            'id' => (int) $row['id'],
+            'descripcion' => $row['descripcion'] ?? null,
+            'producto' => $row['descripcion'] ?? null,
+            'cantidad' => (float) $row['cantidad'],
+            'precio_unitario' => (float) $row['precio_unitario'],
+            'descuento' => (float) $row['descuento'],
+            'subtotal' => (float) ($row['subtotal'] ?? $row['total'] ?? 0),
+            'total' => (float) ($row['total'] ?? $row['subtotal'] ?? 0),
+        ], $rows);
+    }
+
+    // -------------------------------------------------------------------------
+    // fetchPendientes
+    // -------------------------------------------------------------------------
+
+    private function fetchPendientes(array $queryParams): array
+    {
+        $institucion = (int) ($queryParams['institucion'] ?? 0);
+        if ($institucion <= 0) {
+            throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
+        }
+
+        $rows = $this->ventaRepo->findPendientesByInstitucion($institucion);
+
+        return array_map(fn($r) => [
+            'id'             => (int)   $r['id'],
+            'numero'         => $r['numero'],
+            'fecha'          => $r['fecha'],
+            'total'          => (float) $r['total'],
+            'saldo'          => (float) $r['saldo'],
+            'tipo'           => $r['tipo'],
+            'estado'         => (int)   ($r['estado'] ?? 1),
+            'identificacion' => $r['identificacion'],
+            'nombre'         => $r['nombre'],
+        ], $rows);
+    }
+}

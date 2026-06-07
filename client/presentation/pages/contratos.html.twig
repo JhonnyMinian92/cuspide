@@ -1,0 +1,343 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'contratos' %}
+
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Contratos de Empleados{% endblock %}
+
+{% block content %}
+<!-- Acceso rápido -->
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="/empleados" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-person-badge me-1"></i>Gestionar Empleados
+  </a>
+</div>
+
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+</style>
+
+<!-- Encabezado + Nuevo Contrato -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3">
+      <div>
+        <h6 class="fw-bold mb-1">Contratos de Empleados</h6>
+        <p class="text-muted small mb-0">Gestiona los contratos de profesores, secretarios y demás personal de la institución.</p>
+      </div>
+      <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nuevo-contrato">
+        <i class="bi bi-file-earmark-plus me-1"></i>Nuevo Contrato
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Formulario crear/editar contrato -->
+<div class="card chart-card mb-4 d-none" id="form-contrato-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h6 class="fw-bold mb-0" id="form-contrato-title">
+        <i class="bi bi-file-earmark-text me-2"></i>Nuevo Contrato
+      </h6>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cerrar-form-contrato">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="form-contrato" novalidate>
+      <input type="hidden" id="contrato-id">
+      <div class="row g-3">
+        <!-- Buscar empleado -->
+        <div class="col-12">
+          <label class="form-label fw-semibold">Empleado *</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="c-emp-search"
+              placeholder="Buscar por nombre o cédula..." autocomplete="off">
+          </div>
+          <div id="c-emp-results" class="d-none mt-2">
+            <div class="list-group" id="c-emp-list"></div>
+          </div>
+          <div id="c-emp-selected" class="d-none mt-2 p-2 rounded" style="background:var(--app-surface-soft);border:1px solid var(--app-border);">
+            <span id="c-emp-nombre" class="fw-semibold"></span>
+            <code class="ms-2 small" id="c-emp-cedula"></code>
+            <button type="button" class="btn btn-xs btn-outline-secondary btn-sm ms-2" id="btn-cambiar-emp">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+          <input type="hidden" id="c-persona-id">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Fecha de Inscripción</label>
+          <input type="date" class="form-control" id="c-fecha-insc">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Fecha Inicio *</label>
+          <input type="date" class="form-control" id="c-fecha-inicio" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Fecha Fin *</label>
+          <input type="date" class="form-control" id="c-fecha-fin" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Nivel / Cargo</label>
+          <select class="form-select" id="c-nivel">
+            <option value="0">Cargando niveles...</option>
+          </select>
+        </div>
+      </div>
+      <div class="d-flex gap-2 justify-content-end mt-4">
+        <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-contrato">
+          <i class="bi bi-x-lg me-1"></i>Cancelar
+        </button>
+        <button type="submit" class="btn btn-brand" id="btn-submit-contrato">
+          <i class="bi bi-check-lg me-1"></i>Guardar Contrato
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabla de contratos -->
+<div class="card chart-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Contratos Vigentes</h6>
+      <small class="text-muted" id="contratos-info">Cargando...</small>
+    </div>
+    <div class="table-responsive table-container">
+      <table class="table table-hover align-middle mb-0" style="min-width:600px;">
+        <thead class="table-light">
+          <tr>
+            <th>Empleado</th>
+            <th>Cargo / Nivel</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Vigencia</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="contratos-tbody">
+          <tr><td colspan="6" class="text-center text-muted py-4">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
+}
+function esc(v) {
+  return String(v===null||v===undefined?'':v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function debounce(fn, ms) { var t; return function() { var a=arguments; clearTimeout(t); t=setTimeout(function(){ fn.apply(null,a); }, ms); }; }
+
+var contratosList = [];
+
+/* ── Cargar contratos ── */
+async function loadContratos() {
+  var tbody = document.getElementById('contratos-tbody');
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.contratos, 'list', null, { limit: 50 });
+    contratosList = Array.isArray(data) ? data : [];
+    document.getElementById('contratos-info').textContent = contratosList.length + ' contrato(s)';
+    renderContratos(contratosList);
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message||'Error al cargar.') + '</td></tr>';
+    document.getElementById('contratos-info').textContent = 'Error';
+  }
+}
+
+function renderContratos(items) {
+  var tbody = document.getElementById('contratos-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-file-earmark me-2 opacity-25"></i>Sin contratos registrados.</td></tr>';
+    return;
+  }
+  var today = new Date();
+  tbody.innerHTML = items.map(function(c) {
+    var fin   = c.fecha_fin ? new Date(c.fecha_fin) : null;
+    var dias  = fin ? Math.round((fin - today) / 86400000) : null;
+    var vigBadge;
+    if (dias === null) {
+      vigBadge = '<span class="badge bg-secondary">—</span>';
+    } else if (dias < 0) {
+      vigBadge = '<span class="badge bg-danger">Vencido</span>';
+    } else if (dias <= 30) {
+      vigBadge = '<span class="badge bg-warning text-dark">Vence en ' + dias + 'd</span>';
+    } else {
+      vigBadge = '<span class="badge bg-success">Vigente</span>';
+    }
+    return '<tr>' +
+      '<td>' +
+        '<div class="fw-semibold">' + esc(c.nombre_completo||'—') + '</div>' +
+        '<code class="small">' + esc(c.identificacion||'') + '</code>' +
+        (c.tipo_persona ? '<div><span class="badge bg-secondary rounded-pill" style="font-size:.7rem;">' + esc(c.tipo_persona) + '</span></div>' : '') +
+      '</td>' +
+      '<td>' + esc(c.nivel_nombre||('Nivel '+c.nivel)||'—') + '</td>' +
+      '<td>' + esc(c.fecha_inicio||'—') + '</td>' +
+      '<td>' + esc(c.fecha_fin||'—') + '</td>' +
+      '<td>' + vigBadge + '</td>' +
+      '<td class="text-end">' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="editarContrato(' + c.id + ')">' +
+          '<i class="bi bi-pencil"></i>' +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ── Editar contrato ── */
+function editarContrato(id) {
+  var c = contratosList.find(function(x) { return x.id == id; });
+  if (!c) return;
+  document.getElementById('contrato-id').value     = c.id;
+  document.getElementById('c-persona-id').value    = c.persona;
+  document.getElementById('c-fecha-insc').value    = c.fecha_inscripcion || '';
+  document.getElementById('c-fecha-inicio').value  = c.fecha_inicio || '';
+  document.getElementById('c-fecha-fin').value     = c.fecha_fin || '';
+  document.getElementById('c-nivel').value         = c.nivel || '0';
+  document.getElementById('c-emp-nombre').textContent = c.nombre_completo || '';
+  document.getElementById('c-emp-cedula').textContent = c.identificacion || '';
+  document.getElementById('c-emp-selected').classList.remove('d-none');
+  document.getElementById('c-emp-results').classList.add('d-none');
+  document.getElementById('form-contrato-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Contrato';
+  document.getElementById('form-contrato-card').classList.remove('d-none');
+  document.getElementById('form-contrato-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Cargar niveles ── */
+async function loadNiveles() {
+  var sel = document.getElementById('c-nivel');
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.contratos, 'niveles', null, null);
+    nivelesList = Array.isArray(data) ? data : [];
+    populateNivelesSelect(nivelesList);
+  } catch (err) {
+    sel.innerHTML = '<option value="0">Error al cargar niveles</option>';
+  }
+}
+
+function populateNivelesSelect(items) {
+  var sel = document.getElementById('c-nivel');
+  sel.innerHTML = '<option value="0">Sin nivel especificado</option>';
+  items.forEach(function(n) {
+    var opt = document.createElement('option');
+    opt.value = n.id;
+    opt.textContent = n.nombre;
+    sel.appendChild(opt);
+  });
+}
+
+/* ── Abrir/Cerrar formulario ── */
+function mostrarFormContrato() {
+  document.getElementById('contrato-id').value    = '';
+  document.getElementById('c-persona-id').value   = '';
+  document.getElementById('form-contrato').reset();
+  document.getElementById('c-fecha-insc').value   = new Date().toISOString().slice(0,10);
+  document.getElementById('c-emp-selected').classList.add('d-none');
+  document.getElementById('c-emp-results').classList.add('d-none');
+  document.getElementById('c-emp-search').value   = '';
+  document.getElementById('form-contrato-title').innerHTML = '<i class="bi bi-file-earmark-plus me-2"></i>Nuevo Contrato';
+  document.getElementById('form-contrato-card').classList.remove('d-none');
+  document.getElementById('form-contrato-card').scrollIntoView({ behavior: 'smooth' });
+}
+function cerrarFormContrato() {
+  document.getElementById('form-contrato-card').classList.add('d-none');
+}
+
+/* ── Buscar empleado ── */
+var doEmpSearch = debounce(async function(q) {
+  var wrap = document.getElementById('c-emp-results');
+  var list = document.getElementById('c-emp-list');
+  if (q.length < 2) { wrap.classList.add('d-none'); return; }
+  try {
+    var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'employees', null, { q: q });
+    var items = Array.isArray(data) ? data : (data && data.items ? data.items : []);
+    if (!items.length) { wrap.classList.add('d-none'); return; }
+    list.innerHTML = items.map(function(p) {
+      return '<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between py-2" ' +
+        'onclick="seleccionarEmpleado(' + p.id + ',\'' + esc(p.nombre_completo) + '\',\'' + esc(p.identificacion) + '\')">' +
+        '<span class="fw-semibold small">' + esc(p.nombre_completo) + '</span>' +
+        '<code class="small">' + esc(p.identificacion) + '</code>' +
+      '</button>';
+    }).join('');
+    wrap.classList.remove('d-none');
+  } catch(e) { wrap.classList.add('d-none'); }
+}, 350);
+
+function seleccionarEmpleado(id, nombre, cedula) {
+  document.getElementById('c-persona-id').value    = id;
+  document.getElementById('c-emp-nombre').textContent = nombre;
+  document.getElementById('c-emp-cedula').textContent = cedula;
+  document.getElementById('c-emp-selected').classList.remove('d-none');
+  document.getElementById('c-emp-results').classList.add('d-none');
+  document.getElementById('c-emp-search').value = '';
+}
+
+/* ── Guardar contrato ── */
+document.getElementById('form-contrato').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var id        = document.getElementById('contrato-id').value;
+  var personaId = parseInt(document.getElementById('c-persona-id').value) || 0;
+  var inicio    = document.getElementById('c-fecha-inicio').value;
+  var fin       = document.getElementById('c-fecha-fin').value;
+  if (!personaId) { showToast('Selecciona un empleado.', 'warning'); return; }
+  if (!inicio || !fin) { showToast('Las fechas de inicio y fin son obligatorias.', 'warning'); return; }
+  var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+  var body = {
+    persona_id:        personaId,
+    fecha_inscripcion: document.getElementById('c-fecha-insc').value || new Date().toISOString().slice(0,10),
+    fecha_inicio:      inicio,
+    fecha_fin:         fin,
+    nivel:             parseInt(document.getElementById('c-nivel').value) || 0,
+    institucion:       institucionId
+  };
+  var btn = document.getElementById('btn-submit-contrato');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+  try {
+    var method = id ? 'PUT' : 'POST';
+    var params = id ? { id: id } : null;
+    await Cuspide.api.call(method, CONFIG.ENDPOINTS.contratos, 'save', body, params);
+    showToast(id ? 'Contrato actualizado.' : 'Contrato registrado.', 'success');
+    cerrarFormContrato();
+    loadContratos();
+  } catch (err) {
+    showToast(err.message || 'Error al guardar.', 'error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Contrato';
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadContratos();
+  loadNiveles();
+  document.getElementById('btn-nuevo-contrato').addEventListener('click', mostrarFormContrato);
+  document.getElementById('btn-cerrar-form-contrato').addEventListener('click', cerrarFormContrato);
+  document.getElementById('btn-cancelar-contrato').addEventListener('click', cerrarFormContrato);
+  document.getElementById('c-emp-search').addEventListener('input', function() { doEmpSearch(this.value.trim()); });
+  document.getElementById('btn-cambiar-emp').addEventListener('click', function() {
+    document.getElementById('c-emp-selected').classList.add('d-none');
+    document.getElementById('c-persona-id').value = '';
+    document.getElementById('c-emp-search').focus();
+  });
+});
+</script>
+{% endblock %}

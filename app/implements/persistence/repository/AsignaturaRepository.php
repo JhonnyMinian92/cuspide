@@ -59,4 +59,26 @@ class AsignaturaRepository
 
     return array_map(fn($row) => new Asignatura($row['id'], $row['nombre'], $row['descripcion'], $row['institucion'], $row['estado']), $rows ?: []);
   }
+
+  public function findByInstitucionWithStats(int $institucionId): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT a.id, a.nombre, a.descripcion, a.estado,
+              COUNT(DISTINCT cm.id) AS total_matriculados
+       FROM asignaturas a
+       LEFT JOIN asignatura_clase ac ON ac.asignatura = a.id
+       LEFT JOIN clases_matricula  cm ON cm.clase = ac.clase AND cm.estado = 1
+       WHERE a.institucion = :inst
+       GROUP BY a.id
+       ORDER BY a.nombre ASC"
+    );
+    $stmt->execute([':inst' => $institucionId]);
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
+
+  public function disable(int $id): void
+  {
+    $stmt = $this->db->prepare('UPDATE asignaturas SET estado = 2 WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+  }
 }

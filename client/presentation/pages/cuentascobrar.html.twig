@@ -1,0 +1,502 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'cuentascobrar' %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Cuentas por Cobrar{% endblock %}
+
+{% block content %}
+
+<!-- ── Tarjeta resumen total por cobrar ── -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card stat-card text-white" style="background:#dc2626;">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Total por Cobrar</div>
+          <div class="stat-value" id="stat-total-cobrar">—</div>
+        </div>
+        <div class="stat-icon"><i class="bi bi-currency-dollar"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card stat-card text-white" style="background:#d97706;">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Vencidas +30 días</div>
+          <div class="stat-value" id="stat-vencidas">—</div>
+        </div>
+        <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card stat-card text-white" style="background:#0d9488;">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Cuentas Pendientes</div>
+          <div class="stat-value" id="stat-cuentas">—</div>
+        </div>
+        <div class="stat-icon"><i class="bi bi-file-earmark-text-fill"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card stat-card text-white" style="background:#1a2235;">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Institución</div>
+          <div class="stat-value">
+            <select class="form-select form-select-sm" id="cc-inst-select"
+              style="background:transparent;border:none;color:#fff;padding:0;font-size:1rem;font-weight:700;max-width:180px;">
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+        </div>
+        <div class="stat-icon"><i class="bi bi-building"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Filtros ── -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-6">
+        <label class="form-label fw-semibold small">
+          <i class="bi bi-search me-1"></i>Buscar cliente
+        </label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+          <input type="search" class="form-control" id="cc-search"
+            placeholder="Nombre o cédula..." autocomplete="off">
+          <span class="input-group-text d-none" id="cc-search-spinner">
+            <span class="spinner-border spinner-border-sm"></span>
+          </span>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label fw-semibold small">
+          <i class="bi bi-clock-history me-1"></i>Días vencido
+        </label>
+        <select class="form-select" id="cc-dias-filter">
+          <option value="all">Todos</option>
+          <option value="0-30">0 – 30 días</option>
+          <option value="31-60">31 – 60 días</option>
+          <option value="60+">Más de 60 días</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label fw-semibold small invisible d-none d-md-block">.</label>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary w-100" id="btn-clear-cc">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </button>
+          <button type="button" class="btn btn-outline-secondary" id="btn-refresh-cc" title="Refrescar">
+            <i class="bi bi-arrow-repeat"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tabla principal ── -->
+<div class="card chart-card">
+  <div class="card-body p-0">
+    <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-list-check me-2" style="color:var(--brand-color);"></i>Cuentas por Cobrar
+        </h6>
+        <p class="text-muted small mb-0" id="cc-info">Cargando...</p>
+      </div>
+    </div>
+    <div class="table-responsive table-container"
+      style="border-radius:0 0 12px 12px;border-top:1px solid var(--table-border);border-left:none;border-right:none;border-bottom:none;">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Cliente</th>
+            <th>Factura</th>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th class="text-end">Total</th>
+            <th class="text-end">Saldo</th>
+            <th>Días Vencido</th>
+            <th class="text-end pe-4">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cc-tbody">
+          <tr>
+            <td colspan="8" class="text-center text-muted py-5">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando cuentas...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed top-0 end-0 p-3 mt-5" style="z-index:9999;" id="toast-container"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ────────────────────────────────────────────────
+   HELPERS
+──────────────────────────────────────────────── */
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function showToast(msg, type) {
+  type = type || 'success';
+  if (type === 'error') type = 'danger';
+  var icons = { success:'check-circle-fill', danger:'x-circle-fill', warning:'exclamation-triangle-fill', info:'info-circle-fill' };
+  var t = document.createElement('div');
+  t.className = 'toast align-items-center border-0 text-white bg-' + type + ' show';
+  t.setAttribute('role','alert');
+  t.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-' + (icons[type]||'info-circle-fill') +
+    ' me-2"></i>' + esc(msg) + '</div>' +
+    '<button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest(\'.toast\').remove()"></button></div>';
+  var c = document.getElementById('toast-container');
+  if (c) c.appendChild(t);
+  setTimeout(function() { if (t.parentNode) t.remove(); }, 3000);
+}
+
+function formatMoney(v) {
+  return '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  var d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('es-EC', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+function tipoBadge(tipo) {
+  var colors = { MATRICULA: 'bg-info text-dark', VENTA: 'bg-primary' };
+  return '<span class="badge ' + (colors[tipo] || 'bg-secondary') + '">' + esc(tipo) + '</span>';
+}
+
+function diasBadge(dias) {
+  var d = parseInt(dias) || 0;
+  if (d <= 30) return '<span class="badge bg-success">' + d + 'd</span>';
+  if (d <= 60) return '<span class="badge bg-warning text-dark">' + d + 'd</span>';
+  return '<span class="badge bg-danger">' + d + 'd</span>';
+}
+
+function debounce(fn, ms) {
+  var t;
+  return function() {
+    var a = arguments;
+    clearTimeout(t);
+    t = setTimeout(function() { fn.apply(null, a); }, ms);
+  };
+}
+
+/* ────────────────────────────────────────────────
+   ESTADO
+──────────────────────────────────────────────── */
+var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+var allCuentas    = [];
+var totalPorCobrar = 0;
+
+/* ────────────────────────────────────────────────
+   INSTITUCIONES SELECT
+──────────────────────────────────────────────── */
+function loadInstSelect() {
+  var sel    = document.getElementById('cc-inst-select');
+  var cached = window.CUSPIDE_STATE && window.CUSPIDE_STATE.instituciones && window.CUSPIDE_STATE.instituciones.length > 0;
+  var src    = cached
+    ? Promise.resolve(window.CUSPIDE_STATE.instituciones)
+    : Cuspide.api.call('GET', CONFIG.ENDPOINTS.instituciones, 'list', null, null);
+
+  src.then(function(data) {
+    if (!Array.isArray(data) || !data.length) {
+      sel.innerHTML = '<option value="">Sin instituciones</option>';
+      return;
+    }
+    sel.innerHTML = data.map(function(i) {
+      return '<option value="' + i.id + '"' + (i.id == institucionId ? ' selected' : '') + '>' +
+        esc(i.nombre) + '</option>';
+    }).join('');
+    institucionId = parseInt(sel.value) || institucionId;
+    loadCuentas();
+  }).catch(function() {
+    sel.innerHTML = '<option value="">Error al cargar</option>';
+  });
+}
+
+document.getElementById('cc-inst-select').addEventListener('change', function() {
+  institucionId = parseInt(this.value) || null;
+  if (window.setCurrentInstitucion) setCurrentInstitucion(institucionId);
+  loadCuentas();
+});
+
+/* ────────────────────────────────────────────────
+   CARGAR CUENTAS POR COBRAR
+──────────────────────────────────────────────── */
+function loadCuentas() {
+  if (!institucionId) return;
+  setTableLoading();
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.cuentascobrar, 'list', null, { institucion: institucionId })
+    .then(function(data) {
+      /* Acepta tanto { total_por_cobrar, cuentas: [] } como [] plano */
+      if (data && !Array.isArray(data) && data.cuentas) {
+        totalPorCobrar = parseFloat(data.total_por_cobrar || 0);
+        allCuentas     = Array.isArray(data.cuentas) ? data.cuentas : [];
+      } else {
+        allCuentas     = Array.isArray(data) ? data : [];
+        totalPorCobrar = allCuentas.reduce(function(acc, c) { return acc + parseFloat(c.saldo || 0); }, 0);
+      }
+      updateStats();
+      applyFiltersAndRender();
+    })
+    .catch(function(err) {
+      showTableError(err.message || 'Error al cargar cuentas.');
+    });
+}
+
+function setTableLoading() {
+  document.getElementById('cc-tbody').innerHTML =
+    '<tr><td colspan="8" class="text-center text-muted py-5">' +
+    '<span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+  document.getElementById('cc-info').textContent = 'Cargando...';
+}
+
+function showTableError(msg) {
+  document.getElementById('cc-tbody').innerHTML =
+    '<tr><td colspan="8" class="text-center text-danger py-4">' +
+    '<i class="bi bi-exclamation-circle me-2"></i>' + esc(msg) + '</td></tr>';
+  document.getElementById('cc-info').textContent = 'Error.';
+  showToast(msg, 'danger');
+}
+
+/* ────────────────────────────────────────────────
+   ESTADÍSTICAS
+──────────────────────────────────────────────── */
+function updateStats() {
+  document.getElementById('stat-total-cobrar').textContent = formatMoney(totalPorCobrar);
+  document.getElementById('stat-cuentas').textContent      = allCuentas.length;
+
+  var vencidas = allCuentas.filter(function(c) { return parseInt(c.dias_vencido) > 30; });
+  var montoVencidas = vencidas.reduce(function(acc, c) { return acc + parseFloat(c.saldo || 0); }, 0);
+  document.getElementById('stat-vencidas').textContent = formatMoney(montoVencidas);
+}
+
+/* ────────────────────────────────────────────────
+   FILTROS Y RENDER
+──────────────────────────────────────────────── */
+function applyFiltersAndRender() {
+  var q      = document.getElementById('cc-search').value.trim().toLowerCase();
+  var rango  = document.getElementById('cc-dias-filter').value;
+
+  var items = allCuentas.filter(function(c) {
+    if (q) {
+      var nombre  = (c.nombre_cliente || c.nombre || '').toLowerCase();
+      var cedula  = (c.identificacion || '').toLowerCase();
+      if (!nombre.includes(q) && !cedula.includes(q)) return false;
+    }
+    if (rango !== 'all') {
+      var d = parseInt(c.dias_vencido) || 0;
+      if (rango === '0-30'  && (d < 0  || d > 30)) return false;
+      if (rango === '31-60' && (d < 31 || d > 60)) return false;
+      if (rango === '60+'   && d <= 60) return false;
+    }
+    return true;
+  });
+
+  renderTable(items);
+
+  var filtrado = items.reduce(function(acc, c) { return acc + parseFloat(c.saldo || 0); }, 0);
+  document.getElementById('cc-info').textContent =
+    items.length + ' cuenta(s) · Total filtrado: ' + formatMoney(filtrado);
+}
+
+function renderTable(items) {
+  var tbody = document.getElementById('cc-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5">' +
+      '<i class="bi bi-check-circle-fill fs-2 d-block mb-2 text-success opacity-50"></i>No hay registros.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(function(c) {
+    var personaId = c.persona || c.id_persona || '';
+    return '<tr>' +
+      '<td class="ps-4">' +
+        '<div class="fw-semibold">' + esc(c.nombre_cliente || c.nombre || '—') + '</div>' +
+        '<code style="font-size:.72rem;">' + esc(c.identificacion || '') + '</code>' +
+      '</td>' +
+      '<td>' +
+        '<code class="fw-semibold small">' + esc(c.numero) + '</code>' +
+      '</td>' +
+      '<td class="text-muted small">' + fmtDate(c.fecha) + '</td>' +
+      '<td>' + tipoBadge(c.tipo) + '</td>' +
+      '<td class="text-end">' + formatMoney(c.total) + '</td>' +
+      '<td class="text-end fw-bold" style="color:var(--danger-text);">' + formatMoney(c.saldo) + '</td>' +
+      '<td>' + diasBadge(c.dias_vencido) + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-xs btn-sm btn-outline-primary me-1" ' +
+          'onclick="toggleDetalle(this,' + c.id + ')">' +
+          '<i class="bi bi-eye me-1"></i>Detalle</button>' +
+        (personaId
+          ? '<button type="button" class="btn btn-xs btn-sm btn-brand" ' +
+              'onclick="cobrarPersona(' + personaId + ')" title="Ir a cobrar">' +
+              '<i class="bi bi-cash-coin me-1"></i>Cobrar</button>'
+          : '') +
+      '</td>' +
+    '</tr>' +
+    '<tr class="d-none" id="detalle-row-' + c.id + '">' +
+      '<td colspan="8" class="p-0">' +
+        '<div class="p-3" style="background:var(--app-surface-soft);">' +
+          '<div id="detalle-content-' + c.id + '">' +
+            renderDetalleInline(c) +
+          '</div>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ── Render detalle inline si ya viene en la respuesta ── */
+function renderDetalleInline(c) {
+  var items = c.detalle;
+  if (!items || !items.length) {
+    /* Será cargado al expandir via API */
+    return '<span class="spinner-border spinner-border-sm me-2 d-none" id="spinner-' + c.id + '"></span>' +
+           '<span class="text-muted small" id="detalle-placeholder-' + c.id + '">Clic en Detalle para cargar.</span>';
+  }
+  return buildDetalleHtml(items);
+}
+
+function buildDetalleHtml(items) {
+  var rows = items.map(function(d) {
+    return '<tr>' +
+      '<td>' + esc(d.descripcion || d.producto || '—') + '</td>' +
+      '<td class="text-center">' + esc(d.cantidad) + '</td>' +
+      '<td class="text-end">' + formatMoney(d.precio_unitario || d.precio) + '</td>' +
+      '<td class="text-end fw-semibold">' + formatMoney(d.subtotal || d.total) + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="table-responsive" style="max-width:600px;">' +
+    '<table class="table table-sm align-middle mb-0" style="font-size:.82rem;">' +
+    '<thead class="table-light">' +
+      '<tr><th>Descripción</th><th class="text-center">Cant.</th>' +
+      '<th class="text-end">P.Unit.</th><th class="text-end">Subtotal</th></tr>' +
+    '</thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table></div>';
+}
+
+/* ────────────────────────────────────────────────
+   TOGGLE DETALLE
+──────────────────────────────────────────────── */
+function toggleDetalle(btn, cuentaId) {
+  var row = document.getElementById('detalle-row-' + cuentaId);
+  if (!row) return;
+  var isHidden = row.classList.contains('d-none');
+  if (isHidden) {
+    row.classList.remove('d-none');
+    btn.innerHTML = '<i class="bi bi-eye-slash me-1"></i>Ocultar';
+    loadDetalleIfNeeded(cuentaId);
+  } else {
+    row.classList.add('d-none');
+    btn.innerHTML = '<i class="bi bi-eye me-1"></i>Detalle';
+  }
+}
+
+function loadDetalleIfNeeded(cuentaId) {
+  var content = document.getElementById('detalle-content-' + cuentaId);
+  if (!content || content.dataset.loaded === '1') return;
+
+  /* Buscar la cuenta local para ver si tiene detalle ya cargado */
+  var cuenta = null;
+  for (var i = 0; i < allCuentas.length; i++) {
+    if (allCuentas[i].id == cuentaId) { cuenta = allCuentas[i]; break; }
+  }
+  if (cuenta && cuenta.detalle && cuenta.detalle.length) {
+    content.innerHTML = buildDetalleHtml(cuenta.detalle);
+    content.dataset.loaded = '1';
+    return;
+  }
+
+  content.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' +
+    '<span class="text-muted small">Cargando detalle...</span>';
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.facturas, 'detail', null, { id: cuentaId })
+    .then(function(data) {
+      content.dataset.loaded = '1';
+      var items = Array.isArray(data) ? data : (data && data.detalle ? data.detalle : []);
+      if (!items.length) {
+        content.innerHTML = '<em class="text-muted small">Sin ítems de detalle.</em>';
+        return;
+      }
+      content.innerHTML = buildDetalleHtml(items);
+    })
+    .catch(function(err) {
+      content.innerHTML = '<span class="text-danger small"><i class="bi bi-exclamation-circle me-1"></i>' +
+        esc(err.message || 'Error al cargar detalle.') + '</span>';
+    });
+}
+
+/* ────────────────────────────────────────────────
+   COBRAR — redirige a /pagos con persona pre-cargada
+──────────────────────────────────────────────── */
+function cobrarPersona(personaId) {
+  if (!personaId) { showToast('No se pudo identificar la persona.', 'warning'); return; }
+  localStorage.setItem('cobrar_persona_id', personaId);
+  window.location.href = '/pagos';
+}
+
+/* ────────────────────────────────────────────────
+   EVENTOS DE FILTROS
+──────────────────────────────────────────────── */
+var doSearch = debounce(function() {
+  document.getElementById('cc-search-spinner').classList.add('d-none');
+  applyFiltersAndRender();
+}, 350);
+
+document.getElementById('cc-search').addEventListener('input', function() {
+  if (this.value.trim().length >= 2) {
+    document.getElementById('cc-search-spinner').classList.remove('d-none');
+  }
+  doSearch();
+});
+
+document.getElementById('cc-dias-filter').addEventListener('change', function() {
+  applyFiltersAndRender();
+});
+
+document.getElementById('btn-clear-cc').addEventListener('click', function() {
+  document.getElementById('cc-search').value = '';
+  document.getElementById('cc-dias-filter').value = 'all';
+  applyFiltersAndRender();
+});
+
+document.getElementById('btn-refresh-cc').addEventListener('click', function() {
+  loadCuentas();
+});
+
+/* ────────────────────────────────────────────────
+   INIT
+──────────────────────────────────────────────── */
+function init() {
+  loadInstSelect();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  init();
+});
+</script>
+{% endblock %}

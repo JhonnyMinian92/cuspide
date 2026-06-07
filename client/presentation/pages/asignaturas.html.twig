@@ -1,0 +1,727 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'asignaturas' %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Clases y Asignaturas{% endblock %}
+
+{% block head %}
+<style>
+#main-tabs{border-bottom:1px solid var(--card-border,#dee2e6);}
+#main-tabs .nav-link{color:var(--app-text,#495057);opacity:.65;border:none;border-bottom:2px solid transparent;border-radius:0;padding:.65rem 1.2rem;font-size:.9rem;transition:opacity .15s,border-color .15s;}
+#main-tabs .nav-link:hover:not(.active){opacity:1;}
+#main-tabs .nav-link.active{color:var(--brand-color,#e8b84b);opacity:1;border-bottom-color:var(--brand-color,#e8b84b);background:transparent;font-weight:600;}
+.tab-content>.tab-pane{padding:1.25rem 0 0;}
+.confirm-wrap{display:inline-flex;align-items:center;gap:.4rem;}
+.tag-badge{font-size:.75rem;padding:.25em .6em;border-radius:.4rem;}
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Tabs ── -->
+<ul class="nav nav-tabs mb-0" id="main-tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-clases" type="button" role="tab">
+      <i class="bi bi-people me-1"></i>Clases
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-asignaturas" type="button" role="tab" id="tab-asig-btn">
+      <i class="bi bi-journal-bookmark me-1"></i>Asignaturas
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ══════════════════ TAB CLASES ══════════════════ -->
+  <div class="tab-pane fade show active" id="tab-clases" role="tabpanel">
+
+    <!-- Header + filtros -->
+    <div class="card chart-card mb-3">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mb-3">
+          <div>
+            <h6 class="fw-bold mb-1">Grupos de entrenamiento</h6>
+            <p class="text-muted small mb-0">Total: <strong id="clase-count">—</strong> clases activas en tu institución.</p>
+          </div>
+          <div class="d-flex gap-2 flex-shrink-0">
+            <a href="/matriculas" class="btn btn-sm btn-outline-secondary align-self-center">
+              <i class="bi bi-arrow-left me-1"></i>Matrículas
+            </a>
+            <button type="button" class="btn btn-brand" id="btn-nueva-clase">
+              <i class="bi bi-plus-lg me-1"></i>Nueva Clase
+            </button>
+          </div>
+        </div>
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-lg-5">
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="search" class="form-control" id="clase-search"
+                placeholder="Buscar por nombre de clase..." autocomplete="off">
+            </div>
+          </div>
+          <div class="col-12 col-lg-5">
+            <select class="form-select" id="clase-periodo-filter">
+              <option value="">Todos los períodos</option>
+            </select>
+          </div>
+          <div class="col-12 col-lg-2">
+            <button type="button" class="btn btn-outline-secondary w-100" id="btn-clase-limpiar">
+              <i class="bi bi-x-circle me-1"></i>Limpiar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla clases -->
+    <div class="card chart-card mb-3">
+      <div class="card-body p-0">
+        <div class="table-responsive table-container" style="border-radius:12px;">
+          <table class="table table-hover align-middle mb-0" style="min-width:740px;">
+            <thead class="table-light">
+              <tr>
+                <th>Clase</th>
+                <th>Asignatura / Nivel</th>
+                <th>Docente</th>
+                <th class="text-center">Precio</th>
+                <th class="text-center">Cupo</th>
+                <th class="text-center">Asist./Faltas</th>
+                <th class="text-center">Estado</th>
+                <th class="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="clase-tbody">
+              <tr><td colspan="8" class="text-center text-muted py-5">
+                <span class="spinner-border spinner-border-sm me-2"></span>Cargando clases...
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario crear / editar clase -->
+    <div class="card chart-card d-none mb-3" id="clase-form-card" style="border-left:4px solid var(--brand-color);">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h6 class="fw-bold mb-0" id="clase-form-title">
+            <i class="bi bi-plus-circle me-2"></i>Nueva Clase
+          </h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="clase-btn-cancel">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <form id="clase-form" novalidate>
+          <input type="hidden" id="clase-id">
+
+          <!-- Fila 1: nombre + cupo + estado -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="clase-nombre" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="clase-nombre"
+                placeholder="Ej: Táctica A – Mañana" required maxlength="120">
+              <div class="invalid-feedback">El nombre es obligatorio.</div>
+            </div>
+            <div class="col-md-3">
+              <label for="clase-cupo" class="form-label fw-semibold">Cupo máx. <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="clase-cupo" min="1" max="500" placeholder="20" required>
+              <div class="invalid-feedback">El cupo es obligatorio.</div>
+            </div>
+            <div class="col-md-3">
+              <label for="clase-precio" class="form-label fw-semibold">Precio</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control" id="clase-precio" min="0" step="0.01" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+
+          <!-- Fila 2: período + asignatura + nivel -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label for="clase-periodo" class="form-label fw-semibold">Período académico <span class="text-danger">*</span></label>
+              <select class="form-select" id="clase-periodo" required>
+                <option value="">Seleccionar período...</option>
+              </select>
+              <div class="invalid-feedback">Selecciona un período.</div>
+            </div>
+            <div class="col-md-4">
+              <label for="clase-asignatura" class="form-label fw-semibold">Asignatura</label>
+              <select class="form-select" id="clase-asignatura">
+                <option value="">Sin asignatura</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="clase-nivel" class="form-label fw-semibold">Nivel</label>
+              <select class="form-select" id="clase-nivel">
+                <option value="">Sin nivel</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Fila 3: docente + estado -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-8">
+              <label for="clase-docente" class="form-label fw-semibold">Docente / Entrenador</label>
+              <select class="form-select" id="clase-docente">
+                <option value="">Sin asignar</option>
+              </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end pb-2">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="clase-estado" checked>
+                <label class="form-check-label fw-semibold" for="clase-estado">Activo</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fila 4: observación -->
+          <div class="row g-3 mb-4">
+            <div class="col-12">
+              <label for="clase-observacion" class="form-label fw-semibold">Observación</label>
+              <textarea class="form-control" id="clase-observacion" rows="2"
+                placeholder="Notas adicionales sobre la clase..." maxlength="500"></textarea>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-brand" id="clase-btn-save">
+              <i class="bi bi-floppy me-1"></i>Guardar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="clase-btn-cancel-2">
+              <i class="bi bi-x me-1"></i>Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div><!-- /tab-clases -->
+
+  <!-- ══════════════════ TAB ASIGNATURAS ══════════════════ -->
+  <div class="tab-pane fade" id="tab-asignaturas" role="tabpanel">
+
+    <!-- Header + búsqueda -->
+    <div class="card chart-card mb-3">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3 mb-3">
+          <div>
+            <h6 class="fw-bold mb-1">Materias y disciplinas</h6>
+            <p class="text-muted small mb-0">Total: <strong id="asig-count">—</strong> asignaturas en tu institución.</p>
+          </div>
+          <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nueva-asig">
+            <i class="bi bi-plus-lg me-1"></i>Nueva Asignatura
+          </button>
+        </div>
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-lg-10">
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="search" class="form-control" id="asig-search"
+                placeholder="Buscar por nombre o descripción..." autocomplete="off">
+            </div>
+          </div>
+          <div class="col-12 col-lg-2">
+            <button type="button" class="btn btn-outline-secondary w-100" id="btn-asig-limpiar">
+              <i class="bi bi-x-circle me-1"></i>Limpiar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla asignaturas -->
+    <div class="card chart-card mb-3">
+      <div class="card-body p-0">
+        <div class="table-responsive table-container" style="border-radius:12px;">
+          <table class="table table-hover align-middle mb-0" style="min-width:520px;">
+            <thead class="table-light">
+              <tr>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th class="text-center">Matriculados</th>
+                <th class="text-center">Estado</th>
+                <th class="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="asig-tbody">
+              <tr><td colspan="5" class="text-center text-muted py-5">
+                <span class="spinner-border spinner-border-sm me-2"></span>Cargando asignaturas...
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario crear / editar asignatura -->
+    <div class="card chart-card d-none mb-3" id="asig-form-card" style="border-left:4px solid #3b82f6;">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0" id="asig-form-title">
+            <i class="bi bi-journal-plus me-2"></i>Nueva Asignatura
+          </h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="asig-btn-cancel">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <form id="asig-form" novalidate>
+          <input type="hidden" id="asig-id">
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label for="asig-nombre" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="asig-nombre"
+                placeholder="Ej: Táctica de Fútbol" required maxlength="120">
+              <div class="invalid-feedback">El nombre es obligatorio.</div>
+            </div>
+            <div class="col-md-5">
+              <label for="asig-descripcion" class="form-label fw-semibold">Descripción <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="asig-descripcion"
+                placeholder="Descripción breve" required maxlength="250">
+              <div class="invalid-feedback">La descripción es obligatoria.</div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end pb-1">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="asig-estado" checked>
+                <label class="form-check-label fw-semibold" for="asig-estado">Activo</label>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary" id="asig-btn-save">
+              <i class="bi bi-floppy me-1"></i>Guardar
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="asig-btn-cancel-2">
+              <i class="bi bi-x me-1"></i>Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div><!-- /tab-asignaturas -->
+</div><!-- /tab-content -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Estado global ── */
+var allClases      = [];
+var allAsignaturas = [];
+var allPeriodos    = [];
+var allNiveles     = [];
+var allDocentes    = [];
+var institucionId  = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 0;
+
+/* ── Helpers ── */
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function fmtMoney(v) { return v !== null && v !== undefined ? '$' + parseFloat(v).toFixed(2) : '—'; }
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.classList.add('show'); }, 10);
+  setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, 3500);
+}
+function debounce(fn, ms) {
+  var timer;
+  return function(){ var a = arguments; clearTimeout(timer); timer = setTimeout(function(){ fn.apply(null, a); }, ms); };
+}
+
+/* ══════════════════ CATÁLOGOS ══════════════════ */
+function loadPeriodos() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.periodos, 'list', null, null)
+    .then(function(data) {
+      allPeriodos = Array.isArray(data) ? data : [];
+      /* form select */
+      var sel = document.getElementById('clase-periodo');
+      sel.innerHTML = '<option value="">Seleccionar período...</option>'
+        + allPeriodos.map(function(p) {
+            return '<option value="'+esc(p.id)+'">'+esc(p.nombre||p.titulo||'Período '+p.id)+'</option>';
+          }).join('');
+      /* filter select */
+      var fsel = document.getElementById('clase-periodo-filter');
+      fsel.innerHTML = '<option value="">Todos los períodos</option>'
+        + allPeriodos.map(function(p) {
+            return '<option value="'+esc(p.id)+'">'+esc(p.nombre||p.titulo||'Período '+p.id)+'</option>';
+          }).join('');
+    })
+    .catch(function() {
+      document.getElementById('clase-periodo').innerHTML = '<option value="1">Temporada 2025</option>';
+    });
+}
+
+function loadAsignaturasForSelect() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.asignaturas, 'list', null, { institucion: institucionId })
+    .then(function(data) {
+      var items = Array.isArray(data) ? data.filter(function(a){ return a.estado===1; }) : [];
+      var sel   = document.getElementById('clase-asignatura');
+      sel.innerHTML = '<option value="">Sin asignatura</option>'
+        + items.map(function(a) {
+            return '<option value="'+esc(a.id)+'">'+esc(a.nombre)+'</option>';
+          }).join('');
+    })
+    .catch(function(){});
+}
+
+function loadNivelesForSelect() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.clases, 'niveles', null, null)
+    .then(function(data) {
+      allNiveles = Array.isArray(data) ? data : [];
+      var sel = document.getElementById('clase-nivel');
+      sel.innerHTML = '<option value="">Sin nivel</option>'
+        + allNiveles.map(function(n) {
+            return '<option value="'+esc(n.id)+'">'+esc(n.nombre)+'</option>';
+          }).join('');
+    })
+    .catch(function(){});
+}
+
+function loadDocentesForSelect() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.clases, 'docentes', null, { institucion: institucionId })
+    .then(function(data) {
+      allDocentes = Array.isArray(data) ? data : [];
+      var sel = document.getElementById('clase-docente');
+      sel.innerHTML = '<option value="">Sin asignar</option>'
+        + allDocentes.map(function(d) {
+            return '<option value="'+esc(d.id)+'">'+esc(d.nombre_completo)+' <small>('+esc(d.tipo)+')</small></option>';
+          }).join('');
+    })
+    .catch(function(){});
+}
+
+/* ══════════════════ CLASES ══════════════════ */
+function loadClases() {
+  var periodoId = document.getElementById('clase-periodo-filter').value;
+  var params    = { institucion: institucionId };
+  if (periodoId) params.periodo = periodoId;
+
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.clases, 'list', null, params)
+    .then(function(data) {
+      allClases = Array.isArray(data) ? data : [];
+      document.getElementById('clase-count').textContent = allClases.length;
+      renderClases(document.getElementById('clase-search').value.trim());
+    })
+    .catch(function(err) {
+      showToast('Error al cargar clases: ' + (err.message||''), 'error');
+      document.getElementById('clase-tbody').innerHTML =
+        '<tr><td colspan="8" class="text-center text-danger py-5"><i class="bi bi-exclamation-triangle me-2"></i>Error al cargar datos.</td></tr>';
+    });
+}
+
+var doSearchClases = debounce(function(q){ renderClases(q); }, 300);
+
+function renderClases(q) {
+  var list = allClases;
+  if (q && q.length >= 1) {
+    var ql = q.toLowerCase();
+    list = allClases.filter(function(c){
+      return (c.nombre||'').toLowerCase().indexOf(ql) !== -1
+          || (c.asignatura_nombre||'').toLowerCase().indexOf(ql) !== -1;
+    });
+  }
+  var tbody = document.getElementById('clase-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5">'
+      +'<i class="bi bi-people fs-2 d-block mb-2 opacity-25"></i>'
+      +(q ? 'Sin resultados para &ldquo;'+esc(q)+'&rdquo;.' : 'Sin clases registradas.')
+      +'</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(c) {
+    var badge   = '<span class="badge bg-success rounded-pill">Activo</span>';
+    var docente = (c.primer_nombre && c.primer_apellido)
+      ? esc(c.primer_nombre + ' ' + c.primer_apellido)
+      : '<span class="text-muted small">—</span>';
+    var cupoFull = (c.matriculados||0) >= c.cupo_maximo;
+    var cupoHtml = '<span class="badge '+(cupoFull ? 'bg-danger' : 'bg-success')+'">'
+      +(c.matriculados||0)+'/'+c.cupo_maximo+'</span>';
+    var asigHtml = c.asignatura_nombre
+      ? '<div class="fw-semibold small">'+esc(c.asignatura_nombre)+'</div>'
+        +(c.nivel_nombre ? '<span class="tag-badge badge bg-info text-dark">'+esc(c.nivel_nombre)+'</span>' : '')
+      : '<span class="text-muted small">—</span>';
+
+    return '<tr>'
+      +'<td>'
+        +'<div class="fw-semibold">'+esc(c.nombre)+'</div>'
+        +(c.periodo ? '<div class="text-muted small">'+esc(c.periodo)+'</div>' : '')
+      +'</td>'
+      +'<td>'+asigHtml+'</td>'
+      +'<td class="small">'+docente+'</td>'
+      +'<td class="text-center">'+fmtMoney(c.precio)+'</td>'
+      +'<td class="text-center">'+cupoHtml+'</td>'
+      +'<td class="text-center">'
+        +'<span class="text-success fw-semibold small">'+(c.asistencias||0)+'</span>'
+        +' <span class="text-muted small">/</span> '
+        +'<span class="text-danger fw-semibold small">'+(c.faltas||0)+'</span>'
+      +'</td>'
+      +'<td class="text-center">'+badge+'</td>'
+      +'<td class="text-end pe-3 text-nowrap">'
+        +'<button class="btn btn-sm btn-outline-secondary me-1" onclick="editClase('+c.id+')" title="Editar"><i class="bi bi-pencil"></i></button>'
+        +'<span id="clase-confirm-'+c.id+'">'
+          +'<button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteClase('+c.id+')" title="Desactivar"><i class="bi bi-trash"></i></button>'
+        +'</span>'
+      +'</td></tr>';
+  }).join('');
+}
+
+function confirmDeleteClase(id) {
+  var el = document.getElementById('clase-confirm-'+id);
+  if (!el) return;
+  el.innerHTML = '<span class="confirm-wrap">'
+    +'<small class="text-danger fw-semibold">¿Desactivar?</small>'
+    +'<button class="btn btn-sm btn-danger" onclick="deleteClase('+id+')">Sí</button>'
+    +'<button class="btn btn-sm btn-outline-secondary" onclick="loadClases()">No</button>'
+    +'</span>';
+}
+
+function deleteClase(id) {
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.clases, 'delete', null, { id: id })
+    .then(function(){ showToast('Clase desactivada.'); loadClases(); })
+    .catch(function(err){ showToast('Error: '+(err.message||''), 'error'); });
+}
+
+function editClase(id) {
+  var c = allClases.find(function(x){ return x.id == id; });
+  if (!c) return;
+  document.getElementById('clase-id').value          = c.id;
+  document.getElementById('clase-nombre').value      = c.nombre || '';
+  document.getElementById('clase-cupo').value        = c.cupo_maximo || '';
+  document.getElementById('clase-precio').value      = c.precio !== null ? c.precio : '';
+  document.getElementById('clase-observacion').value = c.observacion || '';
+  document.getElementById('clase-estado').checked    = c.estado === 1;
+  if (c.periodo_academico) document.getElementById('clase-periodo').value    = c.periodo_academico;
+  if (c.asignatura)        document.getElementById('clase-asignatura').value = c.asignatura;
+  if (c.nivel_asignatura)  document.getElementById('clase-nivel').value      = c.nivel_asignatura;
+  if (c.docente)           document.getElementById('clase-docente').value    = c.docente;
+  document.getElementById('clase-form-title').innerHTML =
+    '<i class="bi bi-pencil-square me-2"></i>Editar Clase <small class="text-muted">#'+c.id+'</small>';
+  showClaseForm();
+}
+
+function showClaseForm() {
+  var card = document.getElementById('clase-form-card');
+  card.classList.remove('d-none');
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function hideClaseForm() {
+  document.getElementById('clase-form-card').classList.add('d-none');
+  document.getElementById('clase-id').value = '';
+  document.getElementById('clase-form').reset();
+  document.getElementById('clase-form').classList.remove('was-validated');
+}
+
+document.getElementById('clase-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  if (!this.checkValidity()) { this.classList.add('was-validated'); return; }
+  this.classList.remove('was-validated');
+
+  var id         = document.getElementById('clase-id').value;
+  var precioRaw  = document.getElementById('clase-precio').value.trim();
+  var docenteRaw = document.getElementById('clase-docente').value;
+  var asigRaw    = document.getElementById('clase-asignatura').value;
+  var nivelRaw   = document.getElementById('clase-nivel').value;
+
+  var body = {
+    nombre:            document.getElementById('clase-nombre').value.trim(),
+    periodo_academico: parseInt(document.getElementById('clase-periodo').value) || null,
+    institucion:       institucionId,
+    docente:           docenteRaw ? parseInt(docenteRaw) : null,
+    cupo_maximo:       parseInt(document.getElementById('clase-cupo').value) || 0,
+    estado:            document.getElementById('clase-estado').checked ? 1 : 0,
+    asignatura:        asigRaw    ? parseInt(asigRaw)    : null,
+    nivel_asignatura:  nivelRaw   ? parseInt(nivelRaw)   : null,
+    precio:            precioRaw  ? parseFloat(precioRaw) : null,
+    observacion:       document.getElementById('clase-observacion').value.trim() || null,
+  };
+
+  var btn = document.getElementById('clase-btn-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  Cuspide.api.call(id ? 'PUT' : 'POST', CONFIG.ENDPOINTS.clases, 'save', body, id ? { id: id } : null)
+    .then(function(){ showToast(id ? 'Clase actualizada.' : 'Clase creada.'); hideClaseForm(); loadClases(); })
+    .catch(function(err){ showToast('Error: '+(err.message||''), 'error'); })
+    .finally(function(){ btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy me-1"></i>Guardar'; });
+});
+
+/* ══════════════════ ASIGNATURAS ══════════════════ */
+function loadAsignaturas() {
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.asignaturas, 'list', null, { institucion: institucionId })
+    .then(function(data) {
+      allAsignaturas = Array.isArray(data) ? data : [];
+      document.getElementById('asig-count').textContent = allAsignaturas.filter(function(a){ return a.estado===1; }).length;
+      renderAsignaturas('');
+    })
+    .catch(function(err) {
+      showToast('Error al cargar asignaturas: ' + (err.message||''), 'error');
+      document.getElementById('asig-tbody').innerHTML =
+        '<tr><td colspan="5" class="text-center text-danger py-5"><i class="bi bi-exclamation-triangle me-2"></i>Error al cargar datos.</td></tr>';
+    });
+}
+
+var doSearchAsig = debounce(function(q){ renderAsignaturas(q); }, 300);
+
+function renderAsignaturas(q) {
+  var list = allAsignaturas;
+  if (q && q.length >= 1) {
+    var ql = q.toLowerCase();
+    list = allAsignaturas.filter(function(a) {
+      return (a.nombre||'').toLowerCase().indexOf(ql) !== -1
+          || (a.descripcion||'').toLowerCase().indexOf(ql) !== -1;
+    });
+  }
+  var tbody = document.getElementById('asig-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5">'
+      +'<i class="bi bi-journal-x fs-2 d-block mb-2 opacity-25"></i>'
+      +(q ? 'Sin resultados para &ldquo;'+esc(q)+'&rdquo;.' : 'Sin asignaturas registradas.')
+      +'</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(a) {
+    var badge = a.estado === 1
+      ? '<span class="badge bg-success rounded-pill">Activo</span>'
+      : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
+    return '<tr>'
+      +'<td class="fw-semibold">'+esc(a.nombre)+'</td>'
+      +'<td class="text-muted small">'+esc(a.descripcion||'—')+'</td>'
+      +'<td class="text-center"><span class="badge bg-primary">'+esc(a.total_matriculados||0)+'</span></td>'
+      +'<td class="text-center">'+badge+'</td>'
+      +'<td class="text-end pe-3 text-nowrap">'
+        +'<button class="btn btn-sm btn-outline-secondary me-1" onclick="editAsignatura('+a.id+')" title="Editar"><i class="bi bi-pencil"></i></button>'
+        +'<span id="asig-confirm-'+a.id+'">'
+          +'<button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteAsig('+a.id+')" title="Desactivar"><i class="bi bi-trash"></i></button>'
+        +'</span>'
+      +'</td></tr>';
+  }).join('');
+}
+
+function confirmDeleteAsig(id) {
+  var el = document.getElementById('asig-confirm-'+id);
+  if (!el) return;
+  el.innerHTML = '<span class="confirm-wrap">'
+    +'<small class="text-danger fw-semibold">¿Desactivar?</small>'
+    +'<button class="btn btn-sm btn-danger" onclick="deleteAsignatura('+id+')">Sí</button>'
+    +'<button class="btn btn-sm btn-outline-secondary" onclick="loadAsignaturas()">No</button>'
+    +'</span>';
+}
+
+function deleteAsignatura(id) {
+  Cuspide.api.call('PUT', CONFIG.ENDPOINTS.asignaturas, 'delete', null, { id: id })
+    .then(function(){ showToast('Asignatura desactivada.'); loadAsignaturas(); })
+    .catch(function(err){ showToast('Error: '+(err.message||''), 'error'); });
+}
+
+function editAsignatura(id) {
+  var a = allAsignaturas.find(function(x){ return x.id == id; });
+  if (!a) return;
+  document.getElementById('asig-id').value          = a.id;
+  document.getElementById('asig-nombre').value      = a.nombre || '';
+  document.getElementById('asig-descripcion').value = a.descripcion || '';
+  document.getElementById('asig-estado').checked    = a.estado === 1;
+  document.getElementById('asig-form-title').innerHTML =
+    '<i class="bi bi-pencil-square me-2"></i>Editar Asignatura <small class="text-muted">#'+a.id+'</small>';
+  showAsigForm();
+}
+
+function showAsigForm() {
+  var card = document.getElementById('asig-form-card');
+  card.classList.remove('d-none');
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function hideAsigForm() {
+  document.getElementById('asig-form-card').classList.add('d-none');
+  document.getElementById('asig-id').value = '';
+  document.getElementById('asig-form').reset();
+  document.getElementById('asig-form').classList.remove('was-validated');
+}
+
+document.getElementById('asig-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  if (!this.checkValidity()) { this.classList.add('was-validated'); return; }
+  this.classList.remove('was-validated');
+
+  var id   = document.getElementById('asig-id').value;
+  var body = {
+    nombre:      document.getElementById('asig-nombre').value.trim(),
+    descripcion: document.getElementById('asig-descripcion').value.trim(),
+    institucion: institucionId,
+    estado:      document.getElementById('asig-estado').checked ? 1 : 0,
+  };
+  var btn = document.getElementById('asig-btn-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  Cuspide.api.call(id ? 'PUT' : 'POST', CONFIG.ENDPOINTS.asignaturas, 'save', body, id ? { id: id } : null)
+    .then(function(){ showToast(id ? 'Asignatura actualizada.' : 'Asignatura creada.'); hideAsigForm(); loadAsignaturas(); })
+    .catch(function(err){ showToast('Error: '+(err.message||''), 'error'); })
+    .finally(function(){ btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy me-1"></i>Guardar'; });
+});
+
+/* ══════════════════ EVENTOS UI ══════════════════ */
+document.getElementById('btn-nueva-clase').addEventListener('click', function() {
+  document.getElementById('clase-id').value = '';
+  document.getElementById('clase-form').reset();
+  document.getElementById('clase-form').classList.remove('was-validated');
+  document.getElementById('clase-form-title').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Nueva Clase';
+  showClaseForm();
+});
+document.getElementById('clase-btn-cancel').addEventListener('click', hideClaseForm);
+document.getElementById('clase-btn-cancel-2').addEventListener('click', hideClaseForm);
+
+document.getElementById('btn-nueva-asig').addEventListener('click', function() {
+  document.getElementById('asig-id').value = '';
+  document.getElementById('asig-form').reset();
+  document.getElementById('asig-form').classList.remove('was-validated');
+  document.getElementById('asig-form-title').innerHTML = '<i class="bi bi-journal-plus me-2"></i>Nueva Asignatura';
+  showAsigForm();
+});
+document.getElementById('asig-btn-cancel').addEventListener('click', hideAsigForm);
+document.getElementById('asig-btn-cancel-2').addEventListener('click', hideAsigForm);
+
+document.getElementById('clase-search').addEventListener('input', function(){ doSearchClases(this.value.trim()); });
+document.getElementById('clase-periodo-filter').addEventListener('change', function(){ loadClases(); });
+document.getElementById('btn-clase-limpiar').addEventListener('click', function() {
+  document.getElementById('clase-search').value = '';
+  document.getElementById('clase-periodo-filter').value = '';
+  loadClases();
+});
+
+document.getElementById('asig-search').addEventListener('input', function(){ doSearchAsig(this.value.trim()); });
+document.getElementById('btn-asig-limpiar').addEventListener('click', function() {
+  document.getElementById('asig-search').value = '';
+  renderAsignaturas('');
+});
+
+/* Carga asignaturas tab lazy */
+var asigLoaded = false;
+document.getElementById('tab-asig-btn').addEventListener('shown.bs.tab', function() {
+  if (!asigLoaded) { asigLoaded = true; loadAsignaturas(); }
+});
+
+/* ══════════════════ INIT ══════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  /* cargar catálogos en paralelo */
+  loadPeriodos();
+  loadAsignaturasForSelect();
+  loadNivelesForSelect();
+  loadDocentesForSelect();
+  /* cargar tabla de clases */
+  loadClases();
+});
+</script>
+{% endblock %}

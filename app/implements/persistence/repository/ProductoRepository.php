@@ -70,6 +70,28 @@ class ProductoRepository
     ];
   }
 
+  public function findWithStockByInstitucion(int $institucionId, ?int $categoriaId = null): array
+  {
+    $sql = "SELECT pr.id, pr.codigo, pr.nombre, pr.descripcion, pr.precio, pr.costo,
+                   pr.controla_stock, pr.estado,
+                   pc.nombre    AS categoria_nombre,
+                   COALESCE(inv.stock_actual, 0) AS stock
+            FROM productos pr
+            LEFT JOIN producto_categorias pc ON pc.id = pr.categoria
+            LEFT JOIN inventario inv          ON inv.producto = pr.id AND inv.institucion = :inst2
+            WHERE pr.estado = 1
+              AND pr.institucion = :inst";
+    $params = [':inst' => $institucionId, ':inst2' => $institucionId];
+    if ($categoriaId !== null) {
+      $sql .= ' AND pr.categoria = :cat';
+      $params[':cat'] = $categoriaId;
+    }
+    $sql .= ' ORDER BY pr.nombre ASC';
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+  }
+
   private function map(array $row): Producto
   {
     return new Producto($row['id'], $row['codigo'], $row['nombre'], $row['descripcion'], $row['categoria'], (float) $row['precio'], (float) $row['costo'], (bool) $row['controla_stock'], $row['institucion'], $row['estado']);

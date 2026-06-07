@@ -53,10 +53,13 @@ final class CompanyServices implements CompanyServiceInterface
       throw new RuntimeException('No se encontraron datos de la institución.', 404);
     }
 
-    // Se asume que la entidad Institucion tiene estos métodos get
     return [
-      'nombre' => $institucion->getNombre(),
-      'ruc' => $institucion->getRuc(),
+      'id'           => (int) $institucion->getId(),
+      'nombre'       => $institucion->getNombre(),
+      'ruc'          => $institucion->getRuc(),
+      'razon_social' => $institucion->getRazonSocial(),
+      'logo'         => $institucion->getLogotipo(),
+      'estado'       => (int) $institucion->getEstado()?->getId(),
     ];
   }
 }

@@ -1,0 +1,78 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'categorias' %}
+
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Categorías{% endblock %}
+
+{% block content %}
+<div class="card chart-card">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-3 mb-4">
+      <h6 class="fw-bold mb-0">Lista de Categorías</h6>
+      <button class="btn btn-brand align-self-start align-self-sm-auto" data-bs-toggle="modal" data-bs-target="#modalCategoria">
+        <i class="bi bi-plus-lg me-1"></i>Añadir Categoría
+      </button>
+    </div>
+
+    <!-- Los datos se cargarán via API en el futuro; por ahora se muestra tabla vacía -->
+    <div class="table-responsive table-container">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Nemónico</th>
+            <th>Descripción</th>
+            <th>Activa</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="categorias-tbody">
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-tags me-2"></i>
+              Los datos de categorías se cargarán via API próximamente.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Añadir Categoría -->
+<div class="modal fade" id="modalCategoria" tabindex="-1" aria-labelledby="modalCategoriaLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalCategoriaLabel"><i class="bi bi-tags-fill me-2"></i>Añadir Categoría</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre</label>
+          <input type="text" class="form-control" placeholder="Ej: Sub 7">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nemónico</label>
+          <input type="text" class="form-control" placeholder="Ej: SUB7">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Descripción</label>
+          <textarea class="form-control" rows="2" placeholder="Descripción de la categoría..."></textarea>
+        </div>
+        <div class="mb-3">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="categoriaActiva" checked>
+            <label class="form-check-label" for="categoriaActiva">Activa</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-brand" data-bs-dismiss="modal"><i class="bi bi-check-lg me-1"></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

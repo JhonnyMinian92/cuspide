@@ -51,4 +51,11 @@ class EtniaRepository
 
     return null;
   }
+
+  public function findAll(): array
+  {
+    $stmt = $this->db->query('SELECT * FROM etnias ORDER BY id ASC');
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return array_map(fn($row) => new Etnia((int)$row['id'], $row['nombre'], $row['nemonico']), $rows ?: []);
+  }
 }

@@ -1,0 +1,1071 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'actividades' %}
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Actividades Deportivas{% endblock %}
+
+{% block content %}
+<!-- Acceso rápido -->
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="/matriculas" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Volver a Matrículas
+  </a>
+</div>
+
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}.toast-info{background:#0dcaf0;color:#212529;}
+.nav-tabs-custom .nav-link{border:none;border-bottom:3px solid transparent;color:var(--app-text-muted);font-weight:600;padding:.6rem 1.1rem;background:transparent;border-radius:0;}
+.nav-tabs-custom .nav-link.active{color:var(--brand-color);border-bottom-color:var(--brand-color);background:transparent;}
+.nav-tabs-custom .nav-link:hover:not(.active){color:var(--app-text);}
+</style>
+
+<!-- Tabs -->
+<div style="overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;" class="mb-4">
+<ul class="nav nav-tabs-custom border-bottom mb-0" id="tabs-main" style="border-color:var(--table-border);flex-wrap:nowrap;min-width:max-content;">
+  <li class="nav-item">
+    <button class="nav-link active" id="tab-actividades-btn" type="button" onclick="switchTab('actividades')">
+      <i class="bi bi-trophy me-2"></i>Actividades
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" id="tab-categorias-btn" type="button" onclick="switchTab('categorias')">
+      <i class="bi bi-tags me-2"></i>Categorías
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" id="tab-deportes-btn" type="button" onclick="switchTab('deportes')">
+      <i class="bi bi-dribbble me-2"></i>Deportes
+    </button>
+  </li>
+</ul>
+</div>
+
+<!-- ==================== TAB: ACTIVIDADES ==================== -->
+<div id="panel-actividades">
+
+  <!-- Header + Búsqueda -->
+  <div class="card chart-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
+        <div>
+          <h6 class="fw-bold mb-1">Actividades Deportivas</h6>
+          <p class="text-muted small mb-0">Gestiona las actividades del club. Busca, edita o desactiva actividades existentes.</p>
+        </div>
+        <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nueva-actividad">
+          <i class="bi bi-plus-lg me-1"></i>Nueva Actividad
+        </button>
+      </div>
+      <div class="row g-3 align-items-center">
+        <div class="col-12 col-lg-10">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="act-search"
+              placeholder="Buscar por nombre, deporte o nivel..." autocomplete="off">
+            <span class="input-group-text d-none" id="act-search-spinner">
+              <span class="spinner-border spinner-border-sm" role="status"></span>
+            </span>
+          </div>
+        </div>
+        <div class="col-12 col-lg-2">
+          <button type="button" class="btn btn-outline-secondary w-100" id="btn-act-limpiar">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla actividades -->
+  <div class="card chart-card mb-4">
+    <div class="card-body p-0">
+      <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="fw-bold mb-0">Listado</h6>
+          <p class="text-muted small mb-0" id="act-list-info">Cargando...</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-act-reload" title="Recargar">
+          <i class="bi bi-arrow-repeat"></i>
+        </button>
+      </div>
+      <div class="table-responsive" style="border-top:1px solid var(--table-border);">
+        <table class="table table-hover align-middle mb-0" style="min-width:660px;">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 25%;">Nombre</th>
+              <th>Categoría / Deporte</th>
+              <th class="text-center">Nivel</th>
+              <th class="text-center">Cupo</th>
+              <th class="text-end">Precio</th>
+              <th class="text-center">Estado</th>
+              <th class="text-end pe-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="act-list-tbody">
+            <tr><td colspan="8" class="text-center text-muted py-5">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando actividades...
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario Crear / Editar (inline, d-none por defecto) -->
+  <div class="card chart-card mb-4 d-none" id="form-act-card">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h6 class="fw-bold mb-1" id="form-act-title"><i class="bi bi-trophy me-2"></i>Nueva Actividad</h6>
+          <p class="text-muted small mb-0">Completa los datos de la actividad deportiva.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-act-form-cerrar">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <form id="form-act" novalidate>
+        <input type="hidden" id="act-id" value="">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nombre *</label>
+            <input type="text" class="form-control" id="act-nombre" placeholder="Ej: Fútbol Sub-15" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Categoría Deportiva *</label>
+            <select class="form-select" id="act-categoria-deportiva" required>
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nivel *</label>
+            <select class="form-select" id="act-nivel" required>
+              <option value="">Cargando niveles...</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Precio ($) *</label>
+            <input type="number" class="form-control" id="act-precio" placeholder="0.00" min="0" step="0.01" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Cupo Máximo *</label>
+            <input type="number" class="form-control" id="act-cupo-maximo" placeholder="Ej: 20" min="1" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Docente (Entrenador)</label>
+            <select class="form-select" id="act-docente">
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Periodo Académico</label>
+            <select class="form-select" id="act-periodo-academico">
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Estado</label>
+            <select class="form-select" id="act-estado">
+              <option value="1">Activo</option>
+              <option value="2">Inactivo</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Observación</label>
+            <input type="text" class="form-control" id="act-observacion" placeholder="Observaciones opcionales...">
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-4">
+          <button type="button" class="btn btn-outline-secondary" id="btn-act-cancelar">
+            <i class="bi bi-x-lg me-1"></i>Cancelar
+          </button>
+          <button type="submit" class="btn btn-brand" id="btn-act-submit">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div><!-- /panel-actividades -->
+
+<!-- ==================== TAB: DEPORTES ==================== -->
+<div id="panel-deportes" class="d-none">
+
+  <div class="card chart-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
+        <div>
+          <h6 class="fw-bold mb-1">Deportes</h6>
+          <p class="text-muted small mb-0">Administra los deportes disponibles en el club.</p>
+        </div>
+        <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nuevo-deporte">
+          <i class="bi bi-plus-lg me-1"></i>Nuevo Deporte
+        </button>
+      </div>
+      <div class="row g-3 align-items-center">
+        <div class="col-12 col-lg-10">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="dep-search"
+              placeholder="Buscar deporte..." autocomplete="off">
+          </div>
+        </div>
+        <div class="col-12 col-lg-2">
+          <button type="button" class="btn btn-outline-secondary w-100" id="btn-dep-limpiar">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla deportes -->
+  <div class="card chart-card mb-4">
+    <div class="card-body p-0">
+      <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="fw-bold mb-0">Listado de Deportes</h6>
+          <p class="text-muted small mb-0" id="dep-list-info">Cargando...</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-dep-reload" title="Recargar">
+          <i class="bi bi-arrow-repeat"></i>
+        </button>
+      </div>
+      <div class="table-responsive" style="border-top:1px solid var(--table-border);">
+        <table class="table table-hover align-middle mb-0" style="min-width:460px;">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th class="text-center">Estado</th>
+              <th class="text-end pe-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="dep-list-tbody">
+            <tr><td colspan="5" class="text-center text-muted py-5">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando deportes...
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario crear/editar deporte -->
+  <div class="card chart-card mb-4 d-none" id="form-dep-card">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h6 class="fw-bold mb-1" id="form-dep-title"><i class="bi bi-dribbble me-2"></i>Nuevo Deporte</h6>
+          <p class="text-muted small mb-0">Ingresa los datos del deporte.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-dep-form-cerrar">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <form id="form-dep" novalidate>
+        <input type="hidden" id="dep-id" value="">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nombre *</label>
+            <input type="text" class="form-control" id="dep-nombre" placeholder="Ej: Fútbol" required>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold">Descripción</label>
+            <input type="text" class="form-control" id="dep-descripcion" placeholder="Descripción breve...">
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-4">
+          <button type="button" class="btn btn-outline-secondary" id="btn-dep-cancelar">
+            <i class="bi bi-x-lg me-1"></i>Cancelar
+          </button>
+          <button type="submit" class="btn btn-brand" id="btn-dep-submit">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div><!-- /panel-deportes -->
+
+<!-- ==================== TAB: CATEGORÍAS ==================== -->
+<div id="panel-categorias" class="d-none">
+  <!-- Header + Búsqueda -->
+  <div class="card chart-card mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-lg-between align-items-lg-start gap-3 mb-3">
+        <div>
+          <h6 class="fw-bold mb-1">Categorías Deportivas</h6>
+          <p class="text-muted small mb-0">Gestiona las categorías del club. Busca, edita o crea nuevas categorías.</p>
+        </div>
+        <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nueva-categoria">
+          <i class="bi bi-plus-lg me-1"></i>Nueva Categoría
+        </button>
+      </div>
+      <div class="row g-3 align-items-center">
+        <div class="col-12 col-lg-10">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" id="cat-search"
+              placeholder="Buscar por nombre, nemónico o deporte..." autocomplete="off">
+          </div>
+        </div>
+        <div class="col-12 col-lg-2">
+          <button type="button" class="btn btn-outline-secondary w-100" id="btn-cat-limpiar">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario Crear / Editar -->
+  <div class="card chart-card mb-4 d-none" id="form-cat-card">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h6 class="fw-bold mb-1" id="form-cat-title"><i class="bi bi-tags me-2"></i>Nueva Categoría</h6>
+          <p class="text-muted small mb-0">Completa los datos de la categoría deportiva.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cat-form-cerrar">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <form id="form-cat" novalidate>
+        <input type="hidden" id="cat-id" value="">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nombre *</label>
+            <input type="text" class="form-control" id="cat-nombre" placeholder="Ej: Sub-12" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Deporte *</label>
+            <select class="form-select" id="cat-deporte" required>
+              <option value="">Cargando deportes...</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Nemónico</label>
+            <input type="text" class="form-control" id="cat-nemonico" placeholder="Ej: S12">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Edad Mínima</label>
+            <input type="number" class="form-control" id="cat-edad-min" placeholder="Ej: 10" min="0">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Edad Máxima</label>
+            <input type="number" class="form-control" id="cat-edad-max" placeholder="Ej: 12" min="0">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Estado</label>
+            <select class="form-select" id="cat-estado">
+              <option value="1">Activo</option>
+              <option value="0">Inactivo</option>
+            </select>
+          </div>
+          <div class="col-md-12">
+            <label class="form-label fw-semibold">Descripción</label>
+            <input type="text" class="form-control" id="cat-descripcion" placeholder="Descripción opcional...">
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-4">
+          <button type="button" class="btn btn-outline-secondary" id="btn-cat-cancelar">
+            <i class="bi bi-x-lg me-1"></i>Cancelar
+          </button>
+          <button type="submit" class="btn btn-brand" id="btn-cat-submit">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tabla categorías -->
+  <div class="card chart-card mb-4">
+    <div class="card-body p-0">
+      <div class="px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="fw-bold mb-0">Listado de Categorías</h6>
+          <p class="text-muted small mb-0" id="cat-list-info">Cargando...</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cat-reload" title="Recargar">
+          <i class="bi bi-arrow-repeat"></i>
+        </button>
+      </div>
+      <div class="table-responsive" style="border-top:1px solid var(--table-border);">
+        <table class="table table-hover align-middle mb-0" style="min-width:640px;">
+          <thead class="table-light">
+            <tr>
+              <th>Nombre</th>
+              <th>Nemónico</th>
+              <th>Deporte</th>
+              <th class="text-center">Edad Mín.</th>
+              <th class="text-center">Edad Máx.</th>
+              <th class="text-center">Estado</th>
+              <th class="text-end pe-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="cat-list-tbody">
+            <tr><td colspan="7" class="text-center text-muted py-5">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando categorías...
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /panel-categorias -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Helpers globales ── */
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
+}
+function formatMoney(v) { return '$' + parseFloat(v || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function debounce(fn, ms) {
+  var t;
+  return function() { var a = arguments; clearTimeout(t); t = setTimeout(function() { fn.apply(null, a); }, ms); };
+}
+var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+const PAGE_CONFIG = {
+  ENDPOINTS: {
+    actividades: '/app/controllers/api/actividades/',
+    deportes: '/app/controllers/api/deportes/',
+    horarios: '/app/controllers/api/horarios/',
+    categorias: '/app/controllers/api/categorias/',
+    personas: '/app/controllers/api/personas/',
+    periodos: '/app/controllers/api/periodos/', // Asumiendo que este endpoint existe
+    clases: '/app/controllers/api/clases/'
+  }
+};
+
+/* ── API helpers ── */
+function apiCall(method, endpoint, action, body, params) {
+  // Asumiendo que Cuspide.api.call existe y está configurado globalmente
+  return Cuspide.api.call(method, PAGE_CONFIG.ENDPOINTS[endpoint], action, body, params);
+}
+
+/* ── Estado ── */
+var actividadesData = [];
+var deportesData    = [];
+var categoriasData  = [];
+var docentesData    = [];
+var periodosData    = [];
+var nivelesData     = [];
+
+/* ─────────────────────────────────────────────
+   TABS
+───────────────────────────────────────────── */
+function switchTab(tab) {
+  ['actividades','deportes','categorias'].forEach(function(t) {
+    document.getElementById('panel-' + t).classList.toggle('d-none', t !== tab);
+    document.getElementById('tab-' + t + '-btn').classList.toggle('active', t === tab);
+  });
+  if (tab === 'deportes' && deportesData.length === 0) loadDeportes();
+  if (tab === 'categorias') loadCategorias();
+}
+
+/* ─────────────────────────────────────────────
+   TAB ACTIVIDADES — LISTADO
+───────────────────────────────────────────── */
+function loadActividades() {
+  document.getElementById('act-list-info').textContent = 'Cargando...';
+  apiCall('GET', 'actividades', 'list', null, { institucion: institucionId })
+    .then(function(data) {
+      actividadesData = Array.isArray(data) ? data : [];
+      renderActividades(actividadesData);
+    })
+    .catch(function(err) {
+      document.getElementById('act-list-tbody').innerHTML =
+        '<tr><td colspan="8" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar') + '</td></tr>';
+      document.getElementById('act-list-info').textContent = 'Error al cargar.';
+    });
+}
+
+function renderActividades(items) {
+  var tbody = document.getElementById('act-list-tbody');
+  var info  = document.getElementById('act-list-info');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-trophy fs-2 d-block mb-2 opacity-25"></i>Sin actividades registradas.</td></tr>';
+    info.textContent = 'Sin resultados.';
+    return;
+  }
+  info.textContent = items.length + ' actividad(es).';
+  tbody.innerHTML = items.map(function(a) {
+    var estadoBadge = parseInt(a.estado) === 1
+      ? '<span class="badge bg-success rounded-pill">Activo</span>'
+      : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
+    return '<tr>' +
+      '<td class="fw-semibold">' + esc(a.nombre) + '</td>' +
+      '<td><div class="fw-semibold">' + esc(a.categoria_deportiva_nombre || 'N/A') + '</div><div class="small text-muted">' + esc(a.deporte_nombre || '—') + '</div></td>' +
+      '<td class="text-center"><span class="badge rounded-pill" style="background:var(--info-bg);color:var(--info-text);border:1px solid var(--info-border);">' + esc(a.nivel_nombre || '—') + '</span></td>' +
+      '<td class="text-center">' + esc(a.matriculados || 0) + ' / ' + esc(a.cupo_maximo || '∞') + '</td>' +
+      '<td class="text-end fw-semibold">' + formatMoney(a.precio) + '</td>' +
+      '<td class="text-center">' + estadoBadge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="verCupo(' + a.id + ')" title="Ver cupo"><i class="bi bi-people"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editarActividad(' + a.id + ')" title="Editar"><i class="bi bi-pencil"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger" onclick="desactivarActividad(' + a.id + ')" title="Desactivar"><i class="bi bi-slash-circle"></i></button>' +
+      '</td></tr>';
+  }).join('');
+}
+
+/* ── Búsqueda actividades (debounce 350ms) ── */
+var doActSearch = debounce(function(q) {
+  var filtered = actividadesData.filter(function(a) {
+    var hay = (a.nombre + ' ' + (a.categoria_deportiva_nombre || '') + ' ' + (a.deporte_nombre || '') + ' ' + (a.nivel_nombre || '')).toLowerCase();
+    return hay.indexOf(q.toLowerCase()) !== -1;
+  });
+  renderActividades(filtered);
+  if (filtered.length === 0 && q.length >= 2) {
+    document.getElementById('form-act-card').classList.remove('d-none');
+    document.getElementById('form-act-title').innerHTML = '<i class="bi bi-trophy me-2"></i>Nueva Actividad';
+    document.getElementById('act-id').value = '';
+    document.getElementById('form-act').reset();
+    document.getElementById('form-act-card').scrollIntoView({ behavior: 'smooth' });
+  }
+}, 350);
+
+document.getElementById('act-search').addEventListener('input', function() {
+  var q = this.value.trim();
+  if (q.length === 0) renderActividades(actividadesData);
+  else if (q.length >= 2) doActSearch(q);
+});
+document.getElementById('btn-act-limpiar').addEventListener('click', function() {
+  document.getElementById('act-search').value = '';
+  renderActividades(actividadesData);
+});
+
+/* ── Cupo ── */
+function verCupo(id) {
+  apiCall('GET', 'actividades', 'capacity', null, { id: id })
+    .then(function(data) {
+      showToast('Cupo: ' + (data.ocupados || 0) + '/' + (data.cupo_maximo || 0) + ' — Disponible: ' + (data.disponible || 0), 'info');
+    })
+    .catch(function(err) { showToast(err.message || 'Error al obtener cupo.', 'error'); });
+}
+
+/* ── Editar actividad ── */
+function editarActividad(id) {
+  var a = actividadesData.find(function(x) { return x.id == id; });
+  if (!a) return;
+  document.getElementById('act-id').value     = a.id;
+  document.getElementById('act-nombre').value = a.nombre || '';
+  document.getElementById('act-categoria-deportiva').value = a.categoria_deportiva_id || '';
+  document.getElementById('act-nivel').value = a.nivel_id || '';
+  document.getElementById('act-precio').value = a.precio || '0.00';
+  document.getElementById('act-cupo-maximo').value = a.cupo_maximo || '';
+  document.getElementById('act-docente').value = a.docente_id || '';
+  document.getElementById('act-periodo-academico').value = a.periodo_academico_id || '';
+  document.getElementById('act-observacion').value = a.observacion || '';
+  document.getElementById('act-estado').value = (a.estado !== undefined ? a.estado : 1);
+
+  document.getElementById('form-act-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Actividad';
+  document.getElementById('form-act-card').classList.remove('d-none');
+  document.getElementById('form-act-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Desactivar actividad ── */
+async function desactivarActividad(id) {
+  var r = await swConfirm('¿Desactivar actividad?', 'La actividad quedará inactiva.', 'Sí, desactivar');
+  if (!r.isConfirmed) return;
+  apiCall('PUT', 'actividades', 'delete', null, { id: id })
+    .then(function() {
+      showToast('Actividad desactivada.', 'success');
+      loadActividades();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al desactivar.', 'error'); });
+}
+
+/* ── Formulario crear/editar ── */
+document.getElementById('btn-nueva-actividad').addEventListener('click', function() {
+  document.getElementById('act-id').value = '';
+  document.getElementById('form-act').reset();
+  document.getElementById('form-act-title').innerHTML = '<i class="bi bi-trophy me-2"></i>Nueva Actividad';
+  document.getElementById('form-act-card').classList.remove('d-none');
+  document.getElementById('form-act-card').scrollIntoView({ behavior: 'smooth' });
+});
+
+function cerrarFormAct() {
+  document.getElementById('form-act-card').classList.add('d-none');
+  document.getElementById('act-id').value = '';
+  document.getElementById('form-act').reset();
+}
+document.getElementById('btn-act-form-cerrar').addEventListener('click', cerrarFormAct);
+document.getElementById('btn-act-cancelar').addEventListener('click', cerrarFormAct);
+
+document.getElementById('form-act').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var id = document.getElementById('act-id').value;
+  var body = {
+    nombre: document.getElementById('act-nombre').value.trim(),
+    categoria_deportiva: document.getElementById('act-categoria-deportiva').value,
+    nivel: document.getElementById('act-nivel').value,
+    precio: document.getElementById('act-precio').value,
+    cupo_maximo: document.getElementById('act-cupo-maximo').value,
+    docente: document.getElementById('act-docente').value,
+    periodo_academico: document.getElementById('act-periodo-academico').value,
+    observacion: document.getElementById('act-observacion').value.trim(),
+    estado: parseInt(document.getElementById('act-estado').value),
+    institucion: institucionId
+  };
+
+  if (!body.nombre || !body.categoria_deportiva || !body.nivel || !body.precio || !body.cupo_maximo) {
+    showToast('Completa los campos obligatorios.', 'warning');
+    return;
+  }
+
+  // Convertir a números
+  body.categoria_deportiva = parseInt(body.categoria_deportiva);
+  body.nivel = parseInt(body.nivel);
+  body.precio = parseFloat(body.precio);
+  body.cupo_maximo = parseInt(body.cupo_maximo);
+  body.docente = body.docente ? parseInt(body.docente) : null;
+  body.periodo_academico = body.periodo_academico ? parseInt(body.periodo_academico) : null;
+
+  var btn = document.getElementById('btn-act-submit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  var method = id ? 'PUT' : 'POST';
+  var params = id ? { id: id } : null;
+  apiCall(method, 'actividades', 'save', body, params)
+    .then(function() {
+      showToast(id ? 'Actividad actualizada.' : 'Actividad creada.', 'success');
+      cerrarFormAct();
+      loadActividades();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al guardar.', 'error'); })
+    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar'; });
+});
+
+document.getElementById('btn-act-reload').addEventListener('click', loadActividades);
+
+/* ─────────────────────────────────────────────
+   TAB DEPORTES
+───────────────────────────────────────────── */
+function loadDeportes() {
+  document.getElementById('dep-list-info').textContent = 'Cargando...';
+  return apiCall('GET', 'deportes', 'list', null, null)
+    .then(function(data) {
+      deportesData = Array.isArray(data) ? data : [];
+      renderDeportes(deportesData);
+      poblarSelectDeportesCat();
+      poblarSelectDeportes();
+    })
+    .catch(function(err) {
+      document.getElementById('dep-list-tbody').innerHTML =
+        '<tr><td colspan="5" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar') + '</td></tr>';
+      document.getElementById('dep-list-info').textContent = 'Error.';
+      throw err;
+    });
+}
+
+function renderDeportes(items) {
+  var tbody = document.getElementById('dep-list-tbody');
+  var info  = document.getElementById('dep-list-info');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5"><i class="bi bi-dribbble fs-2 d-block mb-2 opacity-25"></i>Sin deportes registrados.</td></tr>';
+    info.textContent = 'Sin resultados.';
+    return;
+  }
+  info.textContent = items.length + ' deporte(s).';
+  tbody.innerHTML = items.map(function(d) {
+    var estadoBadge = parseInt(d.estado) === 1
+      ? '<span class="badge bg-success rounded-pill">Activo</span>'
+      : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
+    return '<tr>' +
+      '<td><code>' + esc(d.id) + '</code></td>' +
+      '<td class="fw-semibold">' + esc(d.nombre) + '</td>' +
+      '<td class="text-muted small">' + esc(d.descripcion || '—') + '</td>' +
+      '<td class="text-center">' + estadoBadge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary" onclick="editarDeporte(' + d.id + ')" title="Editar"><i class="bi bi-pencil"></i></button>' +
+      '</td></tr>';
+  }).join('');
+}
+
+function poblarSelectDeportes() {
+  var sel = document.getElementById('cat-deporte'); // Este es para el form de categorías
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar —</option>';
+  deportesData.forEach(function(d) {
+    var opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.nombre; // Poblar el select del form de categorías
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+}
+
+/* Búsqueda deportes (filtro cliente) */
+var doDepSearch = debounce(function(q) {
+  var filtered = deportesData.filter(function(d) {
+    return (d.nombre + ' ' + (d.descripcion || '')).toLowerCase().indexOf(q.toLowerCase()) !== -1;
+  });
+  renderDeportes(filtered);
+  if (filtered.length === 0 && q.length >= 2) {
+    document.getElementById('dep-nombre').value = q;
+    document.getElementById('dep-id').value = '';
+    document.getElementById('form-dep-title').innerHTML = '<i class="bi bi-dribbble me-2"></i>Nuevo Deporte';
+    document.getElementById('form-dep-card').classList.remove('d-none');
+    document.getElementById('form-dep-card').scrollIntoView({ behavior: 'smooth' });
+  }
+}, 350);
+
+document.getElementById('dep-search').addEventListener('input', function() {
+  var q = this.value.trim();
+  if (q.length === 0) renderDeportes(deportesData);
+  else if (q.length >= 2) doDepSearch(q);
+});
+document.getElementById('btn-dep-limpiar').addEventListener('click', function() {
+  document.getElementById('dep-search').value = '';
+  renderDeportes(deportesData);
+});
+
+/* Editar deporte */
+function editarDeporte(id) {
+  var d = deportesData.find(function(x) { return x.id == id; });
+  if (!d) return;
+  document.getElementById('dep-id').value          = d.id;
+  document.getElementById('dep-nombre').value      = d.nombre || '';
+  document.getElementById('dep-descripcion').value = d.descripcion || '';
+  document.getElementById('form-dep-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Deporte';
+  document.getElementById('form-dep-card').classList.remove('d-none');
+  document.getElementById('form-dep-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cerrarFormDep() {
+  document.getElementById('form-dep-card').classList.add('d-none');
+  document.getElementById('dep-id').value = '';
+  document.getElementById('form-dep').reset();
+}
+document.getElementById('btn-dep-form-cerrar').addEventListener('click', cerrarFormDep);
+document.getElementById('btn-dep-cancelar').addEventListener('click', cerrarFormDep);
+document.getElementById('btn-nuevo-deporte').addEventListener('click', function() {
+  document.getElementById('dep-id').value = '';
+  document.getElementById('form-dep').reset();
+  document.getElementById('form-dep-title').innerHTML = '<i class="bi bi-dribbble me-2"></i>Nuevo Deporte';
+  document.getElementById('form-dep-card').classList.remove('d-none');
+  document.getElementById('form-dep-card').scrollIntoView({ behavior: 'smooth' });
+});
+
+document.getElementById('form-dep').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var id     = document.getElementById('dep-id').value;
+  var nombre = document.getElementById('dep-nombre').value.trim();
+  var desc   = document.getElementById('dep-descripcion').value.trim();
+  if (!nombre) { showToast('El nombre es obligatorio.', 'warning'); return; }
+
+  var body = { nombre: nombre, descripcion: desc, institucion: institucionId, estado: 1 };
+  var btn = document.getElementById('btn-dep-submit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  var method = id ? 'PUT' : 'POST';
+  var params = id ? { id: id } : null;
+  apiCall(method, 'deportes', 'save', body, params)
+    .then(function() {
+      showToast(id ? 'Deporte actualizado.' : 'Deporte creado.', 'success');
+      cerrarFormDep();
+      deportesData = [];
+      loadDeportes();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al guardar.', 'error'); })
+    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar'; });
+});
+
+document.getElementById('btn-dep-reload').addEventListener('click', function() { deportesData = []; loadDeportes(); });
+
+/* ─────────────────────────────────────────────
+   TAB CATEGORÍAS
+───────────────────────────────────────────── */
+function loadCategorias() {
+  document.getElementById('cat-list-info').textContent = 'Cargando...';
+  apiCall('GET', 'categorias', 'list', null, { institucion: institucionId })
+    .then(function(data) {
+      categoriasData = Array.isArray(data) ? data : [];
+      poblarSelectCategoriasAct();
+      renderCategorias(categoriasData);
+    })
+    .catch(function(err) {
+      document.getElementById('cat-list-tbody').innerHTML =
+        '<tr><td colspan="7" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message || 'Error al cargar categorías') + '</td></tr>';
+      document.getElementById('cat-list-info').textContent = 'Error al cargar.';
+    });
+}
+
+function renderCategorias(items) {
+  var tbody = document.getElementById('cat-list-tbody');
+  var info  = document.getElementById('cat-list-info');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5"><i class="bi bi-tags fs-2 d-block mb-2 opacity-25"></i>Sin categorías registradas.</td></tr>';
+    info.textContent = 'Sin resultados.';
+    return;
+  }
+  info.textContent = items.length + ' categoría(s).';
+  tbody.innerHTML = items.map(function(c) {
+    var estadoBadge = parseInt(c.estado) === 1
+      ? '<span class="badge bg-success rounded-pill">Activo</span>'
+      : '<span class="badge bg-secondary rounded-pill">Inactivo</span>';
+    return '<tr>' +
+      '<td class="fw-semibold">' + esc(c.nombre) + '</td>' +
+      '<td><code>' + esc(c.nemonico || '—') + '</code></td>' +
+      '<td>' + esc(c.deporte_nombre || '—') + '</td>' +
+      '<td class="text-center">' + esc(c.edad_minima || '—') + '</td>' +
+      '<td class="text-center">' + esc(c.edad_maxima || '—') + '</td>' +
+      '<td class="text-center">' + estadoBadge + '</td>' +
+      '<td class="text-end pe-3">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editarCategoria(' + c.id + ')" title="Editar"><i class="bi bi-pencil"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarCategoria(' + c.id + ')" title="Eliminar"><i class="bi bi-trash"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function poblarSelectCategoriasAct() {
+  var sel = document.getElementById('act-categoria-deportiva');
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar —</option>';
+  categoriasData.forEach(function(c) {
+    if (parseInt(c.estado) === 1) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nombre + ' (' + (c.deporte_nombre || 'N/A') + ')';
+      sel.appendChild(opt);
+    }
+  });
+  if (prev) sel.value = prev;
+}
+
+function poblarSelectDeportesCat() {
+  var sel = document.getElementById('cat-deporte');
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar —</option>';
+  deportesData.forEach(function(d) {
+    if (parseInt(d.estado) === 1) {
+      var opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.nombre;
+      sel.appendChild(opt);
+    }
+  });
+  if (prev) sel.value = prev;
+}
+
+var doCatSearch = debounce(function(q) {
+  var filtered = categoriasData.filter(function(c) {
+    var hay = (c.nombre + ' ' + (c.nemonico || '') + ' ' + (c.deporte_nombre || '')).toLowerCase();
+    return hay.indexOf(q.toLowerCase()) !== -1;
+  });
+  renderCategorias(filtered);
+}, 350);
+
+document.getElementById('cat-search').addEventListener('input', function() {
+  var q = this.value.trim();
+  if (q.length === 0) renderCategorias(categoriasData);
+  else if (q.length >= 2) doCatSearch(q);
+});
+document.getElementById('btn-cat-limpiar').addEventListener('click', function() {
+  document.getElementById('cat-search').value = '';
+  renderCategorias(categoriasData);
+});
+
+function cerrarFormCat() {
+  document.getElementById('form-cat-card').classList.add('d-none');
+  document.getElementById('cat-id').value = '';
+  document.getElementById('form-cat').reset();
+}
+
+document.getElementById('btn-nueva-categoria').addEventListener('click', function() {
+  document.getElementById('cat-id').value = '';
+  document.getElementById('form-cat').reset();
+  document.getElementById('form-cat-title').innerHTML = '<i class="bi bi-tags me-2"></i>Nueva Categoría';
+  document.getElementById('form-cat-card').classList.remove('d-none');
+  document.getElementById('form-cat-card').scrollIntoView({ behavior: 'smooth' });
+});
+document.getElementById('btn-cat-form-cerrar').addEventListener('click', cerrarFormCat);
+document.getElementById('btn-cat-cancelar').addEventListener('click', cerrarFormCat);
+
+function editarCategoria(id) {
+  var c = categoriasData.find(function(x) { return x.id == id; });
+  if (!c) return;
+  document.getElementById('cat-id').value = c.id;
+  document.getElementById('cat-nombre').value = c.nombre || '';
+  document.getElementById('cat-nemonico').value = c.nemonico || '';
+  document.getElementById('cat-deporte').value = c.deporte || '';
+  document.getElementById('cat-edad-min').value = c.edad_minima || '';
+  document.getElementById('cat-edad-max').value = c.edad_maxima || '';
+  document.getElementById('cat-descripcion').value = c.descripcion || '';
+  document.getElementById('cat-estado').value = (c.estado !== undefined ? c.estado : 1);
+
+  document.getElementById('form-cat-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Categoría';
+  document.getElementById('form-cat-card').classList.remove('d-none');
+  document.getElementById('form-cat-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function eliminarCategoria(id) {
+  var r = await swConfirm('¿Eliminar categoría?', 'Esta acción la marcará como inactiva.', 'Sí, eliminar');
+  if (!r.isConfirmed) return;
+  apiCall('DELETE', 'categorias', 'delete', null, { id: id })
+    .then(function() {
+      showToast('Categoría eliminada.', 'success');
+      loadCategorias();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al eliminar.', 'error'); });
+}
+
+document.getElementById('form-cat').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var id = document.getElementById('cat-id').value;
+  var body = {
+    nombre: document.getElementById('cat-nombre').value.trim(),
+    nemonico: document.getElementById('cat-nemonico').value.trim(),
+    deporte: document.getElementById('cat-deporte').value,
+    edad_minima: document.getElementById('cat-edad-min').value,
+    edad_maxima: document.getElementById('cat-edad-max').value,
+    descripcion: document.getElementById('cat-descripcion').value.trim(),
+    estado: parseInt(document.getElementById('cat-estado').value),
+    institucion: institucionId
+  };
+
+  if (!body.nombre || !body.deporte) {
+    showToast('Nombre y Deporte son obligatorios.', 'warning');
+    return;
+  }
+
+  var btn = document.getElementById('btn-cat-submit');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+  var method = id ? 'PUT' : 'POST';
+  apiCall(method, 'categorias', 'save', body, id ? {id: id} : null)
+    .then(function() {
+      showToast(id ? 'Categoría actualizada.' : 'Categoría creada.', 'success');
+      cerrarFormCat();
+      loadCategorias();
+    })
+    .catch(function(err) { showToast(err.message || 'Error al guardar.', 'error'); })
+    .finally(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar'; });
+});
+
+document.getElementById('btn-cat-reload').addEventListener('click', loadCategorias);
+
+/* ─────────────────────────────────────────────
+   CARGA DE DATOS PARA FORMULARIOS (NIVELES)
+───────────────────────────────────────────── */
+function loadNiveles() {
+    // Reutilizar el endpoint de 'clases' que ya funciona para obtener los niveles.
+    return apiCall('GET', 'clases', 'niveles', null, null)
+        .then(function(data) {
+            nivelesData = Array.isArray(data) ? data : [];
+            poblarSelectNiveles();
+        }).catch(function(err){
+            console.error("Error cargando niveles", err);
+            nivelesData = [];
+            poblarSelectNiveles();
+        });
+}
+
+function poblarSelectNiveles() {
+    var sel = document.getElementById('act-nivel');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>';
+    nivelesData.forEach(function(n) {
+        var opt = document.createElement('option');
+        opt.value = n.id;
+        opt.textContent = n.nombre;
+        sel.appendChild(opt);
+    });
+}
+/* ─────────────────────────────────────────────
+   CARGA DE DATOS PARA FORMULARIOS
+───────────────────────────────────────────── */
+function loadDocentes() {
+    // Usar el endpoint correcto para obtener la lista de docentes
+    return apiCall('GET', 'clases', 'docentes', null, { institucion: institucionId })
+        .then(function(data) {
+            docentesData = Array.isArray(data) ? data : [];
+            poblarSelectDocentes();
+        }).catch(function(err){
+            console.error("Error cargando docentes", err);
+            docentesData = [];
+            poblarSelectDocentes();
+        });
+}
+
+function poblarSelectDocentes() {
+    var sel = document.getElementById('act-docente');
+    sel.innerHTML = '<option value="">— Opcional —</option>';
+    docentesData.forEach(function(d) {
+        var opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = (d.primer_nombre + ' ' + d.primer_apellido).trim();
+        sel.appendChild(opt);
+    });
+}
+
+function loadPeriodos() {
+    // Asumiendo que existe un endpoint para periodos académicos
+    return apiCall('GET', 'periodos', 'list', null, { institucion: institucionId })
+        .then(function(data) {
+            periodosData = Array.isArray(data) ? data : [];
+            poblarSelectPeriodos();
+        }).catch(function(err){
+            console.warn("No se pudieron cargar los periodos académicos. El endpoint puede no existir.", err);
+            periodosData = [];
+            poblarSelectPeriodos();
+        });
+}
+
+function poblarSelectPeriodos() {
+    var sel = document.getElementById('act-periodo-academico');
+    sel.innerHTML = '<option value="">— Opcional —</option>';
+    periodosData.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nombre;
+        sel.appendChild(opt);
+    });
+}
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+function init() {
+  // Cargar datos en secuencia para poblar los formularios correctamente
+  loadDeportes()
+    .then(function() {
+      // Cargar categorías, docentes y periodos en paralelo
+      return Promise.all([
+        loadCategorias(),
+        loadDocentes(),
+        loadPeriodos(),
+        loadNiveles()
+      ]);
+    }).then(loadActividades) // Finalmente, cargar las actividades
+    .catch(function(err) {
+      console.error("Error en la inicialización:", err);
+      showToast("Error al cargar datos iniciales. " + (err ? err.message : ''), 'error');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  init();
+});
+</script>
+{% endblock %}

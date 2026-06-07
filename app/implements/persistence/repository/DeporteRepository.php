@@ -59,4 +59,11 @@ class DeporteRepository
 
     return array_map(fn($row) => new Deporte($row['id'], $row['nombre'], $row['descripcion'], $row['institucion'], $row['estado']), $rows ?: []);
   }
+
+  public function findAllActive(): array
+  {
+    $stmt = $this->db->query('SELECT * FROM deportes WHERE estado = 1 ORDER BY nombre ASC');
+    $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    return array_map(fn($row) => new Deporte($row['id'], $row['nombre'], $row['descripcion'], $row['institucion'], $row['estado']), $rows ?: []);
+  }
 }

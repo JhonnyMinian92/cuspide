@@ -12,10 +12,10 @@ class Institucion
   private ?string $ruc;
   private string $razon_social;
   private string $nombre;
-  private string $logotipo;
+  private ?string $logotipo;
   private int $estado;
 
-  public function __construct(?int $id, ?string $ruc, string $razon_social, string $nombre, string $logotipo, mixed $estado)
+  public function __construct(?int $id, ?string $ruc, string $razon_social, string $nombre, ?string $logotipo, mixed $estado)
   {
     $this->id = $id;
     $this->ruc = $ruc;
@@ -45,7 +45,7 @@ class Institucion
     return $this->nombre;
   }
 
-  public function getLogotipo(): string
+  public function getLogotipo(): ?string
   {
     return $this->logotipo;
   }
@@ -75,7 +75,7 @@ class Institucion
     $this->nombre = $nombre;
   }
 
-  public function setLogotipo(string $logotipo): void
+  public function setLogotipo(?string $logotipo): void
   {
     $this->logotipo = $logotipo;
   }

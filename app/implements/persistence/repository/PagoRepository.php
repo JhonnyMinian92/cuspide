@@ -21,11 +21,11 @@ class PagoRepository
   public function save(Pago $pago): Pago
   {
     if ($pago->getId() === null) {
-      $stmt = $this->db->prepare("INSERT INTO pagos (numero, fecha, persona, matricula, venta, forma_pago, institucion, monto, referencia, observacion, estado) VALUES (:numero, :fecha, :persona, :matricula, :venta, :forma_pago, :institucion, :monto, :referencia, :observacion, :estado)");
+      $stmt = $this->db->prepare("INSERT INTO pagos (numero, fecha, persona, matricula, venta, forma_pago, institucion, monto, referencia, observacion, estado, motivo_anulacion) VALUES (:numero, :fecha, :persona, :matricula, :venta, :forma_pago, :institucion, :monto, :referencia, :observacion, :estado, :motivo_anulacion)");
       $stmt->execute($this->params($pago));
       $pago->setId((int) $this->db->lastInsertId());
     } else {
-      $stmt = $this->db->prepare("UPDATE pagos SET numero = :numero, fecha = :fecha, persona = :persona, matricula = :matricula, venta = :venta, forma_pago = :forma_pago, institucion = :institucion, monto = :monto, referencia = :referencia, observacion = :observacion, estado = :estado WHERE id = :id");
+      $stmt = $this->db->prepare("UPDATE pagos SET numero = :numero, fecha = :fecha, persona = :persona, matricula = :matricula, venta = :venta, forma_pago = :forma_pago, institucion = :institucion, monto = :monto, referencia = :referencia, observacion = :observacion, estado = :estado, motivo_anulacion = :motivo_anulacion WHERE id = :id");
       $params = $this->params($pago);
       $params[':id'] = $pago->getId();
       $stmt->execute($params);
@@ -70,11 +70,25 @@ class PagoRepository
       ':referencia' => $pago->getReferencia(),
       ':observacion' => $pago->getObservacion(),
       ':estado' => $pago->getEstado()?->getId(),
+      ':motivo_anulacion' => $pago->getMotivoAnulacion(),
     ];
+  }
+
+  public function findByVenta(int $ventaId): array
+  {
+    $stmt = $this->db->prepare(
+      "SELECT p.numero, p.fecha, p.monto, fp.nombre AS forma_pago
+       FROM pagos p
+       JOIN formas_pago fp ON fp.id = p.forma_pago
+       WHERE p.venta = :vid
+       ORDER BY p.fecha ASC"
+    );
+    $stmt->execute([':vid' => $ventaId]);
+    return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
   }
 
   private function map(array $row): Pago
   {
-    return new Pago($row['id'], $row['numero'], $row['fecha'], $row['persona'], $row['matricula'] ?? null, $row['venta'] ?? null, $row['forma_pago'], $row['institucion'], (float) $row['monto'], $row['referencia'] ?? null, $row['observacion'], $row['estado']);
+    return new Pago($row['id'], $row['numero'], $row['fecha'], $row['persona'], $row['matricula'] ?? null, $row['venta'] ?? null, $row['forma_pago'], $row['institucion'], (float) $row['monto'], $row['referencia'] ?? null, $row['observacion'], $row['estado'], $row['motivo_anulacion'] ?? null);
   }
 }

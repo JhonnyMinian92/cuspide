@@ -1,0 +1,433 @@
+{% extends 'layouts/base.html.twig' %}
+{% set currentPage = 'gastos' %}
+
+{% block title %}SportAdmin - Gestion Educativa{% endblock %}
+{% block page_title %}Registro de Gastos{% endblock %}
+
+{% block content %}
+<style>
+.toast-notification{position:fixed;top:1.2rem;right:1.2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:.5rem;color:#fff;font-size:.9rem;opacity:0;transform:translateX(110%);transition:all .3s ease;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast-notification.show{opacity:1;transform:translateX(0);}
+.toast-success{background:#198754;}.toast-error{background:#dc3545;}.toast-warning{background:#ffc107;color:#212529;}
+</style>
+
+<!-- Stat cards -->
+<div class="row g-4 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card stat-card text-white" style="background:#dc2626;">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Total Gastos del Mes</div>
+          <div class="stat-value" id="stat-gastos-mes">—</div>
+        </div>
+        <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="card stat-card text-white" style="background:#1a2235;">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-label">Registros Cargados</div>
+          <div class="stat-value" id="stat-gastos-count">—</div>
+        </div>
+        <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Header + Nuevo Gasto -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-column flex-md-row justify-content-md-between align-items-md-center gap-3">
+      <div>
+        <h6 class="fw-bold mb-1">Gestión de Gastos</h6>
+        <p class="text-muted small mb-0">Registra y consulta los egresos de tu institución.</p>
+      </div>
+      <button type="button" class="btn btn-brand flex-shrink-0" id="btn-nuevo-gasto">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Gasto
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Formulario crear/editar gasto -->
+<div class="card chart-card mb-4 d-none" id="form-gasto-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h6 class="fw-bold mb-0" id="form-gasto-title"><i class="bi bi-receipt me-2"></i>Nuevo Gasto</h6>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-cerrar-form-gasto">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="form-gasto" novalidate>
+      <input type="hidden" id="gasto-id">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Fecha *</label>
+          <input type="date" class="form-control" id="g-fecha" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Tipo de Gasto *</label>
+          <select class="form-select" id="g-tipo" required>
+            <option value="">— Seleccionar —</option>
+            <option value="SERVICIOS">Servicios Básicos</option>
+            <option value="NOMINA">Nómina / Salarios</option>
+            <option value="ARRIENDO">Arriendo</option>
+            <option value="EQUIPAMIENTO">Equipamiento Deportivo</option>
+            <option value="MANTENIMIENTO">Mantenimiento</option>
+            <option value="TRANSPORTE">Transporte</option>
+            <option value="ALIMENTACION">Alimentación</option>
+            <option value="PUBLICIDAD">Publicidad / Marketing</option>
+            <option value="ADMINISTRATIVO">Administrativo</option>
+            <option value="OTROS">Otros</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Monto ($) *</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control" id="g-monto" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label fw-semibold">Descripción *</label>
+          <input type="text" class="form-control" id="g-descripcion" placeholder="Describe el gasto..." required maxlength="200">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">N° Referencia</label>
+          <input type="text" class="form-control" id="g-referencia" placeholder="Factura, recibo...">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">Observaciones</label>
+          <textarea class="form-control" id="g-observacion" rows="2" placeholder="Notas adicionales..."></textarea>
+        </div>
+      </div>
+      <div class="d-flex gap-2 justify-content-end mt-4">
+        <button type="button" class="btn btn-outline-secondary" id="btn-cancelar-gasto">
+          <i class="bi bi-x-lg me-1"></i>Cancelar
+        </button>
+        <button type="submit" class="btn btn-brand" id="btn-submit-gasto">
+          <i class="bi bi-check-lg me-1"></i>Guardar Gasto
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-4">
+    <h6 class="fw-bold mb-3">Filtrar Gastos</h6>
+    <div class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label for="filtro-fecha-inicio" class="form-label small">Desde</label>
+        <input type="date" class="form-control" id="filtro-fecha-inicio">
+      </div>
+      <div class="col-md-3">
+        <label for="filtro-fecha-fin" class="form-label small">Hasta</label>
+        <input type="date" class="form-control" id="filtro-fecha-fin">
+      </div>
+      <div class="col-md-6 d-flex gap-2">
+        <button class="btn btn-primary" id="btn-filtrar"><i class="bi bi-search me-1"></i>Filtrar</button>
+        <button class="btn btn-outline-secondary" id="btn-limpiar-filtro"><i class="bi bi-x-lg me-1"></i>Limpiar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de gastos -->
+<div class="card chart-card">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Últimos Gastos</h6>
+      <small class="text-muted" id="gastos-info">Cargando...</small>
+    </div>
+    <div class="table-responsive table-container">
+      <table class="table table-hover align-middle mb-0" style="min-width:600px;">
+        <thead class="table-light">
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Descripción</th>
+            <th>Referencia</th>
+            <th class="text-end">Monto</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="gastos-tbody">
+          <tr><td colspan="6" class="text-center text-muted py-4">
+            <span class="spinner-border spinner-border-sm me-2"></span>Cargando...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Pagination -->
+    <nav id="pagination-nav" class="mt-4 d-flex justify-content-center" aria-label="Navegación de gastos"></nav>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showToast(msg, type) {
+  type = type || 'success';
+  var t = document.createElement('div');
+  t.className = 'toast-notification toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 3200);
+}
+function esc(v) {
+  return String(v===null||v===undefined?'':v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function fmtMoney(v) { return '$' + parseFloat(v||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+
+var gastosList = [];
+var currentFilters = {
+  page: 1,
+  limit: 20,
+  fecha_inicio: null,
+  fecha_fin: null
+};
+
+/* ── Cargar gastos ── */
+async function loadGastos(page = 1) {
+  currentFilters.page = page;
+  var tbody = document.getElementById('gastos-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando...</td></tr>';
+
+  var params = {
+    limit: currentFilters.limit,
+    page: currentFilters.page,
+    fecha_inicio: currentFilters.fecha_inicio,
+    fecha_fin: currentFilters.fecha_fin
+  };
+
+  try {
+    var response = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.gastos, 'list', null, params);
+    gastosList = Array.isArray(response.items) ? response.items : [];
+    
+    document.getElementById('stat-gastos-count').textContent = response.totalItems;
+
+    // TODO: La estadística de gastos del mes ahora solo considera la página actual.
+    // Para un cálculo preciso, se requeriría un endpoint de API específico para esta estadística.
+    var mesTotal = gastosList
+      .filter(function(g) {
+        var d = new Date(g.fecha);
+        var now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      })
+      .reduce(function(sum, g) { return sum + parseFloat(g.monto||0); }, 0);
+    document.getElementById('stat-gastos-mes').textContent = fmtMoney(mesTotal);
+    renderGastos(gastosList);
+    renderPagination(response.currentPage, response.totalPages, response.totalItems);
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-2"></i>' + esc(err.message||'Error al cargar.') + '</td></tr>';
+    document.getElementById('gastos-info').textContent = 'Error';
+  }
+}
+
+function renderGastos(items) {
+  var tbody = document.getElementById('gastos-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-receipt me-2 opacity-25"></i>No se encontraron gastos con los filtros aplicados.</td></tr>';
+    return;
+  }
+  var tipoBadgeColor = { NOMINA: '#1a2235', SERVICIOS: '#0d9488', ARRIENDO: '#d97706', EQUIPAMIENTO: '#3b82f6', MANTENIMIENTO: '#8b5cf6', OTROS: '#6b7280' };
+  tbody.innerHTML = items.map(function(g) {
+    var color = tipoBadgeColor[g.tipo_gasto] || '#6b7280';
+    return '<tr>' +
+      '<td>' + esc(g.fecha) + '</td>' +
+      '<td><span class="badge rounded-pill" style="background:' + color + ';color:#fff;">' + esc(g.tipo_gasto||'—') + '</span></td>' +
+      '<td>' + esc(g.descripcion) + '</td>' +
+      '<td><small class="text-muted">' + esc(g.referencia||'—') + '</small></td>' +
+      '<td class="text-end fw-bold">' + fmtMoney(g.monto) + '</td>' +
+      '<td class="text-end">' +
+        '<div class="d-flex justify-content-end gap-1">' +
+          '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="editarGasto(' + g.id + ')" title="Editar">' +
+            '<i class="bi bi-pencil"></i>' +
+          '</button>' +
+          '<button type="button" class="btn btn-sm btn-outline-danger" onclick="anularGasto(' + g.id + ')" title="Anular gasto">' +
+            '<i class="bi bi-x-circle"></i>' +
+          '</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderPagination(currentPage, totalPages, totalItems) {
+  var paginationNav = document.getElementById('pagination-nav');
+  var gastosInfo = document.getElementById('gastos-info');
+
+  if (totalPages <= 1) {
+    paginationNav.innerHTML = '';
+    gastosInfo.textContent = totalItems + ' registro(s)';
+    return;
+  }
+
+  var startItem = (currentPage - 1) * currentFilters.limit + 1;
+  var endItem = Math.min(startItem + currentFilters.limit - 1, totalItems);
+  gastosInfo.textContent = 'Mostrando ' + startItem + '-' + endItem + ' de ' + totalItems + ' registros';
+
+  var html = '<ul class="pagination">';
+
+  html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '">' +
+          '<a class="page-link" href="#" onclick="event.preventDefault(); loadGastos(' + (currentPage - 1) + ')">Anterior</a>' +
+          '</li>';
+
+  let startPage, endPage;
+  if (totalPages <= 5) {
+    startPage = 1;
+    endPage = totalPages;
+  } else {
+    if (currentPage <= 3) {
+      startPage = 1;
+      endPage = 5;
+    } else if (currentPage + 2 >= totalPages) {
+      startPage = totalPages - 4;
+      endPage = totalPages;
+    } else {
+      startPage = currentPage - 2;
+      endPage = currentPage + 2;
+    }
+  }
+
+  if (startPage > 1) {
+    html += '<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); loadGastos(1)">1</a></li>';
+    if (startPage > 2) {
+      html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    }
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += '<li class="page-item ' + (i === currentPage ? 'active' : '') + '">' +
+            '<a class="page-link" href="#" onclick="event.preventDefault(); loadGastos(' + i + ')">' + i + '</a>' +
+            '</li>';
+  }
+
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) {
+      html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+    }
+    html += '<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); loadGastos(' + totalPages + ')">' + totalPages + '</a></li>';
+  }
+
+  html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '">' +
+          '<a class="page-link" href="#" onclick="event.preventDefault(); loadGastos(' + (currentPage + 1) + ')">Siguiente</a>' +
+          '</li>';
+
+  html += '</ul>';
+  paginationNav.innerHTML = html;
+}
+
+/* ── Anular gasto ── */
+async function anularGasto(id) {
+  var r = await swConfirm('¿Anular gasto?', 'El gasto será marcado como anulado y dejará de aparecer en los registros.', 'Sí, anular');
+  if (!r.isConfirmed) return;
+  try {
+    await Cuspide.api.call('DELETE', CONFIG.ENDPOINTS.gastos, 'delete', null, { id: id });
+    showToast('Gasto anulado correctamente.', 'success');
+    loadGastos(currentFilters.page);
+  } catch (err) {
+    showToast(err.message || 'Error al anular el gasto.', 'error');
+  }
+}
+
+/* ── Editar gasto ── */
+function editarGasto(id) {
+  var g = gastosList.find(function(x) { return x.id == id; });
+  if (!g) return;
+  document.getElementById('gasto-id').value    = g.id;
+  document.getElementById('g-fecha').value     = g.fecha ? g.fecha.substring(0, 10) : '';
+  document.getElementById('g-tipo').value      = g.tipo_gasto;
+  document.getElementById('g-monto').value     = g.monto;
+  document.getElementById('g-descripcion').value = g.descripcion;
+  document.getElementById('g-referencia').value  = g.referencia || '';
+  document.getElementById('g-observacion').value = g.observacion || '';
+  document.getElementById('form-gasto-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Gasto';
+  document.getElementById('form-gasto-card').classList.remove('d-none');
+  document.getElementById('form-gasto-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Abrir/Cerrar formulario ── */
+function mostrarFormGasto() {
+  document.getElementById('gasto-id').value = '';
+  document.getElementById('form-gasto').reset();
+  document.getElementById('g-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('form-gasto-title').innerHTML = '<i class="bi bi-receipt me-2"></i>Nuevo Gasto';
+  document.getElementById('form-gasto-card').classList.remove('d-none');
+  document.getElementById('form-gasto-card').scrollIntoView({ behavior: 'smooth' });
+}
+function cerrarFormGasto() {
+  document.getElementById('form-gasto-card').classList.add('d-none');
+  document.getElementById('form-gasto').reset();
+  document.getElementById('gasto-id').value = '';
+}
+
+/* ── Guardar ── */
+document.getElementById('form-gasto').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var id          = document.getElementById('gasto-id').value;
+  var fecha       = document.getElementById('g-fecha').value;
+  var tipo        = document.getElementById('g-tipo').value;
+  var monto       = parseFloat(document.getElementById('g-monto').value);
+  var descripcion = document.getElementById('g-descripcion').value.trim();
+  if (!fecha || !tipo || !descripcion || isNaN(monto) || monto <= 0) {
+    showToast('Completa todos los campos obligatorios.', 'warning'); return;
+  }
+  var body = {
+    fecha:       fecha,
+    tipo_gasto:  tipo,
+    monto:       monto,
+    descripcion: descripcion,
+    referencia:  document.getElementById('g-referencia').value.trim() || null,
+    observacion: document.getElementById('g-observacion').value.trim() || null,
+    estado:      1,
+  };
+  var btn = document.getElementById('btn-submit-gasto');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+  try {
+    var method = id ? 'PUT' : 'POST';
+    var params = id ? { id: id } : null;
+    await Cuspide.api.call(method, CONFIG.ENDPOINTS.gastos, 'save', body, params);
+    showToast(id ? 'Gasto actualizado.' : 'Gasto registrado.', 'success');
+    cerrarFormGasto();
+    // Si es una edición, recarga la página actual. Si es nuevo, va a la primera para ver el más reciente.
+    loadGastos(id ? currentFilters.page : 1);
+  } catch (err) {
+    showToast(err.message || 'Error al guardar.', 'error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar Gasto';
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+  loadGastos();
+  document.getElementById('btn-nuevo-gasto').addEventListener('click', mostrarFormGasto);
+  document.getElementById('btn-cerrar-form-gasto').addEventListener('click', cerrarFormGasto);
+  document.getElementById('btn-cancelar-gasto').addEventListener('click', cerrarFormGasto);
+
+  document.getElementById('btn-filtrar').addEventListener('click', function() {
+    currentFilters.fecha_inicio = document.getElementById('filtro-fecha-inicio').value || null;
+    currentFilters.fecha_fin = document.getElementById('filtro-fecha-fin').value || null;
+    loadGastos(1);
+  });
+
+  document.getElementById('btn-limpiar-filtro').addEventListener('click', function() {
+    document.getElementById('filtro-fecha-inicio').value = '';
+    document.getElementById('filtro-fecha-fin').value = '';
+    currentFilters.fecha_inicio = null;
+    currentFilters.fecha_fin = null;
+    loadGastos(1);
+  });
+});
+</script>
+{% endblock %}
