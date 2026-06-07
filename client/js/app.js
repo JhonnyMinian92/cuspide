@@ -219,6 +219,7 @@ function resolveRouteAlias(value) {
   if (key.indexOf('gasto') !== -1 || key.indexOf('egreso') !== -1) return '/gastos';
   if (key.indexOf('contrato') !== -1) return '/contratos';
   if (key.indexOf('empleado') !== -1) return '/empleados';
+  if (key.indexOf('colaborador') !== -1) return '/empleados';
   if (key.indexOf('reporte') !== -1 || key.indexOf('informe') !== -1 || key.indexOf('estadistica') !== -1) return '/reportes';
 
   return null;

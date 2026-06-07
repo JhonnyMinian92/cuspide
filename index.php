@@ -115,6 +115,8 @@ $routes = [
     '/contrato'        => 'pages/contratos.html.twig',
     '/empleados'       => 'pages/personas.html.twig',
     '/empleado'        => 'pages/personas.html.twig',
+    '/colaboradores'       => 'pages/personas.html.twig',
+    '/colaborador'        => 'pages/personas.html.twig',
 
     '/reportes'        => 'pages/reportes.html.twig',
     '/reporte'         => 'pages/reportes.html.twig',

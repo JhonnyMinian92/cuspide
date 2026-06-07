@@ -107,6 +107,8 @@
       contratos: '/contratos',
       empleado: '/empleados',
       empleados: '/empleados',
+      colaborador: '/empleados',
+      colaboradores: '/empleados',
 
       reporte: '/reportes',
       reportes: '/reportes',
