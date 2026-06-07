@@ -1596,6 +1596,31 @@ CREATE TABLE IF NOT EXISTS `ventas_externas_detalle` (
 
 -- Volcando datos para la tabla cuspide.ventas_externas_detalle: ~0 rows (aproximadamente)
 
+-- ============================================================
+-- DATOS DE PRUEBA: Institución 2 con docentes propios
+-- Sirve para validar que el filtro por institución funciona:
+-- usuario de inst. 1 NO debe ver estos docentes en el select.
+-- ============================================================
+
+-- Segunda institución
+INSERT INTO `instituciones` (`id`, `ruc`, `razon_social`, `nombre`, `logotipo`, `estado`) VALUES
+  (2, '1791234560001', 'Academia Deportiva Sur S.A.', 'Academia Deportiva Sur', 'logo/default.jpg', 1);
+
+-- Usuarios para institución 2
+INSERT INTO `users` (`id`, `username`, `password`, `type`, `image`) VALUES
+  (201, 'coach.inst2a', '$2y$10$VGinM4DJkVMbMB5OX/kYnuIBW.ihTovJY/njq2FxHjMALvq8IwoAm', 'PROFESOR', 'icons/coach.jpg'),
+  (202, 'coach.inst2b', '$2y$10$VGinM4DJkVMbMB5OX/kYnuIBW.ihTovJY/njq2FxHjMALvq8IwoAm', 'PROFESOR', 'icons/coach.jpg');
+
+-- Personas (docentes) de institución 2
+INSERT INTO `personas` (`id`, `identificacion`, `primer_nombre`, `segundo_nombre`, `primer_apellido`, `segundo_apellido`, `nacionalidad`, `genero`, `etnia`, `fecha_nacimiento`, `ciudad`, `direccion`, `user`) VALUES
+  (201, '1000000201', 'Marco', 'Antonio', 'Espinoza', 'Cruz',   1, 1, 1, '1987-03-15 00:00:00', 101, 'Av. Universidad s/n, Huaquillas', 201),
+  (202, '1000000202', 'Sofia', 'Elena',   'Ramirez',  'Vega',   1, 2, 1, '1990-07-20 00:00:00', 101, 'Barrio Central s/n, Huaquillas', 202);
+
+-- Vincular personas como DOCENTE (tipo=4) a institución 2
+INSERT INTO `persona_institucion` (`id`, `id_persona`, `id_institucion`, `tipo`, `estado`) VALUES
+  (201, 201, 2, 4, 1),
+  (202, 202, 2, 4, 1);
+
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
