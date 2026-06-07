@@ -1046,17 +1046,16 @@ function poblarSelectPeriodos() {
    INIT
 ───────────────────────────────────────────── */
 function init() {
-  // Cargar datos en secuencia para poblar los formularios correctamente
-  loadDeportes()
+  whenInstitucionReady()
+    .then(function() { return loadDeportes(); })
     .then(function() {
-      // Cargar categorías, docentes y periodos en paralelo
       return Promise.all([
         loadCategorias(),
         loadDocentes(),
         loadPeriodos(),
         loadNiveles()
       ]);
-    }).then(loadActividades) // Finalmente, cargar las actividades
+    }).then(loadActividades)
     .catch(function(err) {
       console.error("Error en la inicialización:", err);
       showToast("Error al cargar datos iniciales. " + (err ? err.message : ''), 'error');

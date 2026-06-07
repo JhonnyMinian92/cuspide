@@ -716,13 +716,14 @@ document.getElementById('tab-asig-btn').addEventListener('shown.bs.tab', functio
 /* ══════════════════ INIT ══════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
   checkAuth();
-  /* cargar catálogos en paralelo */
   loadPeriodos();
   loadAsignaturasForSelect();
   loadNivelesForSelect();
-  loadDocentesForSelect();
-  /* cargar tabla de clases */
   loadClases();
+  /* esperar institución confirmada antes de cargar docentes */
+  whenInstitucionReady().then(function() {
+    loadDocentesForSelect();
+  });
 });
 </script>
 {% endblock %}
