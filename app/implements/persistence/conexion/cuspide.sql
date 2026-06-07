@@ -38,11 +38,9 @@ CREATE TABLE IF NOT EXISTS `actividades` (
   CONSTRAINT `3` FOREIGN KEY (`nivel`) REFERENCES `nivel_asignatura` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `4` FOREIGN KEY (`periodo_academico`) REFERENCES `periodos_academicos` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `5` FOREIGN KEY (`docente`) REFERENCES `personas` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.actividades: ~1 rows (aproximadamente)
-INSERT INTO `actividades` (`id`, `nombre`, `periodo_academico`, `categoria_deportiva`, `precio`, `nivel`, `cupo_maximo`, `observacion`, `docente`, `institucion`, `estado`) VALUES
-	(1, 'Futbol Sub 17 Matutino', 1, 1, 30.00, 1, 20, '', 119, 1, 1);
+-- Volcando datos para la tabla cuspide.actividades: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.actividades_matricula
 CREATE TABLE IF NOT EXISTS `actividades_matricula` (
@@ -65,12 +63,9 @@ CREATE TABLE IF NOT EXISTS `actividades_matricula` (
   CONSTRAINT `FK_ACT_MAT_HORARIO` FOREIGN KEY (`horario`) REFERENCES `horarios` (`id`),
   CONSTRAINT `FK_ACT_MAT_MATRICULA` FOREIGN KEY (`matricula`) REFERENCES `matricula` (`id`),
   CONSTRAINT `FK_ACT_MAT_MODALIDAD` FOREIGN KEY (`modalidad`) REFERENCES `modalidades` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.actividades_matricula: ~2 rows (aproximadamente)
-INSERT INTO `actividades_matricula` (`id`, `actividad`, `matricula`, `modalidad`, `horario`, `fecha_inicio`, `fecha_fin`, `estado`) VALUES
-	(1, 1, 1, 1, NULL, '2026-05-28 00:00:00', '2026-12-31 00:00:00', 1),
-	(2, 1, 2, 1, NULL, '2026-05-28 00:00:00', '2026-12-31 00:00:00', 1);
+-- Volcando datos para la tabla cuspide.actividades_matricula: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.alergias
 CREATE TABLE IF NOT EXISTS `alergias` (
@@ -121,11 +116,9 @@ CREATE TABLE IF NOT EXISTS `asignaturas` (
   KEY `FK3_ASIGNATURA_ESTADO` (`estado`),
   CONSTRAINT `FK2_ASIGNATURA_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK3_ASIGNATURA_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.asignaturas: ~1 rows (aproximadamente)
-INSERT INTO `asignaturas` (`id`, `nombre`, `descripcion`, `institucion`, `estado`) VALUES
-	(1, 'Historia', 'Clase teorica de historia', 1, 1);
+-- Volcando datos para la tabla cuspide.asignaturas: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.asistencias
 CREATE TABLE IF NOT EXISTS `asistencias` (
@@ -175,7 +168,7 @@ CREATE TABLE IF NOT EXISTS `boton_user` (
   CONSTRAINT `FK_BOTON_USER_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.boton_user: ~54 rows (aproximadamente)
+-- Volcando datos para la tabla cuspide.boton_user: ~18 rows (aproximadamente)
 INSERT INTO `boton_user` (`id`, `boton`, `type_user`, `institucion`) VALUES
 	(1, 13, 'TIPO_DEV', 1),
 	(2, 1, 'TIPO_DEV', 1),
@@ -194,43 +187,7 @@ INSERT INTO `boton_user` (`id`, `boton`, `type_user`, `institucion`) VALUES
 	(15, 19, 'TIPO_DEV', 1),
 	(16, 22, 'TIPO_DEV', 1),
 	(17, 7, 'TIPO_DEV', 1),
-	(18, 12, 'TIPO_DEV', 1),
-	(19, 1, 'TIPO_ADMIN', 1),
-	(20, 2, 'TIPO_ADMIN', 1),
-	(21, 24, 'TIPO_ADMIN', 1),
-	(22, 3, 'TIPO_ADMIN', 1),
-	(23, 4, 'TIPO_ADMIN', 1),
-	(24, 6, 'TIPO_ADMIN', 1),
-	(25, 8, 'TIPO_ADMIN', 1),
-	(26, 9, 'TIPO_ADMIN', 1),
-	(27, 10, 'TIPO_ADMIN', 1),
-	(28, 11, 'TIPO_ADMIN', 1),
-	(29, 13, 'TIPO_ADMIN', 1),
-	(30, 14, 'TIPO_ADMIN', 1),
-	(31, 16, 'TIPO_ADMIN', 1),
-	(32, 17, 'TIPO_ADMIN', 1),
-	(33, 19, 'TIPO_ADMIN', 1),
-	(34, 22, 'TIPO_ADMIN', 1),
-	(35, 7, 'TIPO_ADMIN', 1),
-	(36, 12, 'TIPO_ADMIN', 1),
-	(37, 1, 'TIPO_ADMIN', 8),
-	(38, 2, 'TIPO_ADMIN', 8),
-	(39, 3, 'TIPO_ADMIN', 8),
-	(40, 4, 'TIPO_ADMIN', 8),
-	(41, 6, 'TIPO_ADMIN', 8),
-	(42, 7, 'TIPO_ADMIN', 8),
-	(43, 8, 'TIPO_ADMIN', 8),
-	(44, 9, 'TIPO_ADMIN', 8),
-	(45, 10, 'TIPO_ADMIN', 8),
-	(46, 11, 'TIPO_ADMIN', 8),
-	(47, 12, 'TIPO_ADMIN', 8),
-	(48, 13, 'TIPO_ADMIN', 8),
-	(49, 14, 'TIPO_ADMIN', 8),
-	(50, 16, 'TIPO_ADMIN', 8),
-	(51, 17, 'TIPO_ADMIN', 8),
-	(52, 19, 'TIPO_ADMIN', 8),
-	(53, 22, 'TIPO_ADMIN', 8),
-	(54, 24, 'TIPO_ADMIN', 8);
+	(18, 12, 'TIPO_DEV', 1);
 
 -- Volcando estructura para tabla cuspide.botones
 CREATE TABLE IF NOT EXISTS `botones` (
@@ -246,31 +203,25 @@ CREATE TABLE IF NOT EXISTS `botones` (
   CONSTRAINT `FK1_ESTADO_BOTON` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.botones: ~24 rows (aproximadamente)
+-- Volcando datos para la tabla cuspide.botones: ~18 rows (aproximadamente)
 INSERT INTO `botones` (`id`, `orden`, `nombre`, `icono`, `tipo`, `color`, `estado`) VALUES
 	(1, 1, 'Dashboard', 'bi-house-check-fill', 'MENU', NULL, 1),
 	(2, 2, 'Alumnos', 'bi-person-badge-fill', 'MENU', NULL, 1),
 	(3, 3, 'Membresías', 'bi-person-vcard-fill', 'MENU', '', 1),
 	(4, 4, 'Pagos', 'bi-cash-coin', 'MENU', '', 1),
-	(5, 5, 'Asistencia', 'bi-calendar-check-fill', 'MENU', '', 0),
 	(6, 6, 'Inventario', 'bi-box-seam-fill', 'MENU', '', 1),
 	(7, 23, 'Reportes', 'bi-bar-chart-fill', 'MENU', '', 1),
-	(8, 8, 'Empleados', 'bi-person-badge-fill', 'MENU', '', 1),
+	(8, 8, 'Colaboradores', 'bi-person-badge-fill', 'MENU', '', 1),
 	(9, 9, 'Matrículas', 'bi-journal-check', 'MENU', '', 1),
 	(10, 10, 'Gastos', 'bi-cash-stack', 'MENU', '', 1),
 	(11, 11, 'Contratos', 'bi-file-earmark-text', 'MENU', '', 1),
 	(12, 24, 'Configuración', 'bi-gear-fill', 'MENU', '', 1),
 	(13, 13, 'Usuarios', 'bi-people-fill', 'MENU', '', 1),
 	(14, 14, 'Instituciones', 'bi-building', 'MENU', '', 1),
-	(15, 15, 'Horarios', 'bi-calendar3', 'MENU', '', 0),
 	(16, 16, 'Asignaturas', 'bi-book-fill', 'MENU', '', 1),
 	(17, 17, 'Actividades', 'bi-trophy-fill', 'MENU', '', 1),
-	(18, 18, 'Categorías', 'bi-tags-fill', 'MENU', '', 0),
 	(19, 19, 'Ventas', 'bi-cart-fill', 'MENU', '', 1),
-	(20, 20, 'Facturas', 'bi-receipt', 'MENU', '', 0),
-	(21, 21, 'Cuentas x Cobrar', 'bi-currency-dollar', 'MENU', '', 0),
 	(22, 22, 'Productos', 'bi-box-seam-fill', 'MENU', '', 1),
-	(23, 23, 'Horarios', 'bi-calendar3', 'MENU', '', 0),
 	(24, 2, 'Socio', 'bi-person-badge-fill', 'MENU', NULL, 1);
 
 -- Volcando estructura para tabla cuspide.calendarios
@@ -307,13 +258,9 @@ CREATE TABLE IF NOT EXISTS `calendarios` (
   CONSTRAINT `FK_CALENDARIOS_HORARIO` FOREIGN KEY (`horario`) REFERENCES `horarios` (`id`),
   CONSTRAINT `FK_CALENDARIOS_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`),
   CONSTRAINT `FK_CALENDARIOS_PLAN` FOREIGN KEY (`plan_entrenamiento`) REFERENCES `planes_entrenamiento` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.calendarios: ~3 rows (aproximadamente)
-INSERT INTO `calendarios` (`id`, `titulo`, `tipo`, `institucion`, `horario`, `clase`, `actividad`, `plan_entrenamiento`, `entrenador`, `fecha_inicio`, `fecha_fin`, `ubicacion`, `cupo_maximo`, `observacion`, `estado`) VALUES
-	(1, 'Clase: HISTORIA DEL FUTBOL', 'CLASE', 1, NULL, 1, NULL, NULL, NULL, '2026-05-28 00:00:00', '2026-12-31 00:00:00', '', 20, 'Matrícula #1', 1),
-	(2, 'Actividad: Futbol Sub 17 Matutino', 'ACTIVIDAD', 1, NULL, NULL, 1, NULL, NULL, '2026-05-28 00:00:00', '2026-12-31 00:00:00', '', 0, 'Matrícula #1', 1),
-	(3, 'Actividad: Futbol Sub 17 Matutino', 'ACTIVIDAD', 1, NULL, NULL, 1, NULL, NULL, '2026-05-28 00:00:00', '2026-12-31 00:00:00', '', 0, 'Matrícula #2', 1);
+-- Volcando datos para la tabla cuspide.calendarios: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.calificaciones
 CREATE TABLE IF NOT EXISTS `calificaciones` (
@@ -353,11 +300,9 @@ CREATE TABLE IF NOT EXISTS `categorias_deportivas` (
   CONSTRAINT `FK_CATEGORIAS_DEPORTE` FOREIGN KEY (`deporte`) REFERENCES `deportes` (`id`),
   CONSTRAINT `FK_CATEGORIAS_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_CATEGORIAS_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.categorias_deportivas: ~1 rows (aproximadamente)
-INSERT INTO `categorias_deportivas` (`id`, `nombre`, `nemonico`, `deporte`, `edad_minima`, `edad_maxima`, `descripcion`, `institucion`, `estado`) VALUES
-	(1, 'Futbol Sub 17', 'FUTB17', 1, 17, 17, 'Futbol para 17 años', 1, 1);
+-- Volcando datos para la tabla cuspide.categorias_deportivas: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.ciudades
 CREATE TABLE IF NOT EXISTS `ciudades` (
@@ -367,15 +312,16 @@ CREATE TABLE IF NOT EXISTS `ciudades` (
   `provincia` varchar(100) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `nemonico` (`nemonico`)
-) ENGINE=InnoDB AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=106 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.ciudades: ~5 rows (aproximadamente)
+-- Volcando datos para la tabla cuspide.ciudades: ~6 rows (aproximadamente)
 INSERT INTO `ciudades` (`id`, `nemonico`, `nombre`, `provincia`) VALUES
 	(1, 'MACH', 'MACHALA', 'EL ORO'),
 	(101, 'HUAQ', 'HUAQUILLAS', 'EL ORO'),
 	(102, 'STRO', 'SANTA ROSA', 'EL ORO'),
 	(103, 'GYE', 'GUAYAQUIL', 'GUAYAS'),
-	(104, 'UIO', 'QUITO', 'PICHINCHA');
+	(104, 'UIO', 'QUITO', 'PICHINCHA'),
+	(105, 'AREN', 'ARENILLAS', 'EL ORO');
 
 -- Volcando estructura para tabla cuspide.clases
 CREATE TABLE IF NOT EXISTS `clases` (
@@ -403,11 +349,9 @@ CREATE TABLE IF NOT EXISTS `clases` (
   CONSTRAINT `FK_CLASES_DOCENTE` FOREIGN KEY (`docente`) REFERENCES `personas` (`id`),
   CONSTRAINT `FK_CLASES_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_CLASES_PERIODO` FOREIGN KEY (`periodo_academico`) REFERENCES `periodos_academicos` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.clases: ~1 rows (aproximadamente)
-INSERT INTO `clases` (`id`, `nombre`, `periodo_academico`, `asignatura`, `precio`, `nivel`, `observacion`, `institucion`, `docente`, `cupo_maximo`, `estado`) VALUES
-	(1, 'HISTORIA DEL FUTBOL', 1, 1, 30, 1, 'Clase teorica del futbol', 1, 119, 20, 1);
+-- Volcando datos para la tabla cuspide.clases: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.clases_matricula
 CREATE TABLE IF NOT EXISTS `clases_matricula` (
@@ -433,11 +377,9 @@ CREATE TABLE IF NOT EXISTS `clases_matricula` (
   CONSTRAINT `FK4_MODALIDAD_CLASES_MATRICULA` FOREIGN KEY (`modalidad`) REFERENCES `modalidades` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK5_CONTRATO_CLASES_MATRICULA` FOREIGN KEY (`contrato`) REFERENCES `contratacion` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK_CLASE_MATRICULA_HORARIO` FOREIGN KEY (`horario`) REFERENCES `horarios` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.clases_matricula: ~1 rows (aproximadamente)
-INSERT INTO `clases_matricula` (`id`, `clase`, `matricula`, `contrato`, `modalidad`, `horario`, `fecha_inicio`, `fecha_fin`, `estado`) VALUES
-	(1, 1, 1, NULL, 1, NULL, '2026-05-28 00:00:00', '2026-12-31 00:00:00', 1);
+-- Volcando datos para la tabla cuspide.clases_matricula: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.contratacion
 CREATE TABLE IF NOT EXISTS `contratacion` (
@@ -455,11 +397,9 @@ CREATE TABLE IF NOT EXISTS `contratacion` (
   CONSTRAINT `FK1_PERSONA_CONTRATO` FOREIGN KEY (`persona`) REFERENCES `personas` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK2_PERSONA_NIVEL` FOREIGN KEY (`nivel`) REFERENCES `nivel_academico` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK3_PERSONA_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.contratacion: ~1 rows (aproximadamente)
-INSERT INTO `contratacion` (`id`, `fecha_inscripcion`, `fecha_inicio`, `fecha_fin`, `nivel`, `institucion`, `persona`) VALUES
-	(1, '2026-05-28 00:00:00', '2026-05-28 00:00:00', '2026-12-31 00:00:00', 2, 1, 119);
+-- Volcando datos para la tabla cuspide.contratacion: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.correos
 CREATE TABLE IF NOT EXISTS `correos` (
@@ -475,14 +415,9 @@ CREATE TABLE IF NOT EXISTS `correos` (
   CONSTRAINT `FK1_ESTADO_MAIL` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK2_PERSONA` FOREIGN KEY (`persona`) REFERENCES `personas` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK3_TIPO_CONTACT` FOREIGN KEY (`tipo`) REFERENCES `tipos_contacto` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.correos: ~4 rows (aproximadamente)
-INSERT INTO `correos` (`id`, `email`, `tipo`, `persona`, `estado`) VALUES
-	(1, 'jhonnyminian@gmail.com', 1, 116, 1),
-	(2, 'lauragr@gmail.com', 1, 117, 1),
-	(3, 'jhonnyminian@gmail.com', 1, 118, 1),
-	(4, 'jhonnyminian@gmail.com', 1, 119, 1);
+-- Volcando datos para la tabla cuspide.correos: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.cuotas_matricula
 CREATE TABLE IF NOT EXISTS `cuotas_matricula` (
@@ -498,26 +433,9 @@ CREATE TABLE IF NOT EXISTS `cuotas_matricula` (
   KEY `IDX_CUOTAS_ESTADO` (`estado`),
   CONSTRAINT `FK_CUOTAS_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_CUOTAS_PLAN_PAGO` FOREIGN KEY (`plan_pago`) REFERENCES `plan_pago_matricula` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.cuotas_matricula: ~16 rows (aproximadamente)
-INSERT INTO `cuotas_matricula` (`id`, `plan_pago`, `numero`, `fecha_vencimiento`, `valor`, `saldo`, `estado`) VALUES
-	(1, 1, 1, '2026-06-28', 60.00, 60.00, 1),
-	(2, 1, 2, '2026-07-28', 60.00, 60.00, 1),
-	(3, 1, 3, '2026-08-28', 60.00, 60.00, 1),
-	(4, 1, 4, '2026-09-28', 60.00, 60.00, 1),
-	(5, 1, 5, '2026-10-28', 60.00, 60.00, 1),
-	(6, 1, 6, '2026-11-28', 60.00, 60.00, 1),
-	(7, 1, 7, '2026-12-28', 60.00, 60.00, 1),
-	(8, 1, 8, '2027-01-28', 60.00, 60.00, 1),
-	(9, 2, 1, '2026-06-28', 25.50, 25.50, 1),
-	(10, 2, 2, '2026-07-28', 25.50, 25.50, 1),
-	(11, 2, 3, '2026-08-28', 25.50, 25.50, 1),
-	(12, 2, 4, '2026-09-28', 25.50, 25.50, 1),
-	(13, 2, 5, '2026-10-28', 25.50, 25.50, 1),
-	(14, 2, 6, '2026-11-28', 25.50, 25.50, 1),
-	(15, 2, 7, '2026-12-28', 25.50, 25.50, 1),
-	(16, 2, 8, '2027-01-28', 25.50, 25.50, 1);
+-- Volcando datos para la tabla cuspide.cuotas_matricula: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.deportes
 CREATE TABLE IF NOT EXISTS `deportes` (
@@ -531,11 +449,9 @@ CREATE TABLE IF NOT EXISTS `deportes` (
   KEY `FK2_ESTADO_DEPORTE` (`estado`),
   CONSTRAINT `FK1_INSTITUCION_DEPORTE` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK2_ESTADO_DEPORTE` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.deportes: ~1 rows (aproximadamente)
-INSERT INTO `deportes` (`id`, `nombre`, `descripcion`, `institucion`, `estado`) VALUES
-	(1, 'Futbol', 'Soccer cancha de cesped', 1, 1);
+-- Volcando datos para la tabla cuspide.deportes: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.enfermedad_persona
 CREATE TABLE IF NOT EXISTS `enfermedad_persona` (
@@ -667,12 +583,9 @@ CREATE TABLE IF NOT EXISTS `fichas_medicas` (
   KEY `IDX_FICHAS_PERSONA` (`persona`),
   CONSTRAINT `FK1_FICHA_MEDICA_PERFIL_MEDICO` FOREIGN KEY (`perfil_medico`) REFERENCES `perfil_medico` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK_FICHAS_MEDICAS_PERSONA` FOREIGN KEY (`persona`) REFERENCES `personas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.fichas_medicas: ~2 rows (aproximadamente)
-INSERT INTO `fichas_medicas` (`id`, `persona`, `grupo_sanguineo`, `alergias`, `enfermedades_preexistentes`, `medicamentos_actuales`, `contacto_emergencia_nombre`, `contacto_emergencia_telefono`, `fecha`, `perfil_medico`, `estado`) VALUES
-	(1, 118, NULL, '', '', '', '', '', '2026-05-28 15:20:18', NULL, 1),
-	(2, 119, NULL, '', '', '', '', '', '2026-05-28 15:25:02', NULL, 1);
+-- Volcando datos para la tabla cuspide.fichas_medicas: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.formas_pago
 CREATE TABLE IF NOT EXISTS `formas_pago` (
@@ -713,11 +626,9 @@ CREATE TABLE IF NOT EXISTS `gastos` (
   CONSTRAINT `FK_GASTOS_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_GASTOS_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`),
   CONSTRAINT `FK_GASTOS_PERSONA` FOREIGN KEY (`persona`) REFERENCES `personas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.gastos: ~1 rows (aproximadamente)
-INSERT INTO `gastos` (`id`, `numero`, `fecha`, `descripcion`, `tipo_gasto`, `monto`, `institucion`, `persona`, `referencia`, `observacion`, `estado`) VALUES
-	(1, 'G-20260528223013', '2026-05-28 00:00:00', 'Pago de sueldo', 'NOMINA', 485.00, 1, 1, '44645', 'pago a profesor', 1);
+-- Volcando datos para la tabla cuspide.gastos: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.generos
 CREATE TABLE IF NOT EXISTS `generos` (
@@ -798,10 +709,9 @@ CREATE TABLE IF NOT EXISTS `instituciones` (
   CONSTRAINT `FK1_ESTADO_INSTITUCION` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.instituciones: ~2 rows (aproximadamente)
+-- Volcando datos para la tabla cuspide.instituciones: ~1 rows (aproximadamente)
 INSERT INTO `instituciones` (`id`, `ruc`, `razon_social`, `nombre`, `logotipo`, `estado`) VALUES
-	(1, '0791842247001', 'Huaquillas-sporting-club S.a.s.', 'Huaquillas Futbol Club', '/assets/logo/huaquillasfc.jpg', 1),
-	(8, '1720301026001', 'SportAdmin S. A.', 'SportAdmin', '/assets/logo/inst_6a18a6ef0c14e3.05453466.png', 1);
+	(1, '0791842247001', 'Huaquillas-sporting-club S.a.s.', 'Huaquillas Futbol Club', '/assets/logo/huaquillasfc.jpg', 1);
 
 -- Volcando estructura para tabla cuspide.inventario
 CREATE TABLE IF NOT EXISTS `inventario` (
@@ -819,11 +729,9 @@ CREATE TABLE IF NOT EXISTS `inventario` (
   CONSTRAINT `FK_INVENTARIO_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`),
   CONSTRAINT `FK_INVENTARIO_PRODUCTO` FOREIGN KEY (`producto`) REFERENCES `productos` (`id`),
   CONSTRAINT `FK_INVENTARIO_VARIANTE` FOREIGN KEY (`variante`) REFERENCES `producto_variantes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.inventario: ~1 rows (aproximadamente)
-INSERT INTO `inventario` (`id`, `producto`, `variante`, `institucion`, `stock_actual`, `stock_minimo`, `fecha_actualizacion`) VALUES
-	(1, 1, NULL, 1, 97.00, 0.00, '2026-05-28 22:38:41');
+-- Volcando datos para la tabla cuspide.inventario: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.matricula
 CREATE TABLE IF NOT EXISTS `matricula` (
@@ -844,12 +752,9 @@ CREATE TABLE IF NOT EXISTS `matricula` (
   CONSTRAINT `FK2_MATRICULA_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK3_MATRICULA_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK4_MATRICULA_MEMBRESIA` FOREIGN KEY (`membresia`) REFERENCES `membresias` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.matricula: ~2 rows (aproximadamente)
-INSERT INTO `matricula` (`id`, `fecha_registro`, `persona`, `fecha_inicio`, `fecha_fin`, `membresia`, `institucion`, `estado`) VALUES
-	(1, '2026-05-28 22:29:03', 116, '2026-05-28 00:00:00', '2026-12-31 00:00:00', NULL, 1, 1),
-	(2, '2026-05-28 22:29:29', 116, '2026-05-28 00:00:00', '2026-12-31 00:00:00', 1, 1, 1);
+-- Volcando datos para la tabla cuspide.matricula: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.membresias
 CREATE TABLE IF NOT EXISTS `membresias` (
@@ -869,11 +774,9 @@ CREATE TABLE IF NOT EXISTS `membresias` (
   KEY `FK_MEMBRESIAS_INSTITUCION` (`institucion`),
   CONSTRAINT `FK1_ESTADO_MEMBRESIA` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK_MEMBRESIAS_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.membresias: ~1 rows (aproximadamente)
-INSERT INTO `membresias` (`id`, `titulo`, `precio`, `porcentaje`, `periodo`, `descripcion`, `url_boton`, `fecha_inicio`, `fecha_fin`, `estado`, `institucion`) VALUES
-	(1, 'Socio Gold', '35.00', 15, 'mensual', '', '', '2026-05-28 00:00:00', '2026-12-31 00:00:00', 1, 1);
+-- Volcando datos para la tabla cuspide.membresias: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.modalidades
 CREATE TABLE IF NOT EXISTS `modalidades` (
@@ -910,13 +813,9 @@ CREATE TABLE IF NOT EXISTS `movimientos_inventario` (
   CONSTRAINT `FK_MOV_INV_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`),
   CONSTRAINT `FK_MOV_INV_PRODUCTO` FOREIGN KEY (`producto`) REFERENCES `productos` (`id`),
   CONSTRAINT `FK_MOV_INV_VARIANTE` FOREIGN KEY (`variante`) REFERENCES `producto_variantes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.movimientos_inventario: ~3 rows (aproximadamente)
-INSERT INTO `movimientos_inventario` (`id`, `producto`, `variante`, `institucion`, `tipo`, `cantidad`, `stock_anterior`, `stock_nuevo`, `referencia`, `fecha`, `observacion`) VALUES
-	(1, 1, NULL, 1, 'ENTRADA', 100.00, 0.00, 100.00, 'compra fabrica', '2026-05-28 22:16:46', 'entrega atrasada'),
-	(2, 1, NULL, 1, 'SALIDA', 1.00, 100.00, 99.00, 'VTA-20260528-6a18a7a517c82', '2026-05-28 22:37:57', 'Venta VTA-20260528-6a18a7a517c82'),
-	(3, 1, NULL, 1, 'SALIDA', 2.00, 99.00, 97.00, 'VEX-20260528-6a18a7d125f6e', '2026-05-28 22:38:41', 'Venta externa VEX-20260528-6a18a7d125f6e');
+-- Volcando datos para la tabla cuspide.movimientos_inventario: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.nacionalidades
 CREATE TABLE IF NOT EXISTS `nacionalidades` (
@@ -1010,12 +909,9 @@ CREATE TABLE IF NOT EXISTS `pago_detalle` (
   CONSTRAINT `FK_PAGO_DETALLE_CUOTA` FOREIGN KEY (`cuota_matricula`) REFERENCES `cuotas_matricula` (`id`),
   CONSTRAINT `FK_PAGO_DETALLE_PAGO` FOREIGN KEY (`pago`) REFERENCES `pagos` (`id`),
   CONSTRAINT `FK_PAGO_DETALLE_VENTA` FOREIGN KEY (`venta`) REFERENCES `ventas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.pago_detalle: ~2 rows (aproximadamente)
-INSERT INTO `pago_detalle` (`id`, `pago`, `cuota_matricula`, `venta`, `valor`) VALUES
-	(1, 1, NULL, 1, 35.00),
-	(2, 2, NULL, 2, 35.00);
+-- Volcando datos para la tabla cuspide.pago_detalle: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.pagos
 CREATE TABLE IF NOT EXISTS `pagos` (
@@ -1047,13 +943,9 @@ CREATE TABLE IF NOT EXISTS `pagos` (
   CONSTRAINT `FK_PAGOS_MATRICULA` FOREIGN KEY (`matricula`) REFERENCES `matricula` (`id`),
   CONSTRAINT `FK_PAGOS_PERSONA` FOREIGN KEY (`persona`) REFERENCES `personas` (`id`),
   CONSTRAINT `FK_PAGOS_VENTA` FOREIGN KEY (`venta`) REFERENCES `ventas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.pagos: ~3 rows (aproximadamente)
-INSERT INTO `pagos` (`id`, `numero`, `fecha`, `persona`, `matricula`, `venta`, `forma_pago`, `institucion`, `monto`, `referencia`, `observacion`, `estado`, `cobrado_por`, `motivo_anulacion`) VALUES
-	(1, 'PAG-20260528-6a18a1c6ed3fd', '2026-05-28 22:12:54', 117, NULL, 1, 101, 1, 35.00, '464645', 'pago en oficina', 1, NULL, NULL),
-	(2, 'PAG-20260528-6a18a209494f2', '2026-05-28 22:14:01', 117, NULL, 2, 101, 1, 35.00, NULL, '', 4, NULL, 'Se ha anulado el pago debido a un error en el registro de la transacción.'),
-	(3, 'PAG-20260528-6a18a7a519bf3', '2026-05-28 22:37:57', 116, NULL, 11, 101, 1, 20.00, NULL, 'Pago de venta VTA-20260528-6a18a7a517c82', 1, NULL, NULL);
+-- Volcando datos para la tabla cuspide.pagos: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.perfil_medico
 CREATE TABLE IF NOT EXISTS `perfil_medico` (
@@ -1165,14 +1057,9 @@ CREATE TABLE IF NOT EXISTS `persona_institucion` (
   CONSTRAINT `FK4_INSTITUCION` FOREIGN KEY (`id_institucion`) REFERENCES `instituciones` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=115 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.persona_institucion: ~6 rows (aproximadamente)
+-- Volcando datos para la tabla cuspide.persona_institucion: ~1 rows (aproximadamente)
 INSERT INTO `persona_institucion` (`id`, `id_persona`, `id_institucion`, `tipo`, `estado`) VALUES
-	(1, 1, 1, 1, 1),
-	(110, 116, 1, 3, 1),
-	(111, 117, 1, 7, 1),
-	(112, 118, 1, 2, 1),
-	(113, 119, 1, 4, 1),
-	(114, 120, 8, 2, 1);
+	(1, 1, 1, 1, 1);
 
 -- Volcando estructura para tabla cuspide.personas
 CREATE TABLE IF NOT EXISTS `personas` (
@@ -1203,14 +1090,9 @@ CREATE TABLE IF NOT EXISTS `personas` (
   CONSTRAINT `FK5_CIUDAD` FOREIGN KEY (`ciudad`) REFERENCES `ciudades` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=121 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.personas: ~6 rows (aproximadamente)
+-- Volcando datos para la tabla cuspide.personas: ~1 rows (aproximadamente)
 INSERT INTO `personas` (`id`, `identificacion`, `primer_nombre`, `segundo_nombre`, `primer_apellido`, `segundo_apellido`, `nacionalidad`, `genero`, `etnia`, `fecha_nacimiento`, `ciudad`, `direccion`, `user`) VALUES
-	(1, '0706323193', 'Jhonny', 'Darwin', 'Miñan', 'Girón', 1, 1, 1, '1992-03-02 00:00:00', 1, '25 de Junio y Callejon Babahoyo', 1),
-	(116, '0706323201', 'Bryan', 'Paul', 'Miñan', 'Giron', 1, 1, 1, '1996-12-21 00:00:00', 101, 'Villa 14', NULL),
-	(117, '0706323202', 'Laura', 'Mercedes', 'Gomez', 'Ruidiaz', 101, 2, 101, '1996-06-16 00:00:00', 1, 'Edificio 1', NULL),
-	(118, '0706524897', 'Jhinson', '', 'Moreno', 'Ochoa', 1, 1, 1, '2000-02-23 00:00:00', 101, 'Villa 4', 110),
-	(119, '1756349127', 'Juan', 'Docente', 'Marcel', 'Zuñiga', 1, 1, 1, '1997-01-16 00:00:00', 101, 'Casa crema', 111),
-	(120, '1720301026', 'Administrador', NULL, 'SportAdmin', NULL, 1, 1, 1, '2026-05-28 00:00:00', 1, 'N/A', 112);
+	(1, '0706323193', 'Jhonny', 'Darwin', 'Miñan', 'Girón', 1, 1, 1, '1992-03-02 00:00:00', 1, '25 de Junio y Callejon Babahoyo', 1);
 
 -- Volcando estructura para tabla cuspide.plan_entrenamiento_ejercicios
 CREATE TABLE IF NOT EXISTS `plan_entrenamiento_ejercicios` (
@@ -1283,12 +1165,9 @@ CREATE TABLE IF NOT EXISTS `plan_pago_matricula` (
   CONSTRAINT `FK_PLAN_PAGO_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_PLAN_PAGO_MATRICULA` FOREIGN KEY (`matricula`) REFERENCES `matricula` (`id`),
   CONSTRAINT `FK_PLAN_PAGO_PERIODICIDAD` FOREIGN KEY (`periodicidad`) REFERENCES `periodicidad_pago` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.plan_pago_matricula: ~2 rows (aproximadamente)
-INSERT INTO `plan_pago_matricula` (`id`, `matricula`, `periodicidad`, `subtotal`, `descuento`, `total`, `saldo`, `fecha_generacion`, `estado`) VALUES
-	(1, 1, 101, 60.00, 0.00, 60.00, 60.00, '2026-05-28 00:00:00', 1),
-	(2, 2, 101, 30.00, 4.50, 25.50, 25.50, '2026-05-28 00:00:00', 1);
+-- Volcando datos para la tabla cuspide.plan_pago_matricula: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.planes_entrenamiento
 CREATE TABLE IF NOT EXISTS `planes_entrenamiento` (
@@ -1342,11 +1221,9 @@ CREATE TABLE IF NOT EXISTS `producto_categorias` (
   KEY `IDX_PRODUCTO_CATEGORIAS_ESTADO` (`estado`),
   CONSTRAINT `FK_PRODUCTO_CATEGORIAS_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_PRODUCTO_CATEGORIAS_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.producto_categorias: ~1 rows (aproximadamente)
-INSERT INTO `producto_categorias` (`id`, `nombre`, `nemonico`, `descripcion`, `institucion`, `estado`) VALUES
-	(1, 'Camisa', 'TIP_CAMISA', 'Camisa tipo polo deportivo', 1, 1);
+-- Volcando datos para la tabla cuspide.producto_categorias: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.producto_variantes
 CREATE TABLE IF NOT EXISTS `producto_variantes` (
@@ -1388,11 +1265,9 @@ CREATE TABLE IF NOT EXISTS `productos` (
   CONSTRAINT `FK_PRODUCTOS_CATEGORIA` FOREIGN KEY (`categoria`) REFERENCES `producto_categorias` (`id`),
   CONSTRAINT `FK_PRODUCTOS_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_PRODUCTOS_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.productos: ~1 rows (aproximadamente)
-INSERT INTO `productos` (`id`, `codigo`, `nombre`, `descripcion`, `categoria`, `precio`, `costo`, `controla_stock`, `institucion`, `estado`) VALUES
-	(1, '001', 'Camisa HFC', 'Camisa Oficial', 1, 20.00, 15.00, 1, 1, 1);
+-- Volcando datos para la tabla cuspide.productos: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.socios
 CREATE TABLE IF NOT EXISTS `socios` (
@@ -1407,11 +1282,9 @@ CREATE TABLE IF NOT EXISTS `socios` (
   KEY `idx_socio_persona` (`persona_id`),
   KEY `idx_socio_membresia` (`membresia_id`),
   KEY `idx_socio_institucion` (`institucion_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.socios: ~1 rows (aproximadamente)
-INSERT INTO `socios` (`id`, `persona_id`, `membresia_id`, `fecha_inicio`, `fecha_fin`, `estado`, `institucion_id`) VALUES
-	(1, 117, 1, '2026-05-28', '2026-12-31', 1, 1);
+-- Volcando datos para la tabla cuspide.socios: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.tallas
 CREATE TABLE IF NOT EXISTS `tallas` (
@@ -1448,14 +1321,9 @@ CREATE TABLE IF NOT EXISTS `telefonos` (
   CONSTRAINT `FK2_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK3_TIPO_CONTACTO` FOREIGN KEY (`tipo`) REFERENCES `tipos_contacto` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `FK4_OPERADORA` FOREIGN KEY (`operadora`) REFERENCES `operadoras` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.telefonos: ~4 rows (aproximadamente)
-INSERT INTO `telefonos` (`id`, `numero`, `operadora`, `persona`, `tipo`, `estado`) VALUES
-	(1, '0981100645', 1, 116, 1, 1),
-	(2, '0981100645', 1, 117, 1, 1),
-	(3, '0981100645', 1, 118, 1, 1),
-	(4, '0981100645', 1, 119, 1, 1);
+-- Volcando datos para la tabla cuspide.telefonos: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.tipo_alergias
 CREATE TABLE IF NOT EXISTS `tipo_alergias` (
@@ -1626,12 +1494,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   CONSTRAINT `FK1_TYPE_USERS` FOREIGN KEY (`type`) REFERENCES `type_users` (`nemonico`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB AUTO_INCREMENT=113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.users: ~4 rows (aproximadamente)
+-- Volcando datos para la tabla cuspide.users: ~1 rows (aproximadamente)
 INSERT INTO `users` (`id`, `username`, `password`, `type`, `image`) VALUES
-	(1, 'jminan', '$2y$10$3nV1BdEGxt1BHuvwtsB24uT.4e8KE70ZteyDb6Qjo60VMUAfuSTpW', 'TIPO_DEV', 'icons/dev.jpg'),
-	(110, 'jhinson', '$2y$10$PbF.B0s/RZvQyXkRNDUuH.pNkYNWSwThaWlBOdpJ3Nwv97xwNbbrK', 'TIPO_ADMIN', NULL),
-	(111, 'juan.docente', '$2y$10$Xzsqj5VYkVRHDi6yO4h2euAsC0JpUR0IlBB.JTzCQyIXeXRJqbmFu', 'TIPO_PROF', NULL),
-	(112, '1720301026001', '$2y$10$dBa2c0xuTBR0yJcWfmXhluo6gyEk/IXOFU7iB.R98.pEvbiv8.PmK', 'TIPO_ADMIN', NULL);
+	(1, 'jminan', '$2y$10$3nV1BdEGxt1BHuvwtsB24uT.4e8KE70ZteyDb6Qjo60VMUAfuSTpW', 'TIPO_DEV', 'icons/dev.jpg');
 
 -- Volcando estructura para tabla cuspide.venta_detalle
 CREATE TABLE IF NOT EXISTS `venta_detalle` (
@@ -1650,11 +1515,9 @@ CREATE TABLE IF NOT EXISTS `venta_detalle` (
   CONSTRAINT `FK_VENTA_DETALLE_PRODUCTO` FOREIGN KEY (`producto`) REFERENCES `productos` (`id`),
   CONSTRAINT `FK_VENTA_DETALLE_VARIANTE` FOREIGN KEY (`variante`) REFERENCES `producto_variantes` (`id`),
   CONSTRAINT `FK_VENTA_DETALLE_VENTA` FOREIGN KEY (`venta`) REFERENCES `ventas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.venta_detalle: ~1 rows (aproximadamente)
-INSERT INTO `venta_detalle` (`id`, `venta`, `producto`, `variante`, `cantidad`, `precio_unitario`, `descuento`, `total`) VALUES
-	(1, 11, 1, NULL, 1.00, 20.00, 0.00, 20.00);
+-- Volcando datos para la tabla cuspide.venta_detalle: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.ventas
 CREATE TABLE IF NOT EXISTS `ventas` (
@@ -1681,21 +1544,9 @@ CREATE TABLE IF NOT EXISTS `ventas` (
   CONSTRAINT `FK_VENTAS_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`),
   CONSTRAINT `FK_VENTAS_MATRICULA` FOREIGN KEY (`matricula`) REFERENCES `matricula` (`id`),
   CONSTRAINT `FK_VENTAS_PERSONA` FOREIGN KEY (`persona`) REFERENCES `personas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.ventas: ~11 rows (aproximadamente)
-INSERT INTO `ventas` (`id`, `numero`, `fecha`, `persona`, `matricula`, `institucion`, `tipo`, `subtotal`, `descuento`, `impuesto`, `total`, `saldo`, `estado`) VALUES
-	(1, 'MENS-202605-117-2a4ce', '2026-05-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 0.00, 2),
-	(2, 'MENS-202606-117-2a9a7', '2026-06-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 35.00, 1),
-	(3, 'MENS-202607-117-2aa90', '2026-07-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 35.00, 1),
-	(4, 'MENS-202608-117-2ab7f', '2026-08-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 35.00, 1),
-	(5, 'MENS-202609-117-2c578', '2026-09-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 35.00, 1),
-	(6, 'MENS-202610-117-2c693', '2026-10-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 35.00, 1),
-	(7, 'MENS-202611-117-2c76c', '2026-11-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 35.00, 1),
-	(8, 'MENS-202612-117-2c857', '2026-12-01 00:00:00', 117, NULL, 1, 'MENSUALIDAD', 35.00, 0.00, 0.00, 35.00, 35.00, 1),
-	(9, 'FAC-20260528-000001', '2026-05-28 22:29:03', 116, 1, 1, 'MATRICULA', 60.00, 0.00, 0.00, 60.00, 60.00, 1),
-	(10, 'FAC-20260528-000002', '2026-05-28 22:29:29', 116, 2, 1, 'MATRICULA', 30.00, 4.50, 0.00, 25.50, 25.50, 1),
-	(11, 'VTA-20260528-6a18a7a517c82', '2026-05-28 22:37:57', 116, NULL, 1, 'VENTA', 20.00, 0.00, 0.00, 20.00, 0.00, 1);
+-- Volcando datos para la tabla cuspide.ventas: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.ventas_externas
 CREATE TABLE IF NOT EXISTS `ventas_externas` (
@@ -1722,11 +1573,9 @@ CREATE TABLE IF NOT EXISTS `ventas_externas` (
   CONSTRAINT `FK_VE_ESTADO` FOREIGN KEY (`estado`) REFERENCES `estados` (`id`),
   CONSTRAINT `FK_VE_FORMA_PAGO` FOREIGN KEY (`forma_pago`) REFERENCES `formas_pago` (`id`),
   CONSTRAINT `FK_VE_INSTITUCION` FOREIGN KEY (`institucion`) REFERENCES `instituciones` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.ventas_externas: ~1 rows (aproximadamente)
-INSERT INTO `ventas_externas` (`id`, `numero`, `fecha`, `cliente_nombre`, `cliente_identificacion`, `cliente_telefono`, `institucion`, `subtotal`, `descuento`, `impuesto`, `total`, `saldo`, `forma_pago`, `referencia`, `estado`) VALUES
-	(1, 'VEX-20260528-6a18a7d125f6e', '2026-05-28 22:38:41', 'Brandon Miñan', '0706423541', '0981100645', 1, 40.00, 0.00, 0.00, 40.00, 40.00, NULL, NULL, 1);
+-- Volcando datos para la tabla cuspide.ventas_externas: ~0 rows (aproximadamente)
 
 -- Volcando estructura para tabla cuspide.ventas_externas_detalle
 CREATE TABLE IF NOT EXISTS `ventas_externas_detalle` (
@@ -1743,11 +1592,9 @@ CREATE TABLE IF NOT EXISTS `ventas_externas_detalle` (
   KEY `IDX_VED_PRODUCTO` (`producto`),
   CONSTRAINT `FK_VED_PRODUCTO` FOREIGN KEY (`producto`) REFERENCES `productos` (`id`),
   CONSTRAINT `FK_VED_VENTA_EXTERNA` FOREIGN KEY (`venta_externa`) REFERENCES `ventas_externas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Volcando datos para la tabla cuspide.ventas_externas_detalle: ~1 rows (aproximadamente)
-INSERT INTO `ventas_externas_detalle` (`id`, `venta_externa`, `producto`, `descripcion`, `cantidad`, `precio_unitario`, `descuento`, `subtotal`) VALUES
-	(1, 1, 1, 'Camisa HFC', 2.00, 20.00, 0.00, 40.00);
+-- Volcando datos para la tabla cuspide.ventas_externas_detalle: ~0 rows (aproximadamente)
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
