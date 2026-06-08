@@ -61,7 +61,7 @@ final class PagoServices implements PagoServiceInterface
 
         return match (true) {
             $method === 'GET'  && $resource === 'pending'        => $this->fetchPendientes($queryParams, $userId),
-            $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams),
+            $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams, $userId),
             $method === 'GET'  && $resource === 'formas'         => $this->fetchFormasPago(),
             $method === 'GET'  && $resource === 'detail'         => $this->fetchDetalle($queryParams),
             $method === 'GET'  && $resource === 'recent'         => $this->fetchRecientes($userId, $queryParams),
@@ -126,10 +126,7 @@ final class PagoServices implements PagoServiceInterface
 
     private function fetchPendientes(array $queryParams, int $userId): array
     {
-        $institucion = (int) ($queryParams['institucion'] ?? 0);
-        if ($institucion <= 0) {
-            $institucion = $this->getInstitucionByUserId($userId);
-        }
+        $institucion = $this->getInstitucionByUserId($userId);
 
         $db   = Database::getInstance();
         $stmt = $db->prepare(
@@ -181,9 +178,21 @@ final class PagoServices implements PagoServiceInterface
     // fetchHistorial
     // -------------------------------------------------------------------------
 
-    private function fetchHistorial(array $queryParams): array
+    private function fetchHistorial(array $queryParams, int $userId = 0): array
     {
         $personaId = $this->resolvePersonaId($queryParams);
+
+        if ($userId > 0) {
+            $instId = $this->getInstitucionByUserId($userId);
+            $db     = Database::getInstance();
+            $chk    = $db->prepare(
+                'SELECT COUNT(*) FROM persona_institucion WHERE id_persona = :p AND id_institucion = :i AND estado = 1'
+            );
+            $chk->execute([':p' => $personaId, ':i' => $instId]);
+            if ((int) $chk->fetchColumn() === 0) {
+                throw new RuntimeException('La persona solicitada no pertenece a tu institución.', 403);
+            }
+        }
 
         $pagos   = $this->pagoRepo->findByPersona($personaId);
         $ventas  = $this->ventaRepo->findByPersona($personaId);
@@ -297,7 +306,6 @@ final class PagoServices implements PagoServiceInterface
         $ventaId     = isset($body['venta'])      ? (int) $body['venta']       : null;
         $matriculaId = isset($body['matricula'])   ? (int) $body['matricula']   : null;
         $formaPago   = (int)    ($body['forma_pago']  ?? 0);
-        $institucion = (int)    ($body['institucion']  ?? 0);
         $monto       = (float)  ($body['monto']        ?? 0);
         $referencia  = (string) ($body['referencia']   ?? '');
         $observacion = (string) ($body['observacion']  ?? '');
@@ -306,9 +314,7 @@ final class PagoServices implements PagoServiceInterface
             throw new RuntimeException('Faltan campos obligatorios: persona, forma_pago, monto.', 400);
         }
 
-        if ($institucion <= 0) {
-            $institucion = $this->getInstitucionByUserId($userId);
-        }
+        $institucion = $this->getInstitucionByUserId($userId);
 
         $db = Database::getInstance();
 
