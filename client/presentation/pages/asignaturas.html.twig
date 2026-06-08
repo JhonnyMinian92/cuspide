@@ -317,7 +317,7 @@ var allAsignaturas = [];
 var allPeriodos    = [];
 var allNiveles     = [];
 var allDocentes    = [];
-var institucionId  = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 0;
+var institucionId  = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
 
 /* ── Helpers ── */
 function esc(v) {
@@ -390,7 +390,8 @@ function loadNivelesForSelect() {
 }
 
 function loadDocentesForSelect() {
-  Cuspide.api.call('GET', CONFIG.ENDPOINTS.clases, 'docentes', null, { institucion: institucionId })
+  var instId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || institucionId || 1;
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.clases, 'docentes', null, { institucion: instId })
     .then(function(data) {
       allDocentes = Array.isArray(data) ? data : [];
       var sel = document.getElementById('clase-docente');
@@ -715,13 +716,14 @@ document.getElementById('tab-asig-btn').addEventListener('shown.bs.tab', functio
 /* ══════════════════ INIT ══════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
   checkAuth();
-  /* cargar catálogos en paralelo */
   loadPeriodos();
   loadAsignaturasForSelect();
   loadNivelesForSelect();
-  loadDocentesForSelect();
-  /* cargar tabla de clases */
   loadClases();
+  /* esperar institución confirmada antes de cargar docentes */
+  whenInstitucionReady().then(function() {
+    loadDocentesForSelect();
+  });
 });
 </script>
 {% endblock %}
