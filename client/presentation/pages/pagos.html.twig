@@ -1059,8 +1059,23 @@ function renderFacturasCliente(facturas, mensPorMatricula) {
     }
 
     var cuotaBadge = f.cuota_siguiente != null
-      ? '<div class="mt-2"><span class="badge rounded-pill" style="background:var(--brand-color);color:var(--brand-text);font-size:.68rem;">'
-          + '<i class="bi bi-calendar2-check me-1"></i>Cuota del período: ' + fmt(f.cuota_siguiente) + '</span></div>'
+      ? '<div class="mt-2 d-flex flex-wrap align-items-center gap-2">'
+          + '<span class="badge rounded-pill" style="background:var(--brand-color);color:var(--brand-text);font-size:.68rem;">'
+          + '<i class="bi bi-calendar2-check me-1"></i>Cuota siguiente: ' + fmt(f.cuota_siguiente) + '</span>'
+          + (f.cuotas_pendientes != null && f.cuotas_pendientes > 0
+              ? '<span style="font-size:.7rem;color:var(--app-text-muted);">'
+                  + '<i class="bi bi-list-check me-1"></i>' + f.cuotas_pendientes
+                  + (f.cuotas_pendientes === 1 ? ' cuota pendiente' : ' cuotas pendientes')
+                  + '</span>'
+              : '')
+          + '</div>'
+      : '';
+
+    /* Indicador de cobro anticipado: MATRICULA con venta ya saldada pero cuotas del plan pendientes */
+    var esAnticipo = f.tipo === 'MATRICULA' && parseInt(f.estado) === 2;
+    var anticipoBadge = esAnticipo
+      ? '<span class="badge ms-1" style="background:#0dcaf0;color:#000;font-size:.65rem;">'
+          + '<i class="bi bi-calendar-plus me-1"></i>Pago anticipado</span>'
       : '';
 
     var vencLine = f.fecha_vencimiento
@@ -1113,6 +1128,7 @@ function renderFacturasCliente(facturas, mensPorMatricula) {
       +     '</div>'
       +     '<div class="d-flex flex-wrap align-items-center gap-1 mb-1">'
       +       tipoBadge(f.tipo)
+      +       anticipoBadge
       +       '<span style="font-size:.73rem;color:var(--app-text-muted);">Emitida: ' + esc(f.fecha ? f.fecha.split(' ')[0] : '') + '</span>'
       +     '</div>'
       +     vencLine
@@ -1141,7 +1157,7 @@ function renderFacturasCliente(facturas, mensPorMatricula) {
   var montoSugerido = totalCuotasSig > 0 ? totalCuotasSig : totalSaldo;
   document.getElementById('pago-monto').value = montoSugerido.toFixed(2);
   document.getElementById('pago-monto-hint').textContent = totalCuotasSig > 0
-    ? 'Cuota(s) del período: ' + fmt(totalCuotasSig) + ' · Saldo total: ' + fmt(totalSaldo) + ' · Máximo: ' + fmt(totalSaldo)
+    ? 'Cuota siguiente: ' + fmt(totalCuotasSig) + ' · Total pendiente: ' + fmt(totalSaldo) + ' · Puede adelantar cuotas hasta el máximo.'
     : 'El sistema aplica FIFO: cubre la factura más antigua primero. Máximo: ' + fmt(totalSaldo);
 }
 
@@ -1735,22 +1751,22 @@ function buildPagoTicketHTML(det, isPDF) {
     return '<tr><td class="desc">'+e2(d.venta_numero||'#'+d.venta_id)+'</td><td class="amt">'+m2(d.valor)+'</td></tr>';
   }).join('');
 
-  var fs = isPDF ? '13px' : '13px';
-  var w  = isPDF ? '155mm' : '80mm';
-  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:88mm auto;margin:4mm;}';
+  var fs = isPDF ? '15px' : '13px';
+  var w  = isPDF ? '180mm' : '80mm';
+  var pg = isPDF ? '@page{size:A4 portrait;margin:15mm;}' : '@page{size:88mm auto;margin:4mm;}';
 
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(det.numero)+'</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
     +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
-    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'5mm 4mm')+';}'
-    +'.center{text-align:center;}.title{font-size:'+(isPDF?'18px':'16px')+';font-weight:bold;letter-spacing:2px;}'
-    +'.sub{font-size:'+(isPDF?'11px':'11px')+';letter-spacing:1px;margin-top:3px;}'
-    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
-    +'.row2{display:flex;justify-content:space-between;margin:3px 0;}'
-    +'table{width:100%;border-collapse:collapse;}td{padding:3px 0;vertical-align:top;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'10mm 8mm':'5mm 4mm')+';}'
+    +'.center{text-align:center;}.title{font-size:'+(isPDF?'26px':'16px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'13px':'11px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:'+(isPDF?'8px 0':'6px 0')+';}'
+    +'.row2{display:flex;justify-content:space-between;margin:'+(isPDF?'4px 0':'3px 0')+';}'
+    +'table{width:100%;border-collapse:collapse;}td{padding:'+(isPDF?'4px 0':'3px 0')+';vertical-align:top;}'
     +'.desc{width:65%;}.amt{width:35%;text-align:right;}'
-    +'.total-row td{font-size:'+(isPDF?'16px':'15px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
-    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'11px')+';}'
+    +'.total-row td{font-size:'+(isPDF?'20px':'15px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'13px':'11px')+';}'
     +pg+'@media print{button{display:none!important;}}</style>'
     +'</head><body><div class="ticket">'
     +'<div class="center"><div class="title">'+e2(instNombre)+'</div><div class="sub">COMPROBANTE DE PAGO</div></div>'
@@ -1779,9 +1795,9 @@ function buildVentaExtTicketHTML(det, isPDF) {
   var e2 = function(v) { return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); };
   var m2 = function(v) { return '$'+parseFloat(v||0).toFixed(2); };
 
-  var fs = isPDF ? '13px' : '13px';
-  var w  = isPDF ? '155mm' : '80mm';
-  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:88mm auto;margin:4mm;}';
+  var fs = isPDF ? '15px' : '13px';
+  var w  = isPDF ? '180mm' : '80mm';
+  var pg = isPDF ? '@page{size:A4 portrait;margin:15mm;}' : '@page{size:88mm auto;margin:4mm;}';
 
   var detRows = (det.detalles||[]).map(function(d) {
     var qty = parseFloat(d.cantidad||1);
@@ -1795,15 +1811,15 @@ function buildVentaExtTicketHTML(det, isPDF) {
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(v.numero)+'</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
     +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
-    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'5mm 4mm')+';}'
-    +'.center{text-align:center;}.title{font-size:'+(isPDF?'18px':'16px')+';font-weight:bold;letter-spacing:2px;}'
-    +'.sub{font-size:'+(isPDF?'11px':'11px')+';letter-spacing:1px;margin-top:3px;}'
-    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
-    +'.row2{display:flex;justify-content:space-between;margin:3px 0;}'
-    +'table{width:100%;border-collapse:collapse;}td{padding:3px 0;vertical-align:top;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'10mm 8mm':'5mm 4mm')+';}'
+    +'.center{text-align:center;}.title{font-size:'+(isPDF?'26px':'16px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'13px':'11px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:'+(isPDF?'8px 0':'6px 0')+';}'
+    +'.row2{display:flex;justify-content:space-between;margin:'+(isPDF?'4px 0':'3px 0')+';}'
+    +'table{width:100%;border-collapse:collapse;}td{padding:'+(isPDF?'4px 0':'3px 0')+';vertical-align:top;}'
     +'.desc{width:65%;}.amt{width:35%;text-align:right;}'
-    +'.total-row td{font-size:'+(isPDF?'16px':'15px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
-    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'11px')+';}'
+    +'.total-row td{font-size:'+(isPDF?'20px':'15px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'13px':'11px')+';}'
     +pg+'@media print{button{display:none!important;}}</style>'
     +'</head><body><div class="ticket">'
     +'<div class="center"><div class="title">'+e2(instNombre)+'</div><div class="sub">VENTA EXTERNA</div></div>'
