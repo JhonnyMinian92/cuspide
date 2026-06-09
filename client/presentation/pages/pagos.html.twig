@@ -357,7 +357,7 @@ tr.row-near-due td:first-child { border-left:3px solid #f59e0b; }
       <!-- Búsqueda -->
       <div class="mb-3">
         <input type="search" class="form-control form-control-sm" id="pendientes-filter"
-          placeholder="Filtrar por nombre, cédula o N° factura...">
+          placeholder="Filtrar por nombre o cédula...">
       </div>
 
       <div id="pendientes-loading" class="text-center py-4 text-muted">
@@ -368,14 +368,12 @@ tr.row-near-due td:first-child { border-left:3px solid #f59e0b; }
 
         <!-- Tabla (sm y superior) -->
         <div class="pend-table-wrap table-responsive" style="max-height:540px;overflow-y:auto;">
-          <table class="table table-hover align-middle mb-0" style="font-size:.83rem;min-width:660px;">
+          <table class="table table-hover align-middle mb-0" style="font-size:.83rem;min-width:500px;">
             <thead class="table-light sticky-top">
               <tr>
                 <th>Cliente</th>
-                <th>Factura / Tipo</th>
-                <th>Vencimiento</th>
-                <th class="text-end">Total</th>
-                <th class="text-end">Saldo</th>
+                <th>Cuotas pendientes</th>
+                <th class="text-end">Saldo total</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -743,45 +741,77 @@ function loadPendientes() {
 function applyFiltroYRender() {
   var q = (document.getElementById('pendientes-filter').value || '').trim().toLowerCase();
 
-  /* Aplicar filtro por persona seleccionada primero */
+  /* Filtro por persona seleccionada */
   var base = personaFiltroIdentificacion
     ? allPendientes.filter(function(p) {
         return (p.identificacion || '') === personaFiltroIdentificacion;
       })
     : allPendientes;
 
-  /* Aplicar filtro de texto libre sobre la base ya filtrada */
+  /* Filtro de texto (nombre o cédula) */
   if (q) {
     base = base.filter(function(p) {
-      return (p.nombre||'').toLowerCase().includes(q)
-          || (p.identificacion||'').includes(q)
-          || (p.numero||'').toLowerCase().includes(q);
+      return (p.nombre || '').toLowerCase().includes(q)
+          || (p.identificacion || '').includes(q);
     });
   }
 
-  /* Calcular contadores sobre la base (con persona si aplica, sin texto) */
-  var baseContador = personaFiltroIdentificacion
-    ? allPendientes.filter(function(p) { return (p.identificacion||'') === personaFiltroIdentificacion; })
-    : allPendientes;
+  /* ── Agrupar cuotas por persona ── */
+  var personaMap = {};
+  var personaOrder = [];
+  base.forEach(function(p) {
+    /* Ventas externas sin identificación: cada venta es su propio grupo */
+    var key = (p.tipo_origen === 'externa' && !p.identificacion)
+      ? '__ext_' + p.id
+      : (p.identificacion || '__noid_' + p.nombre);
 
-  var counts = { overdue: 0, upcoming: 0, ok: 0 };
-  baseContador.forEach(function(p) {
+    if (!personaMap[key]) {
+      personaMap[key] = {
+        identificacion: p.identificacion,
+        nombre:         p.nombre,
+        tipo_origen:    p.tipo_origen,
+        ext_id:         (p.tipo_origen === 'externa') ? p.id     : null,
+        ext_numero:     (p.tipo_origen === 'externa') ? p.numero : null,
+        ext_saldo:      (p.tipo_origen === 'externa') ? parseFloat(p.saldo || 0) : 0,
+        vencidas:  0,
+        porvencer: 0,
+        aldia:     0,
+        total_saldo: 0,
+      };
+      personaOrder.push(key);
+    }
+    var g = personaMap[key];
     var s = vencimientoStatus(p.fecha_vencimiento);
-    if (s === 'overdue')  counts.overdue++;
-    else if (s === 'upcoming') counts.upcoming++;
-    else counts.ok++;
+    if      (s === 'overdue')  g.vencidas++;
+    else if (s === 'upcoming') g.porvencer++;
+    else                       g.aldia++;
+    g.total_saldo += parseFloat(p.saldo || 0);
   });
-  document.getElementById('cnt-todos').textContent    = baseContador.length;
-  document.getElementById('cnt-vencidos').textContent = counts.overdue;
-  document.getElementById('cnt-porvencer').textContent= counts.upcoming;
-  document.getElementById('cnt-aldia').textContent    = counts.ok;
+  var allGroups = personaOrder.map(function(k) { return personaMap[k]; });
 
-  /* Aplicar filtro de vencimiento */
-  var filtered = filtroVencimiento === 'all' ? base : base.filter(function(p) {
-    return vencimientoStatus(p.fecha_vencimiento) === filtroVencimiento;
+  /* Contadores de personas (prioridad: vencida > porvencer > al día) */
+  var cntV = 0, cntP = 0, cntA = 0;
+  allGroups.forEach(function(g) {
+    if      (g.vencidas  > 0) cntV++;
+    else if (g.porvencer > 0) cntP++;
+    else                       cntA++;
   });
+  document.getElementById('cnt-todos').textContent     = allGroups.length;
+  document.getElementById('cnt-vencidos').textContent  = cntV;
+  document.getElementById('cnt-porvencer').textContent = cntP;
+  document.getElementById('cnt-aldia').textContent     = cntA;
 
-  renderPendientes(filtered);
+  /* Filtro de vencimiento sobre grupos */
+  var filteredGroups = allGroups;
+  if (filtroVencimiento === 'overdue') {
+    filteredGroups = allGroups.filter(function(g) { return g.vencidas > 0; });
+  } else if (filtroVencimiento === 'upcoming') {
+    filteredGroups = allGroups.filter(function(g) { return g.vencidas === 0 && g.porvencer > 0; });
+  } else if (filtroVencimiento === 'ok') {
+    filteredGroups = allGroups.filter(function(g) { return g.vencidas === 0 && g.porvencer === 0; });
+  }
+
+  renderPendientes(filteredGroups);
 }
 
 function setFiltroVencimiento(mode) {
@@ -793,11 +823,11 @@ function setFiltroVencimiento(mode) {
   applyFiltroYRender();
 }
 
-function renderPendientes(items) {
-  var totalSaldo = items.reduce(function(acc, p) { return acc + parseFloat(p.saldo || 0); }, 0);
+function renderPendientes(groups) {
+  var totalSaldo = groups.reduce(function(acc, g) { return acc + g.total_saldo; }, 0);
   document.getElementById('pendientes-total-badge').textContent = fmt(totalSaldo);
 
-  if (!items.length) {
+  if (!groups.length) {
     document.getElementById('pendientes-container').classList.add('d-none');
     document.getElementById('pendientes-empty').classList.remove('d-none');
     return;
@@ -805,129 +835,80 @@ function renderPendientes(items) {
   document.getElementById('pendientes-empty').classList.add('d-none');
   document.getElementById('pendientes-container').classList.remove('d-none');
 
-  /* Ordenar: vencidos primero, luego por fecha_vencimiento asc */
-  var sorted = items.slice().sort(function(a, b) {
-    var sa = vencimientoStatus(a.fecha_vencimiento);
-    var sb = vencimientoStatus(b.fecha_vencimiento);
-    var order = { overdue: 0, upcoming: 1, ok: 2, unknown: 3 };
-    if (order[sa] !== order[sb]) return order[sa] - order[sb];
-    var da = a.fecha_vencimiento || a.fecha;
-    var db = b.fecha_vencimiento || b.fecha;
-    return new Date(da) - new Date(db);
+  /* Ordenar: más cuotas vencidas primero, luego por saldo */
+  var sorted = groups.slice().sort(function(a, b) {
+    if (b.vencidas  !== a.vencidas)  return b.vencidas  - a.vencidas;
+    if (b.porvencer !== a.porvencer) return b.porvencer - a.porvencer;
+    return b.total_saldo - a.total_saldo;
   });
+
+  function cuotaBadgesHTML(g) {
+    var html = '';
+    if (g.vencidas  > 0) html += '<span class="badge bg-danger me-1" style="font-size:.7rem;">'
+      + '<i class="bi bi-exclamation-circle me-1"></i>'
+      + g.vencidas + ' vencida' + (g.vencidas > 1 ? 's' : '') + '</span>';
+    if (g.porvencer > 0) html += '<span class="badge bg-warning text-dark me-1" style="font-size:.7rem;">'
+      + '<i class="bi bi-clock me-1"></i>' + g.porvencer + ' por vencer</span>';
+    if (g.aldia     > 0) html += '<span class="badge bg-success me-1" style="font-size:.7rem;">'
+      + '<i class="bi bi-check-circle me-1"></i>' + g.aldia + ' al día</span>';
+    return html;
+  }
+
+  function accionCobrarExpr(g, asAttr) {
+    var expr = (g.tipo_origen === 'externa' && g.ext_id)
+      ? 'abrirCobrarVentaExterna(' + g.ext_id + ',\'' + esc(g.ext_numero) + '\',' + g.ext_saldo + ')'
+      : 'cobrarDesdeTabla(\'' + esc(g.identificacion) + '\',\'' + esc(g.nombre) + '\')';
+    return asAttr ? 'onclick="' + expr + '"' : expr;
+  }
 
   /* ── Tabla (desktop) ── */
   var tbody = document.getElementById('pendientes-tbody');
-  tbody.innerHTML = sorted.map(function(p) {
-    var saldo   = parseFloat(p.saldo || 0);
-    var total   = parseFloat(p.total || 0);
-    var pct     = total > 0 ? Math.round((1 - saldo / total) * 100) : 0;
-    var status  = vencimientoStatus(p.fecha_vencimiento);
-    var rowCls  = status === 'overdue' ? 'row-overdue' : status === 'upcoming' ? 'row-near-due' : '';
-
-    var vencBadge = '';
-    if (!p.fecha_vencimiento) {
-      vencBadge = '<span class="badge bg-secondary" style="font-size:.65rem;">—</span>';
-    } else if (status === 'overdue') {
-      vencBadge = '<span class="badge bg-danger ms-1" style="font-size:.65rem;"><i class="bi bi-exclamation-circle me-1"></i>VENCIDO</span>';
-    } else if (status === 'upcoming') {
-      var daysLeft = Math.round((new Date(p.fecha_vencimiento) - new Date(todayStr())) / 86400000);
-      vencBadge = '<span class="badge bg-warning text-dark ms-1" style="font-size:.65rem;"><i class="bi bi-clock me-1"></i>' + daysLeft + 'd</span>';
-    }
-
-    var accionCobrar = p.tipo_origen === 'externa'
-      ? 'onclick="abrirCobrarVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\',' + p.saldo + ')"'
-      : 'onclick="cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')"';
-    var accionAnular = p.tipo_origen === 'externa'
-      ? 'onclick="abrirAnularVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\')"'
-      : 'onclick="abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\',\'' + esc(p.tipo || 'VENTA') + '\')"';
-
-    return '<tr class="' + rowCls + '">' +
-      '<td>' +
-        '<div class="fw-semibold" style="font-size:.82rem;">' + esc(p.nombre) + '</div>' +
-        '<code style="font-size:.7rem;">' + esc(p.identificacion) + '</code>' +
-      '</td>' +
-      '<td>' +
-        '<div class="fw-semibold" style="font-size:.78rem;">' + esc(p.numero) + '</div>' +
-        tipoBadge(p.tipo) +
-        '<div style="font-size:.7rem;color:var(--app-text-muted);margin-top:.15rem;">' + esc(p.fecha ? p.fecha.split(' ')[0] : '') + '</div>' +
-      '</td>' +
-      '<td>' +
-        '<div style="font-size:.78rem;">' + esc(p.fecha_vencimiento || '—') + '</div>' +
-        vencBadge +
-      '</td>' +
-      '<td class="text-end" style="font-size:.82rem;color:var(--app-text-muted);">' + fmt(total) + '</td>' +
-      '<td class="text-end fw-bold" style="color:var(--danger-text);">' + fmt(saldo) + '</td>' +
-      '<td>' +
-        '<div class="d-flex gap-1">' +
-          '<button type="button" class="btn btn-xs btn-brand btn-sm" title="Cobrar" ' + accionCobrar + '>' +
-            '<i class="bi bi-cash"></i>' +
-          '</button>' +
-          '<button type="button" class="btn btn-xs btn-outline-danger btn-sm" title="Anular" ' + accionAnular + '>' +
-            '<i class="bi bi-x-circle"></i>' +
-          '</button>' +
-        '</div>' +
-      '</td>' +
-    '</tr>';
+  tbody.innerHTML = sorted.map(function(g) {
+    var rowCls = g.vencidas > 0 ? 'row-overdue' : g.porvencer > 0 ? 'row-near-due' : '';
+    return '<tr class="' + rowCls + '">'
+      + '<td>'
+      +   '<div class="fw-semibold" style="font-size:.82rem;">' + esc(g.nombre) + '</div>'
+      +   (g.identificacion ? '<code style="font-size:.7rem;">' + esc(g.identificacion) + '</code>' : '')
+      + '</td>'
+      + '<td><div class="d-flex flex-wrap gap-1">' + cuotaBadgesHTML(g) + '</div></td>'
+      + '<td class="text-end fw-bold" style="color:var(--danger-text);">' + fmt(g.total_saldo) + '</td>'
+      + '<td>'
+      +   '<button type="button" class="btn btn-brand btn-sm" title="Ir a cobrar" ' + accionCobrarExpr(g, true) + '>'
+      +     '<i class="bi bi-cash me-1"></i>Cobrar'
+      +   '</button>'
+      + '</td>'
+      + '</tr>';
   }).join('');
 
   /* ── Cards (móvil) ── */
   var cardsEl = document.getElementById('pendientes-cards');
-  cardsEl.innerHTML = sorted.map(function(p) {
-    var saldo  = parseFloat(p.saldo  || 0);
-    var total  = parseFloat(p.total  || 0);
-    var pct    = total > 0 ? Math.round((1 - saldo / total) * 100) : 0;
-    var status = vencimientoStatus(p.fecha_vencimiento);
-    var cardCls = status === 'overdue' ? 'pend-overdue' : status === 'upcoming' ? 'pend-near-due' : 'pend-ok';
-
-    var accionCobrar = p.tipo_origen === 'externa'
-      ? 'abrirCobrarVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\',' + p.saldo + ')'
-      : 'cobrarDesdeTabla(\'' + esc(p.identificacion) + '\',\'' + esc(p.nombre) + '\')';
-    var accionAnular = p.tipo_origen === 'externa'
-      ? 'abrirAnularVentaExterna(' + p.id + ',\'' + esc(p.numero) + '\')'
-      : 'abrirAnularVenta(' + p.id + ',\'' + esc(p.numero) + '\',\'' + esc(p.tipo || 'VENTA') + '\')';
-
-    var vencText = !p.fecha_vencimiento ? '—'
-      : (status === 'overdue'  ? '<span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Vencido el ' + esc(p.fecha_vencimiento) + '</span>'
-      : status === 'upcoming' ? '<span class="text-warning fw-semibold"><i class="bi bi-clock me-1"></i>Vence el ' + esc(p.fecha_vencimiento) + '</span>'
-      : '<span class="text-muted">Vence el ' + esc(p.fecha_vencimiento) + '</span>');
-
+  cardsEl.innerHTML = sorted.map(function(g) {
+    var cardCls = g.vencidas > 0 ? 'pend-overdue' : g.porvencer > 0 ? 'pend-near-due' : 'pend-ok';
     return '<div class="pend-card ' + cardCls + '">'
       + '<div class="d-flex justify-content-between align-items-start mb-2">'
       +   '<div>'
-      +     '<div class="fw-semibold" style="font-size:.88rem;">' + esc(p.nombre) + '</div>'
-      +     '<code style="font-size:.72rem;">' + esc(p.identificacion) + '</code>'
+      +     '<div class="fw-semibold" style="font-size:.88rem;">' + esc(g.nombre) + '</div>'
+      +     (g.identificacion ? '<code style="font-size:.72rem;">' + esc(g.identificacion) + '</code>' : '')
       +   '</div>'
-      +   tipoBadge(p.tipo)
+      +   '<span class="fw-bold" style="color:var(--danger-text);font-size:.95rem;">' + fmt(g.total_saldo) + '</span>'
       + '</div>'
-      + '<div class="d-flex justify-content-between align-items-center mb-1">'
-      +   '<code style="font-size:.74rem;color:var(--app-text-muted);">' + esc(p.numero) + '</code>'
-      +   '<span style="font-size:.72rem;">' + vencText + '</span>'
-      + '</div>'
-      + '<div class="progress mb-2" style="height:4px;background:var(--app-border);">'
-      +   '<div class="progress-bar bg-success" style="width:' + pct + '%"></div>'
-      + '</div>'
-      + '<div class="d-flex justify-content-between align-items-center">'
-      +   '<div>'
-      +     '<span class="text-muted" style="font-size:.78rem;text-decoration:line-through;">' + fmt(total) + '</span>'
-      +     '<span class="fw-bold ms-2" style="color:var(--danger-text);">' + fmt(saldo) + '</span>'
-      +   '</div>'
-      +   '<div class="d-flex gap-1">'
-      +     '<button type="button" class="btn btn-brand btn-sm" style="font-size:.75rem;" onclick="' + accionCobrar + '">'
-      +       '<i class="bi bi-cash me-1"></i>Cobrar'
-      +     '</button>'
-      +     '<button type="button" class="btn btn-outline-danger btn-sm" style="font-size:.75rem;" onclick="' + accionAnular + '">'
-      +       '<i class="bi bi-x-circle"></i>'
-      +     '</button>'
-      +   '</div>'
+      + '<div class="d-flex flex-wrap gap-1 mb-2">' + cuotaBadgesHTML(g) + '</div>'
+      + '<div class="d-flex justify-content-end">'
+      +   '<button type="button" class="btn btn-brand btn-sm" style="font-size:.75rem;" onclick="' + accionCobrarExpr(g, false) + '">'
+      +     '<i class="bi bi-cash me-1"></i>Cobrar'
+      +   '</button>'
       + '</div>'
       + '</div>';
   }).join('');
 
-  var vencidos = sorted.filter(function(p) { return vencimientoStatus(p.fecha_vencimiento) === 'overdue'; }).length;
+  var totalVencidas = sorted.reduce(function(acc, g) { return acc + g.vencidas; }, 0);
   document.getElementById('pendientes-info').innerHTML =
-    items.length + ' factura(s) · Saldo total: <strong>' + fmt(totalSaldo) + '</strong>'
-    + (vencidos > 0 ? ' · <span class="text-danger fw-semibold">' + vencidos + ' vencida(s)</span>' : '');
+    sorted.length + ' persona(s) con saldo pendiente'
+    + (totalVencidas > 0
+        ? ' · <span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>'
+            + totalVencidas + ' cuota(s) vencida(s)</span>'
+        : '')
+    + ' · Saldo total: <strong>' + fmt(totalSaldo) + '</strong>';
 }
 
 document.getElementById('pendientes-filter').addEventListener('input', debounce(function() {

@@ -127,38 +127,80 @@ final class PagoServices implements PagoServiceInterface
     private function fetchPendientes(array $queryParams, int $userId): array
     {
         $institucion = $this->getInstitucionByUserId($userId);
+        $db = Database::getInstance();
 
-        $db   = Database::getInstance();
-        $stmt = $db->prepare(
+        // 1. Ventas no-MATRICULA (cada venta = 1 cuota en la vista pendientes)
+        $stmt1 = $db->prepare(
             "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo,
                     p.identificacion,
                     TRIM(CONCAT(p.primer_nombre, ' ', p.primer_apellido)) AS nombre,
                     'regular' AS tipo_origen,
                     CASE
                       WHEN v.tipo = 'MENSUALIDAD' THEN DATE(DATE_ADD(v.fecha, INTERVAL 1 MONTH))
-                      WHEN v.tipo = 'MATRICULA'   THEN (
-                        SELECT MIN(cm.fecha_vencimiento)
-                        FROM cuotas_matricula cm
-                        JOIN plan_pago_matricula ppm ON cm.plan_pago = ppm.id
-                        WHERE ppm.matricula = v.matricula AND cm.saldo > 0
-                      )
                       ELSE DATE(DATE_ADD(v.fecha, INTERVAL 30 DAY))
                     END AS fecha_vencimiento
              FROM ventas v
              JOIN personas p ON p.id = v.persona
-             WHERE v.saldo > 0 AND v.estado = 1 AND v.institucion = :inst1
-             UNION ALL
-             SELECT ve.id, ve.numero, ve.fecha, ve.total, ve.saldo, 'EXTERNA' AS tipo,
+             WHERE v.saldo > 0 AND v.estado = 1 AND v.institucion = :inst
+               AND v.tipo != 'MATRICULA'"
+        );
+        $stmt1->execute([':inst' => $institucion]);
+        $rows1 = $stmt1->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        // 2. MATRICULA: expandir en una fila por cuota pendiente del plan de pago
+        $stmt2 = $db->prepare(
+            "SELECT v.id, v.numero, v.fecha,
+                    cm.valor AS total, cm.saldo AS saldo,
+                    'MATRICULA' AS tipo,
+                    p.identificacion,
+                    TRIM(CONCAT(p.primer_nombre, ' ', p.primer_apellido)) AS nombre,
+                    'regular' AS tipo_origen,
+                    cm.fecha_vencimiento AS fecha_vencimiento
+             FROM ventas v
+             JOIN plan_pago_matricula ppm ON ppm.matricula = v.matricula
+             JOIN cuotas_matricula cm     ON cm.plan_pago  = ppm.id
+             JOIN personas p              ON p.id          = v.persona
+             WHERE cm.saldo > 0
+               AND v.estado IN (1, 2)
+               AND v.institucion = :inst"
+        );
+        $stmt2->execute([':inst' => $institucion]);
+        $rows2 = $stmt2->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        // 3. Matrículas sin plan de pago (fallback: mostrar como fila única)
+        $stmt3 = $db->prepare(
+            "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo,
+                    p.identificacion,
+                    TRIM(CONCAT(p.primer_nombre, ' ', p.primer_apellido)) AS nombre,
+                    'regular' AS tipo_origen,
+                    DATE(DATE_ADD(v.fecha, INTERVAL 30 DAY)) AS fecha_vencimiento
+             FROM ventas v
+             JOIN personas p ON p.id = v.persona
+             WHERE v.saldo > 0 AND v.estado = 1 AND v.institucion = :inst
+               AND v.tipo = 'MATRICULA'
+               AND NOT EXISTS (
+                 SELECT 1 FROM plan_pago_matricula ppm
+                 WHERE ppm.matricula = v.matricula
+               )"
+        );
+        $stmt3->execute([':inst' => $institucion]);
+        $rows3 = $stmt3->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        // 4. Ventas externas
+        $stmt4 = $db->prepare(
+            "SELECT ve.id, ve.numero, ve.fecha, ve.total, ve.saldo, 'EXTERNA' AS tipo,
                     COALESCE(ve.cliente_identificacion, '') AS identificacion,
                     ve.cliente_nombre AS nombre,
                     'externa' AS tipo_origen,
                     DATE(DATE_ADD(ve.fecha, INTERVAL 30 DAY)) AS fecha_vencimiento
              FROM ventas_externas ve
-             WHERE ve.saldo > 0 AND ve.estado = 1 AND ve.institucion = :inst2
-             ORDER BY fecha ASC"
+             WHERE ve.saldo > 0 AND ve.estado = 1 AND ve.institucion = :inst"
         );
-        $stmt->execute([':inst1' => $institucion, ':inst2' => $institucion]);
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+        $stmt4->execute([':inst' => $institucion]);
+        $rows4 = $stmt4->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        $all = array_merge($rows1, $rows2, $rows3, $rows4);
+        usort($all, fn($a, $b) => strcmp((string)($a['fecha'] ?? ''), (string)($b['fecha'] ?? '')));
 
         return array_map(fn($r) => [
             'id'               => (int)   $r['id'],
@@ -171,7 +213,7 @@ final class PagoServices implements PagoServiceInterface
             'nombre'           => $r['nombre'],
             'tipo_origen'      => $r['tipo_origen'],
             'fecha_vencimiento'=> $r['fecha_vencimiento'] ?? null,
-        ], $rows);
+        ], $all);
     }
 
     // -------------------------------------------------------------------------
