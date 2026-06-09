@@ -64,6 +64,13 @@ class ProductoCategoriaRepository
     return array_map(fn($row) => $this->map($row), $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: []);
   }
 
+  public function findActiveByInstitucion(int $institucionId): array
+  {
+    $stmt = $this->db->prepare('SELECT * FROM producto_categorias WHERE estado = 1 AND institucion = :inst ORDER BY nombre ASC');
+    $stmt->execute([':inst' => $institucionId]);
+    return array_map(fn($row) => $this->map($row), $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: []);
+  }
+
   private function map(array $row): ProductoCategoria
   {
     return new ProductoCategoria($row['id'], $row['nombre'], $row['nemonico'], $row['descripcion'], $row['institucion'], $row['estado']);

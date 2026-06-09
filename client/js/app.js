@@ -22,7 +22,20 @@
 window.CUSPIDE_STATE = window.CUSPIDE_STATE || {
   instituciones: [],
   currentInstitucionId: parseInt(localStorage.getItem('currentInstitucionId') || '0', 10) || null,
+  institucionReady: null,
+  _institucionReadyResolve: null,
 };
+
+// Promesa que se resuelve cuando loadInstitucion() termina y currentInstitucionId está fijo.
+(function () {
+  var res;
+  window.CUSPIDE_STATE.institucionReady = new Promise(function (r) { res = r; });
+  window.CUSPIDE_STATE._institucionReadyResolve = res;
+}());
+
+function whenInstitucionReady() {
+  return window.CUSPIDE_STATE.institucionReady || Promise.resolve();
+}
 
 var FALLBACK_LOGO_URL = '/assets/logo/huaquillasfc.jpg';
 
@@ -151,6 +164,10 @@ async function loadInstitucion() {
   try {
     const data = await Cuspide.api.institucion();
 
+    if (data && data.id) {
+      setCurrentInstitucion(data.id);
+    }
+
     if (!data || !data.nombre) return;
 
     var sidebarNombre = document.getElementById('sidebar-institucion-nombre');
@@ -166,6 +183,12 @@ async function loadInstitucion() {
     }
   } catch (err) {
     // Silencioso
+  } finally {
+    var res = window.CUSPIDE_STATE._institucionReadyResolve;
+    if (res) {
+      window.CUSPIDE_STATE._institucionReadyResolve = null;
+      res();
+    }
   }
 }
 

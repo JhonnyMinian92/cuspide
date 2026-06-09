@@ -759,25 +759,25 @@ function buildTicketHTML(d, isPDF) {
         }).join('');
   }
 
-  var fs = isPDF ? '13px' : '11px';
-  var w  = isPDF ? '155mm' : '72mm';
-  var pg = isPDF ? '@page{size:A5 portrait;margin:12mm;}' : '@page{size:80mm auto;margin:4mm;}';
+  var fs = isPDF ? '15px' : '13px';
+  var w  = isPDF ? '180mm' : '80mm';
+  var pg = isPDF ? '@page{size:A4 portrait;margin:15mm;}' : '@page{size:88mm auto;margin:4mm;}';
 
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(d.venta.numero)+'</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0;}'
     +'body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
-    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'4mm 3mm')+';}'
-    +'.center{text-align:center;} .title{font-size:'+(isPDF?'18px':'14px')+';font-weight:bold;letter-spacing:2px;}'
-    +'.sub{font-size:'+(isPDF?'11px':'9px')+';letter-spacing:1px;margin-top:3px;}'
-    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}'
-    +'.row2{display:flex;justify-content:space-between;margin:2px 0;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'10mm 8mm':'5mm 4mm')+';}'
+    +'.center{text-align:center;} .title{font-size:'+(isPDF?'26px':'16px')+';font-weight:bold;letter-spacing:2px;}'
+    +'.sub{font-size:'+(isPDF?'13px':'11px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:'+(isPDF?'8px 0':'6px 0')+';}'
+    +'.row2{display:flex;justify-content:space-between;margin:'+(isPDF?'4px 0':'2px 0')+';}'
     +'table{width:100%;border-collapse:collapse;}'
     +'.desc{width:55%;} .qty{width:12%;text-align:center;} .amt{width:33%;text-align:right;}'
-    +'td{padding:2px 0;vertical-align:top;}'
+    +'td{padding:'+(isPDF?'4px 0':'2px 0')+';vertical-align:top;}'
     +'.lbl{text-align:left;} .val{text-align:right;}'
-    +'.total-row td{font-size:'+(isPDF?'16px':'13px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.total-row td{font-size:'+(isPDF?'20px':'14px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
     +'.warn{color:#92400e;font-weight:bold;}'
-    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'9px')+';}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'13px':'11px')+';}'
     +pg+'@media print{button{display:none!important;}}</style>'
     +'</head><body><div class="ticket">'
     +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">TICKET DE VENTA</div></div>'
@@ -1064,15 +1064,15 @@ function buildTicketVext(d, isPDF) {
   var e2 = function(v) { return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); };
   var m2 = function(v) { return '$'+parseFloat(v||0).toFixed(2); };
   var rows = (d.detalles||[]).map(function(it) { return '<tr><td class="desc">'+e2(it.descripcion)+'</td><td class="qty">x'+it.cantidad+'</td><td class="amt">'+m2(it.subtotal)+'</td></tr>'; }).join('');
-  var fs = isPDF?'13px':'11px', w = isPDF?'155mm':'72mm', pg = isPDF?'@page{size:A5 portrait;margin:12mm;}':'@page{size:80mm auto;margin:4mm;}';
+  var fs = isPDF?'15px':'13px', w = isPDF?'180mm':'80mm', pg = isPDF?'@page{size:A4 portrait;margin:15mm;}':'@page{size:88mm auto;margin:4mm;}';
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+e2(d.venta.numero)+'</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:"Courier New",Courier,monospace;font-size:'+fs+';background:#fff;color:#111;}'
-    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'8mm 6mm':'4mm 3mm')+';}.center{text-align:center;}'
-    +'.title{font-size:'+(isPDF?'18px':'14px')+';font-weight:bold;letter-spacing:2px;}.sub{font-size:'+(isPDF?'11px':'9px')+';letter-spacing:1px;margin-top:3px;}'
-    +'hr.div{border:none;border-top:1px dashed #777;margin:6px 0;}.row2{display:flex;justify-content:space-between;margin:2px 0;}'
+    +'.ticket{width:'+w+';margin:0 auto;padding:'+(isPDF?'10mm 8mm':'5mm 4mm')+';}.center{text-align:center;}'
+    +'.title{font-size:'+(isPDF?'26px':'16px')+';font-weight:bold;letter-spacing:2px;}.sub{font-size:'+(isPDF?'13px':'11px')+';letter-spacing:1px;margin-top:3px;}'
+    +'hr.div{border:none;border-top:1px dashed #777;margin:'+(isPDF?'8px 0':'6px 0')+';}.row2{display:flex;justify-content:space-between;margin:'+(isPDF?'4px 0':'2px 0')+';}'
     +'table{width:100%;border-collapse:collapse;}.desc{width:55%;}.qty{width:12%;text-align:center;}.amt{width:33%;text-align:right;}'
-    +'td{padding:2px 0;vertical-align:top;}.total-row td{font-size:'+(isPDF?'16px':'13px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
-    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'11px':'9px')+';}'
+    +'td{padding:'+(isPDF?'4px 0':'2px 0')+';vertical-align:top;}.total-row td{font-size:'+(isPDF?'20px':'14px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
+    +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'13px':'11px')+';}'
     +pg+'@media print{button{display:none!important;}}</style></head><body><div class="ticket">'
     +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">TICKET DE VENTA</div></div>'
     +'<hr class="div">'

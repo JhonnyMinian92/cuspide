@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
    CATEGORÍAS (necesario para el select de productos)
 ──────────────────────────────────────────────── */
 function loadCategories(cb) {
-  Cuspide.api.call('GET', CONFIG.ENDPOINTS.productos, 'categories', null, null)
+  Cuspide.api.call('GET', CONFIG.ENDPOINTS.productos, 'categories', null, { institucion: institucionId })
     .then(function(data) {
       allCategories = Array.isArray(data) ? data : [];
       categoriesLoaded = true;
