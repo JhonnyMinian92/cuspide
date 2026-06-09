@@ -60,7 +60,7 @@ class ProductoServices implements ProductoServiceInterface
                 return $this->disableProducto((int)$queryParams['id']);
 
             case $method === 'GET' && $resource === 'categories':
-                return $this->fetchCategorias();
+                return $this->fetchCategorias($queryParams);
 
             case in_array($method, ['POST', 'PUT'], true) && $resource === 'saveCategory':
             case in_array($method, ['POST', 'PUT'], true) && $resource === 'savecategory':
@@ -172,9 +172,12 @@ class ProductoServices implements ProductoServiceInterface
     // -------------------------------------------------------------------------
     // fetchCategorias
     // -------------------------------------------------------------------------
-    private function fetchCategorias(): array
+    private function fetchCategorias(array $queryParams = []): array
     {
-        $categorias = $this->categRepo->findAllActive();
+        $institucion = !empty($queryParams['institucion']) ? (int)$queryParams['institucion'] : null;
+        $categorias  = $institucion
+            ? $this->categRepo->findActiveByInstitucion($institucion)
+            : $this->categRepo->findAllActive();
         $result     = [];
         foreach ($categorias as $cat) {
             $result[] = [

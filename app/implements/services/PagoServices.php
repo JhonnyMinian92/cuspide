@@ -61,7 +61,7 @@ final class PagoServices implements PagoServiceInterface
 
         return match (true) {
             $method === 'GET'  && $resource === 'pending'        => $this->fetchPendientes($queryParams, $userId),
-            $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams),
+            $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams, $userId),
             $method === 'GET'  && $resource === 'formas'         => $this->fetchFormasPago(),
             $method === 'GET'  && $resource === 'detail'         => $this->fetchDetalle($queryParams),
             $method === 'GET'  && $resource === 'recent'         => $this->fetchRecientes($userId, $queryParams),
@@ -126,10 +126,7 @@ final class PagoServices implements PagoServiceInterface
 
     private function fetchPendientes(array $queryParams, int $userId): array
     {
-        $institucion = (int) ($queryParams['institucion'] ?? 0);
-        if ($institucion <= 0) {
-            $institucion = $this->getInstitucionByUserId($userId);
-        }
+        $institucion = $this->getInstitucionByUserId($userId);
 
         $db   = Database::getInstance();
         $stmt = $db->prepare(
@@ -181,9 +178,21 @@ final class PagoServices implements PagoServiceInterface
     // fetchHistorial
     // -------------------------------------------------------------------------
 
-    private function fetchHistorial(array $queryParams): array
+    private function fetchHistorial(array $queryParams, int $userId = 0): array
     {
         $personaId = $this->resolvePersonaId($queryParams);
+
+        if ($userId > 0) {
+            $instId = $this->getInstitucionByUserId($userId);
+            $db     = Database::getInstance();
+            $chk    = $db->prepare(
+                'SELECT COUNT(*) FROM persona_institucion WHERE id_persona = :p AND id_institucion = :i AND estado = 1'
+            );
+            $chk->execute([':p' => $personaId, ':i' => $instId]);
+            if ((int) $chk->fetchColumn() === 0) {
+                throw new RuntimeException('La persona solicitada no pertenece a tu institución.', 403);
+            }
+        }
 
         $pagos   = $this->pagoRepo->findByPersona($personaId);
         $ventas  = $this->ventaRepo->findByPersona($personaId);
@@ -207,19 +216,42 @@ final class PagoServices implements PagoServiceInterface
              WHERE v.id = :vid AND cm.saldo > 0
              ORDER BY cm.fecha_vencimiento ASC LIMIT 1'
         );
+        $stmtSumCuotas = $db->prepare(
+            'SELECT COALESCE(SUM(cm.saldo), 0) AS total_pendiente, COUNT(cm.id) AS cuotas_count
+             FROM cuotas_matricula cm
+             JOIN plan_pago_matricula ppm ON cm.plan_pago = ppm.id
+             JOIN ventas v ON ppm.matricula = v.matricula
+             WHERE v.id = :vid AND cm.saldo > 0'
+        );
 
         $ventasData = [];
         foreach ($ventas as $v) {
-            $cuotaSiguiente    = null;
-            $fechaVencimiento  = null;
-            $tipo              = $v->getTipo();
-            $fecha             = $v->getFecha();
+            $cuotaSiguiente   = null;
+            $fechaVencimiento = null;
+            $cuotasPendCount  = null;
+            $tipo             = $v->getTipo();
+            $fecha            = $v->getFecha();
+            $saldoVenta       = (float) $v->getSaldo();
+            $totalVenta       = $v->getTotal();
 
-            if ($tipo === 'MATRICULA' && (float) $v->getSaldo() > 0) {
+            if ($tipo === 'MATRICULA') {
                 $stmtCuotaSig->execute([':vid' => $v->getId()]);
                 $cuotaRow       = $stmtCuotaSig->fetch(\PDO::FETCH_ASSOC);
                 $cuotaSiguiente = $cuotaRow ? (float) $cuotaRow['saldo'] : null;
                 $fechaVencimiento = $cuotaRow['fecha_vencimiento'] ?? null;
+                // Siempre que haya cuotas pendientes, obtener conteo y suma para mostrar al usuario
+                if ($cuotaSiguiente !== null) {
+                    $stmtSumCuotas->execute([':vid' => $v->getId()]);
+                    $sumRow          = $stmtSumCuotas->fetch(\PDO::FETCH_ASSOC);
+                    $sumPending      = (float) ($sumRow['total_pendiente'] ?? 0);
+                    $cuotasPendCount = (int)   ($sumRow['cuotas_count']   ?? 0);
+                    // Cobro anticipado: si la venta está saldada pero el plan tiene cuotas pendientes,
+                    // exponer la suma de cuotas como saldo anticipable para que aparezca en el formulario
+                    if ($saldoVenta <= 0 && $sumPending > 0) {
+                        $saldoVenta = $sumPending;
+                        $totalVenta = $sumPending;
+                    }
+                }
             } elseif ($tipo === 'MENSUALIDAD') {
                 $fechaVencimiento = date('Y-m-d', strtotime($fecha . ' +1 month'));
             } else {
@@ -230,11 +262,12 @@ final class PagoServices implements PagoServiceInterface
                 'id'               => $v->getId(),
                 'numero'           => $v->getNumero(),
                 'fecha'            => $fecha,
-                'total'            => $v->getTotal(),
-                'saldo'            => $v->getSaldo(),
+                'total'            => $totalVenta,
+                'saldo'            => $saldoVenta,
                 'tipo'             => $tipo,
                 'estado'           => $v->getEstado() !== null ? $v->getEstado()->getId() : null,
                 'cuota_siguiente'  => $cuotaSiguiente,
+                'cuotas_pendientes'=> $cuotasPendCount,
                 'fecha_vencimiento'=> $fechaVencimiento,
             ];
         }
@@ -297,7 +330,6 @@ final class PagoServices implements PagoServiceInterface
         $ventaId     = isset($body['venta'])      ? (int) $body['venta']       : null;
         $matriculaId = isset($body['matricula'])   ? (int) $body['matricula']   : null;
         $formaPago   = (int)    ($body['forma_pago']  ?? 0);
-        $institucion = (int)    ($body['institucion']  ?? 0);
         $monto       = (float)  ($body['monto']        ?? 0);
         $referencia  = (string) ($body['referencia']   ?? '');
         $observacion = (string) ($body['observacion']  ?? '');
@@ -306,9 +338,7 @@ final class PagoServices implements PagoServiceInterface
             throw new RuntimeException('Faltan campos obligatorios: persona, forma_pago, monto.', 400);
         }
 
-        if ($institucion <= 0) {
-            $institucion = $this->getInstitucionByUserId($userId);
-        }
+        $institucion = $this->getInstitucionByUserId($userId);
 
         $db = Database::getInstance();
 
@@ -373,6 +403,40 @@ final class PagoServices implements PagoServiceInterface
                             $restanteCuotas -= $aplicarCuota;
                         }
                     }
+                }
+            }
+
+            // Cobro anticipado de cuotas de matrícula: si queda monto y hay cuotas del plan sin venta generada
+            if ($montoRestante > 0) {
+                $stmtMatAnticipo = $db->prepare(
+                    "SELECT DISTINCT v.id AS venta_id, v.matricula AS matricula_id
+                     FROM ventas v
+                     JOIN plan_pago_matricula ppm ON ppm.matricula = v.matricula
+                     JOIN cuotas_matricula cm ON cm.plan_pago = ppm.id
+                     WHERE v.persona = :persona AND v.tipo = 'MATRICULA' AND cm.saldo > 0
+                     ORDER BY v.fecha ASC"
+                );
+                $stmtMatAnticipo->execute([':persona' => $persona]);
+                foreach ($stmtMatAnticipo->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $mat) {
+                    if ($montoRestante <= 0) break;
+                    $matId = (int) $mat['matricula_id'];
+                    $stmtPlanPago->execute([':mid' => $matId]);
+                    $planRow = $stmtPlanPago->fetch(\PDO::FETCH_ASSOC);
+                    if (!$planRow) continue;
+                    $restanteCuotas = $montoRestante;
+                    $stmtCuotasPend->execute([':pid' => (int) $planRow['id']]);
+                    foreach ($stmtCuotasPend->fetchAll(\PDO::FETCH_ASSOC) as $cuota) {
+                        if ($restanteCuotas <= 0) break;
+                        $cuotaSaldo   = (float) $cuota['saldo'];
+                        $aplicarCuota = min($restanteCuotas, $cuotaSaldo);
+                        $stmtUpdCuota->execute([
+                            ':s'  => round($cuotaSaldo - $aplicarCuota, 2),
+                            ':id' => $cuota['id'],
+                        ]);
+                        $restanteCuotas -= $aplicarCuota;
+                        $detalles[]     = ['venta_id' => (int) $mat['venta_id'], 'aplicado' => $aplicarCuota];
+                    }
+                    $montoRestante = $restanteCuotas;
                 }
             }
 

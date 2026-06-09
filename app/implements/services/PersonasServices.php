@@ -90,7 +90,7 @@ class PersonasServices implements PersonaServiceInterface
 
     switch (true) {
       case $method === 'GET' && $resource === 'search':
-        return $this->fetchSearch($queryParams);
+        return $this->fetchSearch($queryParams, $userId);
 
       case $method === 'GET' && $resource === 'catalogs':
         return $this->fetchCatalogs();
@@ -171,14 +171,20 @@ class PersonasServices implements PersonaServiceInterface
   // -------------------------------------------------------------------------
   // fetchSearch
   // -------------------------------------------------------------------------
-  private function fetchSearch(array $queryParams): array
+  private function fetchSearch(array $queryParams, int $userId = 0): array
   {
     $q = trim($queryParams['q'] ?? '');
     if ($q === '') {
       throw new \RuntimeException('El parámetro q es requerido.', 400);
     }
 
-    $rows   = $this->personaRepo->findByQuery($q);
+    if ($userId > 0) {
+      $instId = $this->getInstitucionByUserId($userId);
+      $rows   = $this->personaRepo->findByQueryAndInstitucion($q, $instId);
+    } else {
+      $rows   = $this->personaRepo->findByQuery($q);
+    }
+
     $result = [];
     foreach ($rows as $row) {
       $result[] = [
