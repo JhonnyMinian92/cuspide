@@ -9,6 +9,7 @@ require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaDetalleRepository.php';
 require_once __DIR__ . '/../persistence/repository/PagoRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/repository/InventarioRepository.php';
 require_once __DIR__ . '/../persistence/repository/MovimientoInventarioRepository.php';
 require_once __DIR__ . '/../persistence/repository/ProductoRepository.php';
@@ -25,6 +26,7 @@ use Repositories\VentaRepository;
 use Repositories\VentaDetalleRepository;
 use Repositories\PagoRepository;
 use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Repositories\InventarioRepository;
 use Repositories\MovimientoInventarioRepository;
 use Repositories\ProductoRepository;
@@ -70,6 +72,7 @@ class VentaServices
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -78,7 +81,7 @@ class VentaServices
 
         switch (true) {
             case $method === 'GET' && $resource === 'list':
-                return $this->fetchVentas($queryParams);
+                return $this->fetchVentas($queryParams, $userId);
 
             case $method === 'GET' && $resource === 'byclient':
                 return $this->fetchByClient($queryParams);
@@ -90,7 +93,7 @@ class VentaServices
                 return $this->fetchDetail((int)$queryParams['id']);
 
             case $method === 'POST' && $resource === 'create':
-                return $this->createVenta();
+                return $this->createVenta($userId);
 
             case $method === 'POST' && $resource === 'cancel':
                 $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
@@ -106,7 +109,7 @@ class VentaServices
                 return $this->fetchFormasPago();
 
             case $method === 'GET' && $resource === 'list_externas':
-                return $this->fetchVentasExternas($queryParams);
+                return $this->fetchVentasExternas($queryParams, $userId);
 
             case $method === 'GET' && $resource === 'detail_externa':
                 if (empty($queryParams['id'])) {
@@ -115,7 +118,7 @@ class VentaServices
                 return $this->fetchDetailExterna((int)$queryParams['id']);
 
             case $method === 'POST' && $resource === 'create_externa':
-                return $this->createVentaExterna();
+                return $this->createVentaExterna($userId);
 
             case $method === 'POST' && $resource === 'cancel_externa':
                 $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
@@ -136,14 +139,10 @@ class VentaServices
     // -------------------------------------------------------------------------
     // fetchVentas
     // -------------------------------------------------------------------------
-    private function fetchVentas(array $queryParams): array
+    private function fetchVentas(array $queryParams, int $userId): array
     {
-        if (empty($queryParams['institucion'])) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-
         $filters = [
-            'institucion' => (int)$queryParams['institucion'],
+            'institucion' => $this->getInstitucionByUserId($userId),
             'limit'       => isset($queryParams['limit']) ? (int)$queryParams['limit'] : 20,
             'page'        => isset($queryParams['page']) ? max(1, (int)$queryParams['page']) : 1,
             'desde'       => !empty($queryParams['desde']) ? $queryParams['desde'] : null,
@@ -319,7 +318,7 @@ class VentaServices
     // -------------------------------------------------------------------------
     // createVenta
     // -------------------------------------------------------------------------
-    private function createVenta(): array
+    private function createVenta(int $userId): array
     {
         $body = file_get_contents('php://input');
         $data = json_decode($body, true);
@@ -327,7 +326,7 @@ class VentaServices
             throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
         }
 
-        foreach (['persona', 'institucion', 'tipo', 'items'] as $field) {
+        foreach (['persona', 'tipo', 'items'] as $field) {
             if (!isset($data[$field]) || $data[$field] === '') {
                 throw new \RuntimeException("El campo {$field} es requerido.", 400);
             }
@@ -340,7 +339,7 @@ class VentaServices
 
         $personaId   = (int)$data['persona'];
         $matriculaId = isset($data['matricula']) && $data['matricula'] !== '' ? (int)$data['matricula'] : null;
-        $institucion = (int)$data['institucion'];
+        $institucion = $this->getInstitucionByUserId($userId);
         $tipo        = trim($data['tipo']);
         $descuento   = (float)($data['descuento'] ?? 0);
         $formaPago   = isset($data['forma_pago']) && $data['forma_pago'] !== '' ? (int)$data['forma_pago'] : null;
@@ -565,12 +564,9 @@ class VentaServices
     // VENTAS EXTERNAS (clientes no registrados)
     // =========================================================================
 
-    private function fetchVentasExternas(array $queryParams): array
+    private function fetchVentasExternas(array $queryParams, int $userId): array
     {
-        if (empty($queryParams['institucion'])) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-        $instId  = (int) $queryParams['institucion'];
+        $instId  = $this->getInstitucionByUserId($userId);
         $limit   = isset($queryParams['limit'])  ? (int) $queryParams['limit']         : 20;
         $page    = isset($queryParams['page'])   ? max(1, (int) $queryParams['page'])   : 1;
         $offset  = ($page - 1) * $limit;
@@ -675,14 +671,14 @@ class VentaServices
         ];
     }
 
-    private function createVentaExterna(): array
+    private function createVentaExterna(int $userId): array
     {
         $data = json_decode((string) file_get_contents('php://input'), true);
         if (!is_array($data)) {
             throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
         }
 
-        $instId    = (int)    ($data['institucion']           ?? 0);
+        $instId    = $this->getInstitucionByUserId($userId);
         $nombre    = trim((string) ($data['cliente_nombre']   ?? 'Anónimo'));
         $cedula    = trim((string) ($data['cliente_identificacion'] ?? '')) ?: null;
         $telefono  = trim((string) ($data['cliente_telefono'] ?? '')) ?: null;
@@ -691,9 +687,6 @@ class VentaServices
         $formaPago = isset($data['forma_pago']) && $data['forma_pago'] !== '' ? (int) $data['forma_pago'] : null;
         $referencia= trim((string) ($data['referencia'] ?? '')) ?: null;
 
-        if ($instId <= 0) {
-            throw new \RuntimeException('El campo institucion es requerido.', 400);
-        }
         if (empty($items)) {
             throw new \RuntimeException('Se requiere al menos un item.', 400);
         }
@@ -825,6 +818,22 @@ class VentaServices
         }
 
         return ['id' => $id, 'status' => 'ANULADO', 'mensaje' => 'Venta externa anulada correctamente.'];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 
     private function payVentaExterna(): array

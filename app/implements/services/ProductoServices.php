@@ -6,6 +6,8 @@ namespace Services;
 
 require_once __DIR__ . '/../interfaces/ProductoServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/ProductoRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Producto.php';
 require_once __DIR__ . '/../persistence/repository/ProductoCategoriaRepository.php';
 require_once __DIR__ . '/../persistence/entitys/ProductoCategoria.php';
@@ -13,6 +15,8 @@ require_once __DIR__ . '/../utils/Token.php';
 
 use Repositories\ProductoRepository;
 use Repositories\ProductoCategoriaRepository;
+use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Entitys\Producto;
 use Entitys\ProductoCategoria;
 use Core\Database;
@@ -23,12 +27,14 @@ class ProductoServices implements ProductoServiceInterface
 {
     private ProductoRepository $productoRepo;
     private ProductoCategoriaRepository $categRepo;
+    private PersonaRepository $personaRepo;
     private array $security;
 
     public function __construct()
     {
         $this->productoRepo = new ProductoRepository();
         $this->categRepo    = new ProductoCategoriaRepository();
+        $this->personaRepo  = new PersonaRepository();
         $this->security     = require __DIR__ . '/../../properties/security.php';
     }
 
@@ -39,6 +45,7 @@ class ProductoServices implements ProductoServiceInterface
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -47,11 +54,11 @@ class ProductoServices implements ProductoServiceInterface
 
         switch (true) {
             case $method === 'GET' && $resource === 'list':
-                return $this->fetchProductos($queryParams);
+                return $this->fetchProductos($queryParams, $userId);
 
             case in_array($method, ['POST', 'PUT'], true) && $resource === 'save':
                 $id = isset($queryParams['id']) ? (int)$queryParams['id'] : null;
-                return $this->saveProducto($id);
+                return $this->saveProducto($id, $userId);
 
             case $method === 'PUT' && $resource === 'disable':
                 if (empty($queryParams['id'])) {
@@ -75,13 +82,9 @@ class ProductoServices implements ProductoServiceInterface
     // -------------------------------------------------------------------------
     // fetchProductos
     // -------------------------------------------------------------------------
-    private function fetchProductos(array $queryParams): array
+    private function fetchProductos(array $queryParams, int $userId): array
     {
-        if (empty($queryParams['institucion'])) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-
-        $institucion = (int)$queryParams['institucion'];
+        $institucion = $this->getInstitucionByUserId($userId);
         $categoriaId = !empty($queryParams['categoria']) ? (int)$queryParams['categoria'] : null;
 
         $rows = $this->productoRepo->findWithStockByInstitucion($institucion, $categoriaId);
@@ -108,7 +111,7 @@ class ProductoServices implements ProductoServiceInterface
     // -------------------------------------------------------------------------
     // saveProducto
     // -------------------------------------------------------------------------
-    private function saveProducto(?int $id): array
+    private function saveProducto(?int $id, int $userId): array
     {
         $body = file_get_contents('php://input');
         $data = json_decode($body, true);
@@ -116,17 +119,18 @@ class ProductoServices implements ProductoServiceInterface
             throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
         }
 
-        foreach (['codigo', 'nombre', 'descripcion', 'categoria', 'precio', 'costo', 'institucion'] as $field) {
+        foreach (['codigo', 'nombre', 'descripcion', 'categoria', 'precio', 'costo'] as $field) {
             if (!isset($data[$field]) || $data[$field] === '') {
                 throw new \RuntimeException("El campo {$field} es requerido.", 400);
             }
         }
 
-        $bodyId = isset($data['id']) ? (int)$data['id'] : 0;
+        $bodyId  = isset($data['id']) ? (int)$data['id'] : 0;
         $finalId = ($id !== null && $id > 0) ? $id : ($bodyId > 0 ? $bodyId : null);
 
-        $estado       = isset($data['estado']) ? (int)$data['estado'] : 1;
+        $estado        = isset($data['estado']) ? (int)$data['estado'] : 1;
         $controlaStock = isset($data['controla_stock']) ? (bool)$data['controla_stock'] : false;
+        $institucion   = $this->getInstitucionByUserId($userId);
 
         $producto = new Producto(
             $finalId,
@@ -137,7 +141,7 @@ class ProductoServices implements ProductoServiceInterface
             (float)$data['precio'],
             (float)$data['costo'],
             $controlaStock,
-            (int)$data['institucion'],
+            $institucion,
             $estado
         );
 
@@ -228,12 +232,28 @@ class ProductoServices implements ProductoServiceInterface
         $saved = $this->categRepo->save($categoria);
 
         return [
-            'id' => (int)$saved->getId(),
-            'nombre' => $saved->getNombre(),
-            'nemonico' => $saved->getNemonico(),
+            'id'          => (int)$saved->getId(),
+            'nombre'      => $saved->getNombre(),
+            'nemonico'    => $saved->getNemonico(),
             'descripcion' => $saved->getDescripcion(),
             'institucion' => $saved->getInstitucion()?->getId(),
-            'estado' => $saved->getEstado()?->getId() ?? $estado,
+            'estado'      => $saved->getEstado()?->getId() ?? $estado,
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 }

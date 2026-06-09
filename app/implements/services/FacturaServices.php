@@ -7,11 +7,13 @@ namespace Services;
 require_once __DIR__ . '/../interfaces/FacturaServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Interfaces\FacturaServiceInterface;
 use Repositories\VentaRepository;
 use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use RuntimeException;
 use Utils\Token;
 
@@ -35,13 +37,17 @@ final class FacturaServices implements FacturaServiceInterface
     public function processRequest(string $method, string $requestUri, array $queryParams, string $authHeader): array
     {
         $payload = Token::validateBearerToken($authHeader, $this->jwtSecret);
+        if (!$payload) {
+            throw new RuntimeException('Token inválido o no autorizado.', 401);
+        }
 
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $this->resolveResource($requestUri, $queryParams, 'facturas');
 
         return match (true) {
-            $method === 'GET' && $resource === 'list'      => $this->fetchFacturas($queryParams),
+            $method === 'GET' && $resource === 'list'      => $this->fetchFacturas($queryParams, $userId),
             $method === 'GET' && $resource === 'byclient'  => $this->fetchByClient($queryParams),
-            $method === 'GET' && $resource === 'pending'   => $this->fetchPendientes($queryParams),
+            $method === 'GET' && $resource === 'pending'   => $this->fetchPendientes($queryParams, $userId),
             $method === 'GET' && $resource === 'detail'    => $this->fetchDetail((int) ($queryParams['id'] ?? 0)),
             $method === 'PUT' && $resource === 'cancel'    => $this->cancelFactura((int) ($queryParams['id'] ?? 0)),
             default => throw new RuntimeException('Ruta de API no soportada: ' . $method . ' ' . $resource, 404),
@@ -101,12 +107,9 @@ final class FacturaServices implements FacturaServiceInterface
     // fetchFacturas
     // -------------------------------------------------------------------------
 
-    private function fetchFacturas(array $queryParams): array
+    private function fetchFacturas(array $queryParams, int $userId): array
     {
-        $institucion = (int) ($queryParams['institucion'] ?? 0);
-        if ($institucion <= 0) {
-            throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
-        }
+        $institucion = $this->getInstitucionByUserId($userId);
 
         $filters = [
             'limit'  => max(1, (int) ($queryParams['limit']  ?? 100)),
@@ -161,6 +164,22 @@ final class FacturaServices implements FacturaServiceInterface
     // cancelFactura
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
+    }
+
     private function cancelFactura(int $id): array
     {
         if ($id <= 0) {
@@ -206,12 +225,9 @@ final class FacturaServices implements FacturaServiceInterface
     // fetchPendientes
     // -------------------------------------------------------------------------
 
-    private function fetchPendientes(array $queryParams): array
+    private function fetchPendientes(array $queryParams, int $userId): array
     {
-        $institucion = (int) ($queryParams['institucion'] ?? 0);
-        if ($institucion <= 0) {
-            throw new RuntimeException('Debe proporcionar el parámetro institucion.', 400);
-        }
+        $institucion = $this->getInstitucionByUserId($userId);
 
         $rows = $this->ventaRepo->findPendientesByInstitucion($institucion);
 

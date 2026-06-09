@@ -6,12 +6,16 @@ namespace Services;
 require_once __DIR__ . '/../interfaces/InventarioServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/InventarioRepository.php';
 require_once __DIR__ . '/../persistence/repository/MovimientoInventarioRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Inventario.php';
 require_once __DIR__ . '/../persistence/entitys/MovimientoInventario.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Repositories\InventarioRepository;
 use Repositories\MovimientoInventarioRepository;
+use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Entitys\Inventario;
 use Entitys\MovimientoInventario;
 use Utils\Token;
@@ -19,14 +23,16 @@ use Interfaces\InventarioServiceInterface;
 
 class InventarioServices implements InventarioServiceInterface
 {
-    private InventarioRepository          $inventarioRepo;
+    private InventarioRepository           $inventarioRepo;
     private MovimientoInventarioRepository $movimientoRepo;
+    private PersonaRepository              $personaRepo;
     private array $security;
 
     public function __construct()
     {
         $this->inventarioRepo = new InventarioRepository();
         $this->movimientoRepo = new MovimientoInventarioRepository();
+        $this->personaRepo    = new PersonaRepository();
         $this->security       = require __DIR__ . '/../../properties/security.php';
     }
 
@@ -37,6 +43,7 @@ class InventarioServices implements InventarioServiceInterface
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -45,13 +52,13 @@ class InventarioServices implements InventarioServiceInterface
 
         switch (true) {
             case $method === 'GET' && $resource === 'list':
-                return $this->fetchInventario($queryParams);
+                return $this->fetchInventario($userId);
 
             case $method === 'GET' && $resource === 'movements':
                 return $this->fetchMovimientos($queryParams);
 
             case $method === 'POST' && $resource === 'adjust':
-                return $this->ajustarInventario();
+                return $this->ajustarInventario($userId);
 
             default:
                 throw new \RuntimeException('Recurso no encontrado o método no soportado.', 404);
@@ -61,13 +68,9 @@ class InventarioServices implements InventarioServiceInterface
     // -------------------------------------------------------------------------
     // fetchInventario
     // -------------------------------------------------------------------------
-    private function fetchInventario(array $queryParams): array
+    private function fetchInventario(int $userId): array
     {
-        $institucion = isset($queryParams['institucion']) ? (int)$queryParams['institucion'] : 0;
-        if ($institucion <= 0) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-
+        $institucion = $this->getInstitucionByUserId($userId);
         $rows = $this->inventarioRepo->findWithAlertByInstitucion($institucion);
 
         $result = [];
@@ -120,7 +123,7 @@ class InventarioServices implements InventarioServiceInterface
     // -------------------------------------------------------------------------
     // ajustarInventario
     // -------------------------------------------------------------------------
-    private function ajustarInventario(): array
+    private function ajustarInventario(int $userId): array
     {
         $body = file_get_contents('php://input');
         $data = json_decode($body, true);
@@ -128,7 +131,7 @@ class InventarioServices implements InventarioServiceInterface
             throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
         }
 
-        foreach (['producto', 'tipo_movimiento', 'cantidad', 'institucion'] as $field) {
+        foreach (['producto', 'tipo_movimiento', 'cantidad'] as $field) {
             if (!isset($data[$field]) || $data[$field] === '') {
                 throw new \RuntimeException("El campo {$field} es requerido.", 400);
             }
@@ -143,7 +146,7 @@ class InventarioServices implements InventarioServiceInterface
         $productoId  = (int)$data['producto'];
         $varianteId  = isset($data['variante']) && $data['variante'] !== '' ? (int)$data['variante'] : null;
         $cantidad    = (float)$data['cantidad'];
-        $institucion = (int)$data['institucion'];
+        $institucion = $this->getInstitucionByUserId($userId);
         $referencia  = $data['referencia']  ?? null;
         $observacion = $data['observacion'] ?? '';
         $fecha       = date('Y-m-d H:i:s');
@@ -152,10 +155,8 @@ class InventarioServices implements InventarioServiceInterface
             throw new \RuntimeException('La cantidad debe ser mayor a cero.', 400);
         }
 
-        // Step 1: Get current inventory via repository
         $inv = $this->inventarioRepo->findByProductoAndInstitucion($productoId, $institucion, $varianteId);
 
-        // Step 2: Compute new stock
         if ($inv !== null) {
             $stockAnterior = $inv->getStockActual();
             $stockNuevo    = match ($tipoMov) {
@@ -164,7 +165,6 @@ class InventarioServices implements InventarioServiceInterface
                 'AJUSTE'  => $cantidad,
                 default   => $stockAnterior,
             };
-            // Step 3: Update existing inventory record
             $inv->setStockActual($stockNuevo);
             $inv->setFechaActualizacion($fecha);
             $this->inventarioRepo->save($inv);
@@ -176,12 +176,10 @@ class InventarioServices implements InventarioServiceInterface
                 'AJUSTE'  => $cantidad,
                 default   => 0.0,
             };
-            // Step 3: Insert new inventory record
             $newInv = new Inventario(null, $productoId, $varianteId, $institucion, $stockNuevo, 0.0, $fecha);
             $this->inventarioRepo->save($newInv);
         }
 
-        // Step 4: Save movement record via repository
         $mov = new MovimientoInventario(
             null,
             $productoId,
@@ -201,5 +199,21 @@ class InventarioServices implements InventarioServiceInterface
             'producto'    => $productoId,
             'stock_nuevo' => round($stockNuevo, 4),
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 }

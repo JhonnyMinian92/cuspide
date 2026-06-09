@@ -5,11 +5,13 @@ namespace Services;
 
 require_once __DIR__ . '/../interfaces/CuentaCobrarServiceInterface.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../persistence/repository/VentaDetalleRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Repositories\VentaRepository;
 use Repositories\VentaDetalleRepository;
 use Utils\Token;
@@ -17,8 +19,8 @@ use Interfaces\CuentaCobrarServiceInterface;
 
 class CuentaCobrarServices implements CuentaCobrarServiceInterface
 {
-    private PersonaRepository     $personaRepo;
-    private VentaRepository       $ventaRepo;
+    private PersonaRepository      $personaRepo;
+    private VentaRepository        $ventaRepo;
     private VentaDetalleRepository $ventaDetalleRepo;
     private array $security;
 
@@ -37,6 +39,7 @@ class CuentaCobrarServices implements CuentaCobrarServiceInterface
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -45,7 +48,7 @@ class CuentaCobrarServices implements CuentaCobrarServiceInterface
 
         switch (true) {
             case $method === 'GET' && $resource === 'list':
-                return $this->fetchCuentasCobrar($queryParams);
+                return $this->fetchCuentasCobrar($queryParams, $userId);
 
             default:
                 throw new \RuntimeException('Recurso no encontrado o método no soportado.', 404);
@@ -55,17 +58,13 @@ class CuentaCobrarServices implements CuentaCobrarServiceInterface
     // -------------------------------------------------------------------------
     // fetchCuentasCobrar
     // -------------------------------------------------------------------------
-    private function fetchCuentasCobrar(array $queryParams): array
+    private function fetchCuentasCobrar(array $queryParams, int $userId): array
     {
-        $institucion = isset($queryParams['institucion']) ? (int)$queryParams['institucion'] : 0;
-        if ($institucion <= 0) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
+        $institucion = $this->getInstitucionByUserId($userId);
 
         $personaId      = isset($queryParams['persona_id']) ? (int)$queryParams['persona_id'] : 0;
         $identificacion = trim($queryParams['identificacion'] ?? '');
 
-        // If identificacion filter provided, resolve to persona id
         if ($personaId <= 0 && $identificacion !== '') {
             $persona = $this->personaRepo->findByIdentificacion($identificacion);
             if (!$persona) {
@@ -82,7 +81,6 @@ class CuentaCobrarServices implements CuentaCobrarServiceInterface
         foreach ($ventas as $venta) {
             $totalPorCobrar += (float)$venta['saldo'];
 
-            // Fetch detail lines via repository
             $detalleEntities = $this->ventaDetalleRepo->findByVenta((int)$venta['id']);
 
             $detalleFormatted = [];
@@ -113,5 +111,21 @@ class CuentaCobrarServices implements CuentaCobrarServiceInterface
             'total_por_cobrar' => round($totalPorCobrar, 2),
             'cuentas'          => $cuentas,
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 }
