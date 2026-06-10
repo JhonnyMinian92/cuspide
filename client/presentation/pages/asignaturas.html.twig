@@ -720,8 +720,9 @@ document.addEventListener('DOMContentLoaded', function() {
   loadAsignaturasForSelect();
   loadNivelesForSelect();
   loadClases();
-  /* esperar institución confirmada antes de cargar docentes */
-  whenInstitucionReady().then(function() {
+  var _ready = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.institucionReady) || Promise.resolve();
+  _ready.then(function() {
+    institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || institucionId;
     loadDocentesForSelect();
   });
 });

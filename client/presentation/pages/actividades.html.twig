@@ -1047,8 +1047,12 @@ function poblarSelectPeriodos() {
    INIT
 ───────────────────────────────────────────── */
 function init() {
-  whenInstitucionReady()
-    .then(function() { return loadDeportes(); })
+  var ready = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.institucionReady) || Promise.resolve();
+  ready
+    .then(function() {
+      institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || institucionId;
+      return loadDeportes();
+    })
     .then(function() {
       return Promise.all([
         loadCategorias(),

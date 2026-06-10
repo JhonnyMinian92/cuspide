@@ -766,9 +766,11 @@ document.getElementById('btn-guardar-persona').addEventListener('click', async f
 ══════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async function() {
   checkAuth();
-  await whenUserReady(); // Esperar a que el perfil de usuario se cargue desde app.js
-  await loadCatalogs(); // Ahora los catálogos pueden usar el rol del usuario.
-  loadEmpleados();      // Cargar empleados después, usando el rol ya determinado.
+  if (window.CUSPIDE_STATE && window.CUSPIDE_STATE.userReady) {
+    await window.CUSPIDE_STATE.userReady;
+  }
+  await loadCatalogs();
+  loadEmpleados();
 
   /* Evita "Blocked aria-hidden on focused element" al cerrar el modal */
   document.getElementById('modal-persona').addEventListener('hide.bs.modal', function() {
