@@ -24,20 +24,37 @@ window.CUSPIDE_STATE = window.CUSPIDE_STATE || {
   currentInstitucionId: parseInt(localStorage.getItem('currentInstitucionId') || '0', 10) || null,
   institucionReady: null,
   _institucionReadyResolve: null,
+  currentUser: null,
+  userReady: null,
+  _userReadyResolve: null,
 };
 
 // Promesa que se resuelve cuando loadInstitucion() termina y currentInstitucionId está fijo.
 (function () {
   var res;
-  window.CUSPIDE_STATE.institucionReady = new Promise(function (r) { res = r; });
+  window.CUSPIDE_STATE.institucionReady = new Promise(function (r) {
+    res = r;
+  });
   window.CUSPIDE_STATE._institucionReadyResolve = res;
-}());
+})();
+
+// Promesa que se resuelve cuando loadUserProfile() termina.
+(function () {
+  var res;
+  window.CUSPIDE_STATE.userReady = new Promise(function (r) {
+    res = r;
+  });
+  window.CUSPIDE_STATE._userReadyResolve = res;
+})();
 
 function whenInstitucionReady() {
   return window.CUSPIDE_STATE.institucionReady || Promise.resolve();
 }
+function whenUserReady() {
+  return window.CUSPIDE_STATE.userReady || Promise.resolve();
+}
 
-var FALLBACK_LOGO_URL = '/assets/logo/huaquillasfc.jpg';
+var FALLBACK_LOGO_URL = '/assets/logo/logotipo.jpg';
 
 function setCurrentInstitucion(id) {
   window.CUSPIDE_STATE.currentInstitucionId = id;
@@ -125,6 +142,8 @@ async function loadUserProfile() {
       throw new Error('No se recibieron datos del usuario.');
     }
 
+    window.CUSPIDE_STATE.currentUser = data;
+
     const fullName = [data.primer_nombre, data.primer_apellido].filter(Boolean).join(' ').trim() || 'Usuario';
 
     const initial = (fullName.charAt(0) || 'U').toUpperCase();
@@ -152,6 +171,12 @@ async function loadUserProfile() {
 
     if (topbarUsername) topbarUsername.textContent = 'Usuario';
     if (topbarAvatar) topbarAvatar.textContent = 'U';
+  } finally {
+    var res = window.CUSPIDE_STATE._userReadyResolve;
+    if (res) {
+      window.CUSPIDE_STATE._userReadyResolve = null;
+      res(window.CUSPIDE_STATE.currentUser);
+    }
   }
 }
 
@@ -162,13 +187,20 @@ async function loadUserProfile() {
 
 async function loadInstitucion() {
   try {
-    const data = await Cuspide.api.institucion();
+    // Make an authenticated call to get the institution associated with the user.
+    // The backend should return the user's specific institution based on their token.
+    const data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.company, 'find');
 
     if (data && data.id) {
       setCurrentInstitucion(data.id);
+      // If the full list of institutions hasn't been loaded (e.g. for non-admins),
+      // set the current one as the only one in the list.
+      if (!window.CUSPIDE_STATE.instituciones || window.CUSPIDE_STATE.instituciones.length === 0) {
+        window.CUSPIDE_STATE.instituciones = [data];
+      }
     }
 
-    if (!data || !data.nombre) return;
+    if (!data || !data.nombre) return; // No institution data to display
 
     var sidebarNombre = document.getElementById('sidebar-institucion-nombre');
     if (sidebarNombre) sidebarNombre.textContent = data.nombre;
@@ -368,8 +400,30 @@ async function loadInstituciones() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
   if (!checkAuth()) return;
 
-  Promise.all([loadUserProfile(), loadInstitucion(), loadMenu(), loadInstituciones()]);
+  // Load user profile first as other loads depend on it.
+  await loadUserProfile();
+
+  const user = window.CUSPIDE_STATE.currentUser;
+  // The API returns the name of the role (e.g., "ADMININISTRADOR", "DESARROLLADOR")
+  // We need to check against the names from the `tipo_persona` table.
+  const userRoleName = user ? (user.tipo || '').toUpperCase() : '';
+  const isSuperAdmin = userRoleName === 'ADMININISTRADOR' || userRoleName === 'DESARROLLADOR';
+
+  const promises = [loadMenu()];
+
+  if (isSuperAdmin) {
+    // Super Admins can see and switch between all institutions.
+    // They load the full list, and also the current/default one for the UI.
+    promises.push(loadInstituciones());
+    promises.push(loadInstitucion());
+  } else {
+    // Other users (like TIPO_ADM_OPER) only load their own institution.
+    // The modified loadInstitucion() will handle this.
+    promises.push(loadInstitucion());
+  }
+
+  await Promise.all(promises);
 });

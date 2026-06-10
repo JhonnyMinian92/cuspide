@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../controllers/request/CategoriaDeportivaRequest.php
 require_once __DIR__ . '/../utils/Token.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
+require_once __DIR__ . '/traits/TAuthenticable.php';
 
 use Repositories\CategoriaDeportivaRepository;
 use Repositories\PersonaRepository;
@@ -18,9 +19,12 @@ use Entitys\CategoriaDeportiva;
 use Request\CategoriaDeportivaRequest;
 use Utils\Token;
 use RuntimeException;
+use Services\Traits\TAuthenticable;
 
 class CategoriaDeportivaServices
 {
+  use TAuthenticable;
+
   private CategoriaDeportivaRepository $repository;
   private string $jwtSecret;
 
@@ -117,28 +121,5 @@ class CategoriaDeportivaServices
 
     $this->repository->softDelete($id);
     return ['id' => $id, 'message' => 'Categoría eliminada (desactivada) exitosamente.'];
-  }
-
-  private function getInstitucionByUserId(int $userId): int
-  {
-    $personaRepo = new PersonaRepository();
-    $piRepo      = new PersonaInstitucionRepository();
-
-    $persona = $personaRepo->findByUserId($userId);
-    if ($persona === null) {
-      throw new RuntimeException('No se encontró persona asociada al usuario.', 404);
-    }
-
-    $pi = $piRepo->findByPersonaId((int) $persona->getId());
-    if ($pi === null) {
-      throw new RuntimeException('No se encontró institución asociada al usuario.', 404);
-    }
-
-    $institucion = $pi->getIdInstitucion();
-    if ($institucion === null) {
-      throw new RuntimeException('La persona no tiene una institución válida asociada.', 404);
-    }
-
-    return (int) $institucion->getId();
   }
 }

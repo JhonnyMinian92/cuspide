@@ -7,19 +7,26 @@ namespace Services;
 require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
+require_once __DIR__ . '/../persistence/repository/VentaRepository.php';
 require_once __DIR__ . '/../utils/Token.php';
+require_once __DIR__ . '/traits/TAuthenticable.php';
 
 use Core\Database;
 use Repositories\PersonaRepository;
 use Repositories\PersonaInstitucionRepository;
 use RuntimeException;
+use Repositories\VentaRepository;
 use Utils\Token;
 use PDO;
+use Services\Traits\TAuthenticable;
 
 final class DashboardServices
 {
+    use TAuthenticable;
+
     private string $jwtSecret;
     private PDO $db;
+    private VentaRepository $ventaRepo;
 
     public function __construct()
     {
@@ -29,6 +36,7 @@ final class DashboardServices
             throw new RuntimeException('No existe configuración de seguridad para JWT.', 500);
         }
         $this->db = Database::getInstance();
+        $this->ventaRepo = new VentaRepository();
     }
 
     public function processRequest(string $method, string $_requestUri, array $queryParams, string $authHeader): array
@@ -117,7 +125,6 @@ final class DashboardServices
     private function fetchVencidos(int $userId): array
     {
         $instId = $this->getInstitucionByUserId($userId);
-
         $stmt = $this->db->prepare(
             "SELECT v.id, v.numero, v.fecha, v.total, v.saldo, v.tipo,
                     p.identificacion,
@@ -322,23 +329,5 @@ final class DashboardServices
             $months[] = date('Y-m', strtotime("-{$i} months"));
         }
         return $months;
-    }
-
-    private function getInstitucionByUserId(int $userId): int
-    {
-        $personaRepo = new PersonaRepository();
-        $piRepo      = new PersonaInstitucionRepository();
-
-        $persona = $personaRepo->findByUserId($userId);
-        if ($persona === null) {
-            throw new RuntimeException('No se encontró persona asociada al usuario.', 404);
-        }
-
-        $pi = $piRepo->findByPersonaId((int) $persona->getId());
-        if ($pi === null) {
-            throw new RuntimeException('No se encontró institución asociada al usuario.', 404);
-        }
-
-        return (int) $pi->getIdInstitucion()->getId();
     }
 }
