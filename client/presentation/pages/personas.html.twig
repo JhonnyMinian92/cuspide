@@ -372,6 +372,7 @@ var catalogCiudades   = [];
 var catalogTypeUsers  = [];
 var catalogTipos      = [];
 var institucionId     = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
+var currentUserRoleNemonico = '';
 
 /* ══════════════════════════════════════════════════════════
    CATÁLOGOS
@@ -386,10 +387,35 @@ async function loadCatalogs() {
     catalogTipos     = data.tipos_persona  || [];
     catalogTypeUsers = data.type_users     || [];
 
+    // Determinar el nemónico del rol del usuario actual.
+    // El API de usuario devuelve el nombre del rol (ej: "ADMINISTRATIVO") en lugar del nemónico.
+    // Usamos el catálogo de roles para encontrar el nemónico correspondiente.
+    var currentUserRoleName = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentUser && window.CUSPIDE_STATE.currentUser.tipo) || '';
+    if (currentUserRoleName && catalogTypeUsers.length > 0) {
+      var userType = catalogTypeUsers.find(function(type) {
+        return type.nombre.toUpperCase() === currentUserRoleName.toUpperCase();
+      });
+      if (userType) {
+        currentUserRoleNemonico = userType.nemonico;
+      } else {
+        // Fallback por si CUSPIDE_STATE.currentUser.role contuviera el nemónico directamente.
+        var userTypeByNemonico = catalogTypeUsers.find(function(type) { return type.nemonico.toUpperCase() === currentUserRoleName.toUpperCase(); });
+        if (userTypeByNemonico) currentUserRoleNemonico = userTypeByNemonico.nemonico;
+      }
+    }
+
+    // Si el usuario es TIPO_ADM_OPER, no puede asignar roles TIPO_ADMIN ni TIPO_DEV.
+    var filteredTypeUsers = catalogTypeUsers;
+    if (currentUserRoleNemonico === 'TIPO_ADM_OPER') {
+      filteredTypeUsers = catalogTypeUsers.filter(function(type) {
+        return type.nemonico !== 'TIPO_ADMIN' && type.nemonico !== 'TIPO_DEV';
+      });
+    }
+
     populateSelect('p-genero',       catalogGeneros,   'Sin especificar');
     populateSelect('p-etnia',        catalogEtnias,    'Sin especificar');
     populateSelect('p-nacionalidad', catalogNacs,      'Sin especificar');
-    populateSelect('p-tipo-user',    catalogTypeUsers, '— Seleccionar rol —', 'nemonico', 'nombre');
+    populateSelect('p-tipo-user',    filteredTypeUsers, '— Seleccionar rol —', 'nemonico', 'nombre');
     var employeeTypes = catalogTipos.filter(function(t) { return t.nemonico !== 'TIPO_EST' && t.nemonico !== 'TIPO_DEV' && t.nemonico !== 'TIPO_SOCIO'; });
     populateSelect('p-tipo-persona', employeeTypes, 'Seleccionar rol');
     populateCiudadSelect(catalogCiudades);
@@ -444,13 +470,22 @@ async function loadEmpleados(q) {
 
   try {
     var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'employees', null, params);
-    personasList = data.items || [];
-    document.getElementById('personas-count').textContent = data.total !== undefined ? data.total : personasList.length;
+    var allItems = data.items || [];
+
+    if (currentUserRoleNemonico === 'TIPO_ADM_OPER') {
+      personasList = allItems.filter(function(p) {
+        return p.tipo_nemonico !== 'TIPO_ADMIN' && p.tipo_nemonico !== 'TIPO_DEV';
+      });
+    } else {
+      personasList = allItems;
+    }
+
+    document.getElementById('personas-count').textContent = personasList.length;
     renderTable(personasList, q);
     if (q) {
-      infoEl.textContent = personasList.length + ' resultado(s) para "' + q + '"';
+      infoEl.textContent = personasList.length + ' resultado(s) para "' + esc(q) + '"';
     } else {
-      infoEl.textContent = 'Últimos ' + personasList.length + ' registros';
+      infoEl.textContent = 'Mostrando ' + personasList.length + ' registros';
     }
   } catch (err) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">' +
@@ -633,6 +668,18 @@ async function abrirModal(id, editMode) {
   try {
     var data = await Cuspide.api.call('GET', CONFIG.ENDPOINTS.personas, 'profile', null, { id: id });
     var profile = (data && data.persona) ? data.persona : (data || {});
+
+    // Restricción: TIPO_ADM_OPER no puede ver/editar perfiles TIPO_ADMIN ni TIPO_DEV.
+    if (currentUserRoleNemonico === 'TIPO_ADM_OPER') {
+      var targetUserRole = profile.tipo_user || '';
+      if (targetUserRole === 'TIPO_ADMIN' || targetUserRole === 'TIPO_DEV') {
+        showModalSpinner(false);
+        showModalError('No tiene permisos para ver o editar este tipo de usuario.');
+        document.getElementById('btn-guardar-persona').classList.add('d-none');
+        return;
+      }
+    }
+
     document.getElementById('persona-id').value = id;
     fillFormFromProfile(profile, editMode);
     showModalSpinner(false);
@@ -717,10 +764,11 @@ document.getElementById('btn-guardar-persona').addEventListener('click', async f
 /* ══════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   checkAuth();
-  loadCatalogs();
-  loadEmpleados();
+  await whenUserReady(); // Esperar a que el perfil de usuario se cargue desde app.js
+  await loadCatalogs(); // Ahora los catálogos pueden usar el rol del usuario.
+  loadEmpleados();      // Cargar empleados después, usando el rol ya determinado.
 
   /* Evita "Blocked aria-hidden on focused element" al cerrar el modal */
   document.getElementById('modal-persona').addEventListener('hide.bs.modal', function() {

@@ -15,6 +15,7 @@ require_once __DIR__ . '/../persistence/entitys/Pago.php';
 require_once __DIR__ . '/../persistence/entitys/PagoDetalle.php';
 require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../utils/Token.php';
+require_once __DIR__ . '/traits/TAuthenticable.php';
 
 use Core\Database;
 use Interfaces\PagoServiceInterface;
@@ -28,9 +29,12 @@ use Entitys\Pago;
 use Entitys\PagoDetalle;
 use RuntimeException;
 use Utils\Token;
+use Services\Traits\TAuthenticable;
 
 final class PagoServices implements PagoServiceInterface
 {
+    use TAuthenticable;
+
     private string $jwtSecret;
     private PagoRepository        $pagoRepo;
     private PagoDetalleRepository $pagoDetalleRepo;
@@ -63,7 +67,7 @@ final class PagoServices implements PagoServiceInterface
             $method === 'GET'  && $resource === 'pending'        => $this->fetchPendientes($queryParams, $userId),
             $method === 'GET'  && $resource === 'history'        => $this->fetchHistorial($queryParams, $userId),
             $method === 'GET'  && $resource === 'formas'         => $this->fetchFormasPago(),
-            $method === 'GET'  && $resource === 'detail'         => $this->fetchDetalle($queryParams),
+            $method === 'GET'  && $resource === 'detail'         => $this->fetchDetalle($queryParams, $userId),
             $method === 'GET'  && $resource === 'recent'         => $this->fetchRecientes($userId, $queryParams),
             $method === 'POST' && $resource === 'register'       => $this->registrarPago($userId),
             $method === 'POST' && $resource === 'anular'         => $this->anularPago($userId),
@@ -368,6 +372,18 @@ final class PagoServices implements PagoServiceInterface
             throw new RuntimeException('Cuerpo de la solicitud inválido o vacío.', 400);
         }
 
+        $institucion = $this->getInstitucionByUserId($userId);
+        $personaId   = (int) ($body['persona'] ?? 0);
+
+        // --- VALIDACIÓN DE SEGURIDAD ---
+        // Asegurar que la persona a la que se le registra el pago pertenece a la institución del usuario.
+        $dbCheck = Database::getInstance();
+        $stmtCheck = $dbCheck->prepare('SELECT COUNT(*) FROM persona_institucion WHERE id_persona = :pid AND id_institucion = :iid AND estado = 1');
+        $stmtCheck->execute([':pid' => $personaId, ':iid' => $institucion]);
+        if ((int) $stmtCheck->fetchColumn() === 0) {
+            throw new RuntimeException('La persona especificada no pertenece a su institución.', 403);
+        }
+
         $persona     = (int)    ($body['persona']     ?? 0);
         $ventaId     = isset($body['venta'])      ? (int) $body['venta']       : null;
         $matriculaId = isset($body['matricula'])   ? (int) $body['matricula']   : null;
@@ -379,8 +395,6 @@ final class PagoServices implements PagoServiceInterface
         if ($persona <= 0 || $formaPago <= 0 || $monto <= 0) {
             throw new RuntimeException('Faltan campos obligatorios: persona, forma_pago, monto.', 400);
         }
-
-        $institucion = $this->getInstitucionByUserId($userId);
 
         $db = Database::getInstance();
 
@@ -546,8 +560,9 @@ final class PagoServices implements PagoServiceInterface
     // fetchDetalle
     // -------------------------------------------------------------------------
 
-    private function fetchDetalle(array $queryParams): array
+    private function fetchDetalle(array $queryParams, int $userId): array
     {
+        $userInstitucionId = $this->getInstitucionByUserId($userId);
         $pagoId = (int) ($queryParams['id'] ?? 0);
         if ($pagoId <= 0) {
             throw new RuntimeException('Debe proporcionar el id del pago.', 400);
@@ -556,6 +571,11 @@ final class PagoServices implements PagoServiceInterface
         $pago = $this->pagoRepo->findById($pagoId);
         if ($pago === null) {
             throw new RuntimeException('Pago no encontrado.', 404);
+        }
+
+        // --- VALIDACIÓN DE SEGURIDAD ---
+        if ($pago->getInstitucion()?->getId() !== $userInstitucionId) {
+            throw new RuntimeException('Este pago no pertenece a su institución.', 403);
         }
 
         $detalles = $this->pagoDetalleRepo->findByPago($pagoId);
@@ -639,6 +659,12 @@ final class PagoServices implements PagoServiceInterface
         }
         if ($estadoId !== 1) {
             throw new RuntimeException('Solo se pueden anular pagos en estado ACTIVO.', 400);
+        }
+
+        // --- VALIDACIÓN DE SEGURIDAD ---
+        $userInstitucionId = $this->getInstitucionByUserId($userId);
+        if ($pago->getInstitucion()?->getId() !== $userInstitucionId) {
+            throw new RuntimeException('Este pago no pertenece a su institución y no puede ser anulado.', 403);
         }
 
         $db = Database::getInstance();
@@ -834,18 +860,5 @@ final class PagoServices implements PagoServiceInterface
         });
 
         return $limit > 0 ? array_slice($merged, 0, $limit) : $merged;
-    }
-
-    private function getInstitucionByUserId(int $userId): int
-    {
-        $persona = $this->personaRepo->findByUserId($userId);
-        if ($persona === null) {
-            throw new RuntimeException('No se encontró persona asociada al usuario.', 404);
-        }
-        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
-        if ($pi === null) {
-            throw new RuntimeException('No se encontró institución asociada al usuario.', 404);
-        }
-        return (int) $pi->getIdInstitucion()->getId();
     }
 }

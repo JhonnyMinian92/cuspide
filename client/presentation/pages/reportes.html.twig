@@ -1449,8 +1449,8 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
       /* Ventas: regulares + externas */
       ensureInstId().then(function (id) {
         return Promise.all([
-          apiGet('ventas', 'list',          { institucion: id, desde: desde, hasta: hasta, limit: 9999 }),
-          apiGet('ventas', 'list_externas', { institucion: id, desde: desde, hasta: hasta, limit: 9999 }),
+          apiGet('ventas', 'list',          { institucion: id, desde: desde, hasta: hasta, limit: 0 }),
+          apiGet('ventas', 'list_externas', { institucion: id, desde: desde, hasta: hasta, limit: 0 }),
         ]);
       }).then(function (results) {
         var reg  = results[0];
@@ -1480,17 +1480,21 @@ tr.rpt-row-ok td:first-child{border-left:3px solid #22c55e;}
 
     if (reportType === 'gastos') {
       promise = apiGet('gastos', 'list', {
-        limit: 9999, fecha_inicio: desde, fecha_fin: hasta,
+        limit: 0, fecha_inicio: desde, fecha_fin: hasta,
       }).then(function (data) {
         return Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
       });
     } else if (reportType === 'pagos') {
-      promise = apiGet('pagos', 'recent', { desde: desde, hasta: hasta }).then(function (data) {
+      promise = apiGet('pagos', 'recent', { desde: desde, hasta: hasta, limit: 0 }).then(function (data) {
         return Array.isArray(data) ? data : [];
       });
     } else if (reportType === 'matriculas') {
-      promise = apiGet('dashboard', 'ultimas_matriculas', {}).then(function (data) {
-        return Array.isArray(data) ? data : [];
+      promise = apiGet('dashboard', 'ultimas_matriculas', {
+        desde: desde,
+        hasta: hasta,
+        limit: 0
+      }).then(function (data) {
+        return Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
       });
     } else {
       showToast('Tipo de reporte no configurado.', 'error');

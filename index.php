@@ -2,16 +2,17 @@
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-// ── Twig setup ──────────────────────────────────────────────────────────────
-$cacheDir = __DIR__ . '/var/cache/twig';
-if (!is_dir($cacheDir)) {
-    mkdir($cacheDir, 0755, true);
-}
+// ── No-cache headers (desarrollo) ───────────────────────────────────────────
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 
+// ── Twig setup ──────────────────────────────────────────────────────────────
 $loader = new \Twig\Loader\FilesystemLoader(__DIR__ . '/client/presentation');
 $twig   = new \Twig\Environment($loader, [
-    'cache' => $cacheDir,
+    'cache'       => false,
     'auto_reload' => true,
+    'debug'       => true,
 ]);
 
 // ── Routing ─────────────────────────────────────────────────────────────────

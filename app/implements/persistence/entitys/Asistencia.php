@@ -15,7 +15,7 @@ class Asistencia
 {
   private ?int $id;
   private string $fecha;
-  private int $matricula;
+  private ?int $matricula;
   private ?int $clase;
   private ?int $actividad;
   private ?int $calendario;
@@ -24,7 +24,7 @@ class Asistencia
   private ?string $hora_entrada;
   private ?string $hora_salida;
   private string $observacion;
-  private int $estado;
+  private ?int $estado;
 
   public function __construct(?int $id, string $fecha, mixed $matricula, mixed $clase, mixed $actividad, string $observacion, mixed $estado, mixed $calendario = null, mixed $horario = null, mixed $plan_entrenamiento_sesion = null, ?string $hora_entrada = null, ?string $hora_salida = null)
   {
@@ -52,7 +52,7 @@ class Asistencia
   }
   public function getMatricula(): ?Matricula
   {
-    return $this->matricula === null ? null : Matricula::from($this->matricula);
+    return !empty($this->matricula) ? Matricula::from($this->matricula) : null;
   }
   // Usamos Clase si la asistencia es de una clase, o Actividad si es extracurrícular
   public function getClase(): ?Clase
@@ -96,7 +96,7 @@ class Asistencia
   }
   public function getEstado(): ?Estado
   {
-    return $this->estado === null ? null : Estado::from($this->estado);
+    return !empty($this->estado) ? Estado::from($this->estado) : null;
   }
 
   public function setId(?int $id): void
@@ -163,12 +163,15 @@ class Asistencia
 
   public static function from(int $id): ?self
   {
+    if ($id <= 0) {
+      return null;
+    }
     try {
       $repositorio = new \Repositories\AsistenciaRepository();
-      $entity = $repositorio->findById($id);
-      if ($entity) return $entity;
+      return $repositorio->findById($id);
     } catch (\Exception $e) {
+      // Opcional: Loggear el error $e para depuración.
+      return null;
     }
-    return new self($id, '', 0, null, null, '', 0);
   }
 }

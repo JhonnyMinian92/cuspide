@@ -14,11 +14,13 @@ class Database
   public static function getInstance(): PDO
   {
     if (self::$instance === null) {
+      $config = require __DIR__ . '/../../../properties/database.php';
+      $dsn = "mysql:host={$config['host']};dbname={$config['dbname']};charset={$config['charset']}";
       try {
         self::$instance = new PDO(
-          "mysql:host=localhost;dbname=cuspide;charset=utf8mb4",
-          "root",
-          "",
+          $dsn,
+          $config['user'],
+          $config['password'],
           [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

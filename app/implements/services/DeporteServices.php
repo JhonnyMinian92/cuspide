@@ -1,23 +1,32 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Services;
 
+require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/DeporteRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Deporte.php';
 require_once __DIR__ . '/../utils/Token.php';
+require_once __DIR__ . '/traits/TAuthenticable.php';
 
+use Core\Database;
 use Repositories\DeporteRepository;
 use Entitys\Deporte;
 use Utils\Token;
+use Services\Traits\TAuthenticable;
 
 class DeporteServices
 {
+    use TAuthenticable;
+
     private DeporteRepository $deporteRepo;
     private array $security;
+    private \PDO $db;
 
     public function __construct()
     {
+        $this->db          = Database::getInstance();
         $this->deporteRepo = new DeporteRepository();
         $this->security    = require __DIR__ . '/../../properties/security.php';
     }
@@ -29,6 +38,8 @@ class DeporteServices
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
+        $userId = (int) ($payload['sub'] ?? 0);
+
         // Detect resource from ?api= param first, then URL path
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
@@ -38,7 +49,7 @@ class DeporteServices
 
         switch (true) {
             case $method === 'GET' && $resource === 'list':
-                return $this->fetchDeportes();
+                return $this->fetchDeportes($queryParams, $userId);
 
             case $method === 'POST' && $resource === 'save':
                 return $this->saveDeporte(null);
@@ -54,19 +65,27 @@ class DeporteServices
     // -------------------------------------------------------------------------
     // fetchDeportes
     // -------------------------------------------------------------------------
-    private function fetchDeportes(): array
+    private function fetchDeportes(array $queryParams, int $userId): array
     {
-        $deportes = $this->deporteRepo->findAllActive();
-        $result   = [];
-        foreach ($deportes as $deporte) {
-            $result[] = [
-                'id'          => (int)$deporte->getId(),
-                'nombre'      => $deporte->getNombre(),
-                'descripcion' => $deporte->getDescripcion(),
-                'estado'      => (int)$deporte->getEstado()?->getId(),
-            ];
-        }
-        return $result;
+        // Prioriza la institución del parámetro, si no, usa la del usuario logueado.
+        $instId = !empty($queryParams['institucion'])
+            ? (int)$queryParams['institucion']
+            : $this->getInstitucionByUserId($userId);
+
+        $stmt = $this->db->prepare(
+            "SELECT id, nombre, descripcion, estado
+             FROM deportes
+             WHERE institucion = :inst AND estado = 1"
+        );
+        $stmt->execute([':inst' => $instId]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return array_map(fn($row) => [
+            'id'          => (int)$row['id'],
+            'nombre'      => $row['nombre'],
+            'descripcion' => $row['descripcion'],
+            'estado'      => (int)$row['estado'],
+        ], $rows ?: []);
     }
 
     // -------------------------------------------------------------------------

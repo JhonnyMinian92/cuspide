@@ -88,21 +88,27 @@ class Institucion
   private function extractId(mixed $value): int
   {
     if (is_object($value) && method_exists($value, 'getId')) {
-      return $value->getId();
+      $id = $value->getId();
+      // Asumimos 1 como estado por defecto (p. ej. "Activo") si el ID es nulo.
+      return $id !== null ? (int) $id : 1;
     }
-    return $value;
+    if ($value === null) {
+      return 1; // Asumimos 1 como estado por defecto
+    }
+    return (int) $value;
   }
 
   public static function from($id): ?self
   {
+    if (empty($id)) {
+      return null;
+    }
     try {
       $repositorio = new \Repositories\InstitucionRepository();
-      $institucion = $repositorio->findById($id);
-      if ($institucion) {
-        return $institucion;
-      }
+      return $repositorio->findById((int) $id);
     } catch (\Exception $e) {
+      // Opcional: Loggear el error $e para depuración.
+      return null;
     }
-    return new self($id, '', '', '', '', 1);
   }
 }

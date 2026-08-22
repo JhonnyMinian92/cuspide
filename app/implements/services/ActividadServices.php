@@ -6,6 +6,8 @@ namespace Services;
 require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/ActividadRepository.php';
 require_once __DIR__ . '/../persistence/repository/AsistenciaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Actividad.php';
 require_once __DIR__ . '/../../controllers/request/ActividadRequest.php';
 require_once __DIR__ . '/../persistence/entitys/Asistencia.php';
@@ -15,6 +17,8 @@ use Core\Database;
 use PDO;
 use Repositories\ActividadRepository;
 use Repositories\AsistenciaRepository;
+use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Entitys\Actividad;
 use Entitys\Asistencia;
 use Request\ActividadRequest;
@@ -24,6 +28,7 @@ class ActividadServices
 {
     private ActividadRepository $actividadRepo;
     private AsistenciaRepository $asistenciaRepo;
+    private PersonaRepository $personaRepo;
     private array $security;
     private PDO $db;
 
@@ -31,6 +36,7 @@ class ActividadServices
     {
         $this->actividadRepo  = new ActividadRepository();
         $this->asistenciaRepo = new AsistenciaRepository();
+        $this->personaRepo    = new PersonaRepository();
         $this->security       = require __DIR__ . '/../../properties/security.php';
         $this->db             = Database::getInstance();
     }
@@ -42,7 +48,7 @@ class ActividadServices
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
-        // Detect resource from ?api= param first, then URL path
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -51,16 +57,16 @@ class ActividadServices
 
         switch (true) {
             case $method === 'GET' && $resource === 'list':
-                return $this->fetchActividades($queryParams);
+                return $this->fetchActividades($userId);
 
             case $method === 'GET' && $resource === 'niveles':
-                return $this->fetchNiveles($queryParams);
+                return $this->fetchNiveles($userId);
 
             case $method === 'GET' && $resource === 'capacity':
                 return $this->fetchCapacity((int)($queryParams['id'] ?? 0));
 
             case in_array($method, ['POST', 'PUT'], true) && $resource === 'save':
-                return $this->saveActividad(isset($queryParams['id']) ? (int)$queryParams['id'] : null);
+                return $this->saveActividad(isset($queryParams['id']) ? (int)$queryParams['id'] : null, $userId);
 
             case $method === 'PUT' && $resource === 'delete':
                 return $this->deleteActividad((int)($queryParams['id'] ?? 0));
@@ -76,13 +82,9 @@ class ActividadServices
     // -------------------------------------------------------------------------
     // fetchActividades
     // -------------------------------------------------------------------------
-    private function fetchActividades(array $queryParams): array
+    private function fetchActividades(int $userId): array
     {
-        $institucionId = (int)($queryParams['institucion'] ?? 0);
-        if ($institucionId <= 0) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-
+        $institucionId = $this->getInstitucionByUserId($userId);
         $rows   = $this->actividadRepo->findByInstitucionWithStats($institucionId);
         $result = [];
         foreach ($rows as $row) {
@@ -134,33 +136,31 @@ class ActividadServices
     // -------------------------------------------------------------------------
     // fetchNiveles
     // -------------------------------------------------------------------------
-    private function fetchNiveles(array $queryParams): array
+    private function fetchNiveles(int $userId): array
     {
-        $institucionId = (int)($queryParams['institucion'] ?? 0);
-        if ($institucionId <= 0) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-
+        $institucionId = $this->getInstitucionByUserId($userId);
         $stmt = $this->db->prepare(
             "SELECT id, nombre FROM nivel_asignatura WHERE institucion = :inst AND estado = 1 ORDER BY nombre ASC"
         );
         $stmt->execute([':inst' => $institucionId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
+
     // -------------------------------------------------------------------------
     // saveActividad
     // -------------------------------------------------------------------------
-    private function saveActividad(?int $id): array
+    private function saveActividad(?int $id, int $userId): array
     {
-        $req = ActividadRequest::fromJson();
+        $req      = ActividadRequest::fromJson();
         $entityId = ($id !== null && $id > 0) ? $id : null;
+        $instId   = $this->getInstitucionByUserId($userId);
 
         if ($entityId !== null) {
             $existing = $this->actividadRepo->findById($entityId);
             if (!$existing) {
                 throw new \RuntimeException('Actividad no encontrada para actualizar.', 404);
             }
-            if ($existing->getInstitucion()?->getId() !== $req->getInstitucion()) {
+            if ($existing->getInstitucion()?->getId() !== $instId) {
                 throw new \RuntimeException('No tiene permisos para modificar esta actividad.', 403);
             }
         }
@@ -171,14 +171,14 @@ class ActividadServices
             $req->getPrecio(),
             $req->getNivel(),
             $req->getObservacion(),
-            $req->getInstitucion(),
+            $instId,
             $req->getNombre(),
             $req->getEstado(),
             $req->getDocente(),
             $req->getCupoMaximo(),
             $req->getPeriodoAcademico()
         );
-        $saved     = $this->actividadRepo->save($actividad);
+        $saved = $this->actividadRepo->save($actividad);
 
         return [
             'id'     => (int)$saved->getId(),
@@ -229,19 +229,19 @@ class ActividadServices
         $horaEntrada = isset($data['hora_entrada'])  && $data['hora_entrada']  !== '' ? $data['hora_entrada']  : null;
         $horaSalida  = isset($data['hora_salida'])   && $data['hora_salida']   !== '' ? $data['hora_salida']   : null;
         $observacion = trim($data['observacion'] ?? '');
-        $estado      = (int)$data['estado']; // 1=Presente, 2=Ausente, 3=Justificado
+        $estado      = (int)$data['estado'];
 
         $asistencia = new Asistencia(
             null,
             $fecha,
             $matricula,
-            null,       // clase
+            null,
             $actividad,
             $observacion,
             $estado,
-            null,       // calendario
+            null,
             $horario,
-            null,       // plan_entrenamiento_sesion
+            null,
             $horaEntrada,
             $horaSalida
         );
@@ -253,5 +253,21 @@ class ActividadServices
             'fecha'  => $saved->getFecha(),
             'estado' => (int)$saved->getEstado()?->getId(),
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 }

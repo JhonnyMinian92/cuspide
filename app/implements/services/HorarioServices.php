@@ -4,16 +4,21 @@ declare(strict_types=1);
 namespace Services;
 
 require_once __DIR__ . '/../persistence/repository/HorarioRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Horario.php';
 require_once __DIR__ . '/../utils/Token.php';
 
 use Repositories\HorarioRepository;
+use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Entitys\Horario;
 use Utils\Token;
 
 class HorarioServices
 {
     private HorarioRepository $horarioRepo;
+    private PersonaRepository $personaRepo;
     private array $security;
 
     /** Day-of-week number to Spanish name mapping */
@@ -30,6 +35,7 @@ class HorarioServices
     public function __construct()
     {
         $this->horarioRepo = new HorarioRepository();
+        $this->personaRepo = new PersonaRepository();
         $this->security    = require __DIR__ . '/../../properties/security.php';
     }
 
@@ -40,7 +46,7 @@ class HorarioServices
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
-        // Detect resource from ?api= param first, then URL path
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -49,10 +55,10 @@ class HorarioServices
 
         switch (true) {
             case $method === 'GET' && $resource === 'list':
-                return $this->fetchHorarios($queryParams);
+                return $this->fetchHorarios($queryParams, $userId);
 
             case in_array($method, ['POST', 'PUT'], true) && $resource === 'save':
-                return $this->saveHorario(isset($queryParams['id']) ? (int)$queryParams['id'] : null);
+                return $this->saveHorario(isset($queryParams['id']) ? (int)$queryParams['id'] : null, $userId);
 
             case $method === 'PUT' && $resource === 'delete':
                 return $this->deleteHorario((int)($queryParams['id'] ?? 0));
@@ -65,20 +71,18 @@ class HorarioServices
     // -------------------------------------------------------------------------
     // fetchHorarios
     // -------------------------------------------------------------------------
-    private function fetchHorarios(array $queryParams): array
+    private function fetchHorarios(array $queryParams, int $userId): array
     {
-        $claseId      = isset($queryParams['clase'])      ? (int)$queryParams['clase']      : 0;
-        $actividadId  = isset($queryParams['actividad'])  ? (int)$queryParams['actividad']  : 0;
-        $institucionId = isset($queryParams['institucion']) ? (int)$queryParams['institucion'] : 0;
+        $claseId     = isset($queryParams['clase'])     ? (int)$queryParams['clase']     : 0;
+        $actividadId = isset($queryParams['actividad']) ? (int)$queryParams['actividad'] : 0;
 
         if ($claseId > 0) {
             $horarios = $this->horarioRepo->findByClase($claseId);
         } elseif ($actividadId > 0) {
             $horarios = $this->horarioRepo->findByActividad($actividadId);
-        } elseif ($institucionId > 0) {
-            $horarios = $this->horarioRepo->findByInstitucion($institucionId);
         } else {
-            throw new \RuntimeException('Se requiere el parámetro clase, actividad o institucion.', 400);
+            $institucionId = $this->getInstitucionByUserId($userId);
+            $horarios = $this->horarioRepo->findByInstitucion($institucionId);
         }
 
         $result = [];
@@ -104,7 +108,7 @@ class HorarioServices
     // -------------------------------------------------------------------------
     // saveHorario
     // -------------------------------------------------------------------------
-    private function saveHorario(?int $id): array
+    private function saveHorario(?int $id, int $userId): array
     {
         $body = file_get_contents('php://input');
         $data = json_decode($body, true);
@@ -112,14 +116,14 @@ class HorarioServices
             throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
         }
 
-        foreach (['nombre', 'institucion', 'dia_semana', 'hora_inicio', 'hora_fin', 'cupo_maximo', 'ubicacion'] as $field) {
+        foreach (['nombre', 'dia_semana', 'hora_inicio', 'hora_fin', 'cupo_maximo', 'ubicacion'] as $field) {
             if (!isset($data[$field]) || $data[$field] === '') {
                 throw new \RuntimeException("El campo {$field} es requerido.", 400);
             }
         }
 
         $nombre      = trim($data['nombre']);
-        $institucion = (int)$data['institucion'];
+        $institucion = $this->getInstitucionByUserId($userId);
         $clase       = isset($data['clase'])      && $data['clase']      !== '' ? (int)$data['clase']      : null;
         $actividad   = isset($data['actividad'])  && $data['actividad']  !== '' ? (int)$data['actividad']  : null;
         $catDep      = isset($data['categoria_deportiva']) && $data['categoria_deportiva'] !== '' ? (int)$data['categoria_deportiva'] : null;
@@ -133,12 +137,10 @@ class HorarioServices
         $ubicacion   = trim($data['ubicacion']);
         $estado      = isset($data['estado']) ? (int)$data['estado'] : 1;
 
-        // Validate dia_semana range
         if ($diaSemana < 1 || $diaSemana > 7) {
             throw new \RuntimeException('El campo dia_semana debe ser un valor entre 1 (Lunes) y 7 (Domingo).', 400);
         }
 
-        // Resolve id: prefer URL param, then body
         $entityId = ($id !== null && $id > 0) ? $id : (isset($data['id']) && (int)$data['id'] > 0 ? (int)$data['id'] : null);
 
         if ($entityId !== null) {
@@ -199,5 +201,21 @@ class HorarioServices
         $this->horarioRepo->save($horario);
 
         return ['id' => $id, 'estado' => 2];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 }

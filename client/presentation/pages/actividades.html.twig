@@ -662,7 +662,8 @@ document.getElementById('btn-act-reload').addEventListener('click', loadActivida
 ───────────────────────────────────────────── */
 function loadDeportes() {
   document.getElementById('dep-list-info').textContent = 'Cargando...';
-  return apiCall('GET', 'deportes', 'list', null, null)
+  console.log('Cargando deportes para institución ID:', institucionId);
+  return apiCall('GET', 'deportes', 'list', null, { institucion: institucionId })
     .then(function(data) {
       deportesData = Array.isArray(data) ? data : [];
       renderDeportes(deportesData);

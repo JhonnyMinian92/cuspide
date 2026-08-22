@@ -203,11 +203,17 @@ class InstitucionServices implements InstitucionServiceInterface
         $db->beginTransaction();
 
         try {
-            // 1. Check for duplicates
+            // 1. Check for duplicates in users and institutions
             $stmt = $db->prepare("SELECT id FROM users WHERE username = :ruc");
             $stmt->execute([':ruc' => $ruc]);
             if ($stmt->fetch()) {
                 throw new \RuntimeException("El RUC '{$ruc}' ya está en uso como nombre de usuario.", 409);
+            }
+
+            $stmt = $db->prepare("SELECT id FROM instituciones WHERE ruc = :ruc");
+            $stmt->execute([':ruc' => $ruc]);
+            if ($stmt->fetch()) {
+                throw new \RuntimeException("Ya existe una institución registrada con el RUC '{$ruc}'.", 409);
             }
 
             // 2. Create Institucion
@@ -228,12 +234,22 @@ class InstitucionServices implements InstitucionServiceInterface
                 }
             }
 
-            // 3. Create Persona
-            $stmt = $db->prepare(
-                "INSERT INTO personas (identificacion, primer_nombre, primer_apellido, direccion, nacionalidad, genero, etnia, ciudad, fecha_nacimiento) VALUES (:ruc, 'Administrador', :nombre_inst, 'N/A', :nac_id, 1, 1, 1, CURDATE())"
-            );
-            $stmt->execute([':ruc' => $ruc, ':nombre_inst' => $nombre, ':nac_id' => $nacionalidadId]);
-            $personaId = (int)$db->lastInsertId();
+            // 3. Get or Create Persona
+            $stmt = $db->prepare("SELECT id, user FROM personas WHERE identificacion = :ruc");
+            $stmt->execute([':ruc' => $ruc]);
+            $existingPersona = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($existingPersona) {
+                $personaId = (int)$existingPersona['id'];
+                // Optionally throw an error if this persona already has an active user that isn't the one we are creating.
+                // For now, we will link it.
+            } else {
+                $stmt = $db->prepare(
+                    "INSERT INTO personas (identificacion, primer_nombre, primer_apellido, direccion, nacionalidad, genero, etnia, ciudad, fecha_nacimiento) VALUES (:ruc, 'Administrador', :nombre_inst, 'N/A', :nac_id, 1, 1, 1, CURDATE())"
+                );
+                $stmt->execute([':ruc' => $ruc, ':nombre_inst' => $nombre, ':nac_id' => $nacionalidadId]);
+                $personaId = (int)$db->lastInsertId();
+            }
 
             // 4. Create User
             $adminPassword = '123456789';

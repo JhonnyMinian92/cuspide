@@ -51,8 +51,7 @@ class GastoRepository
   public function findByInstitucion(int $institucionId, array $filters): array
   {
     $limit = (int) ($filters['limit'] ?? 20);
-    $page = (int) ($filters['page'] ?? 1);
-    $offset = ($page - 1) * $limit;
+    $page = max(1, (int) ($filters['page'] ?? 1));
     $fechaInicio = $filters['fecha_inicio'] ?? null;
     $fechaFin = $filters['fecha_fin'] ?? null;
 
@@ -80,15 +79,21 @@ class GastoRepository
        FROM gastos g
        LEFT JOIN personas p ON p.id = g.persona
        WHERE $whereSql
-       ORDER BY g.fecha DESC, g.id DESC
-       LIMIT :limit OFFSET :offset";
+       ORDER BY g.fecha DESC, g.id DESC";
+
+    if ($limit > 0) {
+      $itemsSql .= " LIMIT :limit OFFSET :offset";
+    }
 
     $itemsStmt = $this->db->prepare($itemsSql);
     foreach ($params as $key => $val) {
       $itemsStmt->bindValue($key, $val);
     }
-    $itemsStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $itemsStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    if ($limit > 0) {
+      $offset = ($page - 1) * $limit;
+      $itemsStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+      $itemsStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    }
     $itemsStmt->execute();
     $items = $itemsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 

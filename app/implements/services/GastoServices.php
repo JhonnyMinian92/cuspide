@@ -52,7 +52,7 @@ final class GastoServices implements GastoServiceInterface
         $repo = new GastoRepository();
         $filters = [
             'limit'        => (int) ($queryParams['limit'] ?? 20),
-            'page'         => (int) ($queryParams['page'] ?? 1),
+            'page'         => max(1, (int) ($queryParams['page'] ?? 1)),
             'fecha_inicio' => !empty($queryParams['fecha_inicio']) ? (string) $queryParams['fecha_inicio'] : null,
             'fecha_fin'    => !empty($queryParams['fecha_fin']) ? (string) $queryParams['fecha_fin'] : null,
         ];
@@ -76,7 +76,7 @@ final class GastoServices implements GastoServiceInterface
                 'estado'       => (int) $r['estado'],
             ], $items),
             'totalItems'  => $totalItems,
-            'totalPages'  => (int) ceil($totalItems / $filters['limit']),
+            'totalPages'  => $filters['limit'] > 0 ? (int) ceil($totalItems / $filters['limit']) : 1,
             'currentPage' => $filters['page'],
         ];
     }

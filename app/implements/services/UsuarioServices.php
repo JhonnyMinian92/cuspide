@@ -8,6 +8,7 @@ require_once __DIR__ . '/../interfaces/UsuarioServiceInterface.php';
 require_once __DIR__ . '/../persistence/conexion/Database.php';
 require_once __DIR__ . '/../persistence/repository/UserRepository.php';
 require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/User.php';
 require_once __DIR__ . '/../persistence/repository/BotonRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Boton.php';
@@ -17,6 +18,7 @@ require_once __DIR__ . '/../utils/Token.php';
 
 use Repositories\UserRepository;
 use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Repositories\BotonRepository;
 use Repositories\BotonUserRepository;
 use Core\Database;
@@ -50,6 +52,8 @@ class UsuarioServices implements UsuarioServiceInterface
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
+        $userId   = (int) ($payload['sub'] ?? 0);
+
         // Detect resource
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
@@ -62,7 +66,7 @@ class UsuarioServices implements UsuarioServiceInterface
                 return $this->fetchUsuarios($queryParams);
 
             case $method === 'GET' && $resource === 'buttons':
-                return $this->fetchButtons($queryParams);
+                return $this->fetchButtons($queryParams, $userId);
 
             case $method === 'POST' && $resource === 'button':
                 return $this->createButton();
@@ -86,7 +90,6 @@ class UsuarioServices implements UsuarioServiceInterface
                 return $this->fetchAllUserTypes();
 
             case $method === 'GET' && $resource === 'permission-types':
-                $userId = (int)($payload['sub'] ?? 0);
                 return $this->fetchPermissionUserTypes($userId);
 
             case $method === 'DELETE' && $resource === 'button':
@@ -145,13 +148,13 @@ class UsuarioServices implements UsuarioServiceInterface
     // -------------------------------------------------------------------------
     // fetchButtons
     // -------------------------------------------------------------------------
-    private function fetchButtons(array $queryParams): array
+    private function fetchButtons(array $queryParams, int $userId): array
     {
-        $tipoUser = $queryParams['tipo_user'] ?? '';
-        $institucionId = isset($queryParams['institucion']) ? (int)$queryParams['institucion'] : 0;
+        $tipoUser      = $queryParams['tipo_user'] ?? '';
+        $institucionId = $this->getInstitucionByUserId($userId);
 
-        if ($tipoUser === '' || $institucionId <= 0) {
-            throw new \RuntimeException('Los parámetros tipo_user e institucion son requeridos.', 400);
+        if ($tipoUser === '') {
+            throw new \RuntimeException('El parámetro tipo_user es requerido.', 400);
         }
 
         $db = Database::getInstance();
@@ -454,6 +457,22 @@ class UsuarioServices implements UsuarioServiceInterface
             'username'  => $saved->getUsername(),
             'tipo_user' => $saved->getType(),
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 
     // -------------------------------------------------------------------------

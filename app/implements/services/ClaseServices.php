@@ -7,6 +7,8 @@ namespace Services;
 require_once __DIR__ . '/../persistence/repository/ClaseRepository.php';
 require_once __DIR__ . '/../persistence/repository/AsistenciaRepository.php';
 require_once __DIR__ . '/../persistence/repository/NivelAsignaturaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaRepository.php';
+require_once __DIR__ . '/../persistence/repository/PersonaInstitucionRepository.php';
 require_once __DIR__ . '/../persistence/entitys/Clase.php';
 require_once __DIR__ . '/../persistence/entitys/Asistencia.php';
 require_once __DIR__ . '/../utils/Token.php';
@@ -14,6 +16,8 @@ require_once __DIR__ . '/../utils/Token.php';
 use Repositories\ClaseRepository;
 use Repositories\AsistenciaRepository;
 use Repositories\NivelAsignaturaRepository;
+use Repositories\PersonaRepository;
+use Repositories\PersonaInstitucionRepository;
 use Entitys\Clase;
 use Entitys\Asistencia;
 use Utils\Token;
@@ -23,6 +27,7 @@ class ClaseServices
     private ClaseRepository $claseRepo;
     private AsistenciaRepository $asistenciaRepo;
     private NivelAsignaturaRepository $nivelRepo;
+    private PersonaRepository $personaRepo;
     private array $security;
 
     public function __construct()
@@ -30,6 +35,7 @@ class ClaseServices
         $this->claseRepo      = new ClaseRepository();
         $this->asistenciaRepo = new AsistenciaRepository();
         $this->nivelRepo      = new NivelAsignaturaRepository();
+        $this->personaRepo    = new PersonaRepository();
         $this->security       = require __DIR__ . '/../../properties/security.php';
     }
 
@@ -40,6 +46,7 @@ class ClaseServices
             throw new \RuntimeException('Token inválido o no autorizado.', 401);
         }
 
+        $userId   = (int) ($payload['sub'] ?? 0);
         $resource = $queryParams['api'] ?? '';
         if ($resource === '') {
             $parts    = array_values(array_filter(explode('/', parse_url($requestUri, PHP_URL_PATH))));
@@ -48,19 +55,19 @@ class ClaseServices
 
         switch (true) {
             case $method === 'GET'  && $resource === 'list':
-                return $this->fetchClases($queryParams);
+                return $this->fetchClases($queryParams, $userId);
 
             case $method === 'GET'  && $resource === 'capacity':
                 return $this->fetchCapacity((int)($queryParams['id'] ?? 0));
 
             case $method === 'GET'  && $resource === 'docentes':
-                return $this->fetchDocentes((int)($queryParams['institucion'] ?? 0));
+                return $this->fetchDocentes($userId);
 
             case $method === 'GET'  && $resource === 'niveles':
                 return $this->fetchNiveles();
 
             case in_array($method, ['POST', 'PUT'], true) && $resource === 'save':
-                return $this->saveClase(isset($queryParams['id']) ? (int)$queryParams['id'] : null);
+                return $this->saveClase(isset($queryParams['id']) ? (int)$queryParams['id'] : null, $userId);
 
             case $method === 'PUT'  && $resource === 'delete':
                 return $this->deleteClase((int)($queryParams['id'] ?? 0));
@@ -76,13 +83,9 @@ class ClaseServices
     // -------------------------------------------------------------------------
     // fetchClases
     // -------------------------------------------------------------------------
-    private function fetchClases(array $queryParams): array
+    private function fetchClases(array $queryParams, int $userId): array
     {
-        $institucionId = (int)($queryParams['institucion'] ?? 0);
-        if ($institucionId <= 0) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-
+        $institucionId = $this->getInstitucionByUserId($userId);
         $periodoId = isset($queryParams['periodo']) && $queryParams['periodo'] !== '' ? (int)$queryParams['periodo'] : null;
         $rows      = $this->claseRepo->findByInstitucionWithStats($institucionId, $periodoId);
 
@@ -136,12 +139,9 @@ class ClaseServices
     // -------------------------------------------------------------------------
     // fetchDocentes
     // -------------------------------------------------------------------------
-    private function fetchDocentes(int $institucionId): array
+    private function fetchDocentes(int $userId): array
     {
-        if ($institucionId <= 0) {
-            throw new \RuntimeException('El parámetro institucion es requerido.', 400);
-        }
-
+        $institucionId = $this->getInstitucionByUserId($userId);
         $rows = $this->claseRepo->findDocentesByInstitucion($institucionId);
 
         return array_map(fn($r) => [
@@ -169,7 +169,7 @@ class ClaseServices
     // -------------------------------------------------------------------------
     // saveClase
     // -------------------------------------------------------------------------
-    private function saveClase(?int $id): array
+    private function saveClase(?int $id, int $userId): array
     {
         $body = file_get_contents('php://input');
         $data = json_decode($body, true);
@@ -177,7 +177,7 @@ class ClaseServices
             throw new \RuntimeException('Cuerpo de la solicitud inválido.', 400);
         }
 
-        foreach (['nombre', 'periodo_academico', 'institucion', 'cupo_maximo'] as $field) {
+        foreach (['nombre', 'periodo_academico', 'cupo_maximo'] as $field) {
             if (!isset($data[$field]) || $data[$field] === '') {
                 throw new \RuntimeException("El campo {$field} es requerido.", 400);
             }
@@ -185,7 +185,7 @@ class ClaseServices
 
         $nombre           = trim($data['nombre']);
         $periodoAcademico = (int)$data['periodo_academico'];
-        $institucion      = (int)$data['institucion'];
+        $institucion      = $this->getInstitucionByUserId($userId);
         $docente          = isset($data['docente'])          && $data['docente']          !== '' ? (int)$data['docente']          : null;
         $asignatura       = isset($data['asignatura'])       && $data['asignatura']       !== '' ? (int)$data['asignatura']       : null;
         $nivelAsignatura  = isset($data['nivel_asignatura']) && $data['nivel_asignatura'] !== '' ? (int)$data['nivel_asignatura'] : null;
@@ -274,5 +274,21 @@ class ClaseServices
             'fecha'  => $saved->getFecha(),
             'estado' => (int)$saved->getEstado()?->getId(),
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // getInstitucionByUserId
+    // -------------------------------------------------------------------------
+    private function getInstitucionByUserId(int $userId): int
+    {
+        $persona = $this->personaRepo->findByUserId($userId);
+        if ($persona === null) {
+            throw new \RuntimeException('No se encontró persona asociada al usuario.', 404);
+        }
+        $pi = (new PersonaInstitucionRepository())->findByPersonaId((int) $persona->getId());
+        if ($pi === null) {
+            throw new \RuntimeException('No se encontró institución asociada al usuario.', 404);
+        }
+        return (int) $pi->getIdInstitucion()->getId();
     }
 }
