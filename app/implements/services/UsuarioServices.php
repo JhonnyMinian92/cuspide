@@ -432,24 +432,42 @@ class UsuarioServices implements UsuarioServiceInterface
         }
 
         $savedId = (int)$saved->getId();
-        $personaId = isset($data['persona_id']) && $data['persona_id'] !== '' ? (int)$data['persona_id'] : null;
 
-        $db = \Core\Database::getInstance();
+        // Solo tocamos el vínculo persona<->usuario si el payload trae la llave
+        // 'persona_id' explícitamente. Si no viene, el formulario no pretendía
+        // cambiar la persona vinculada y no debemos desvincular nada.
+        if (array_key_exists('persona_id', $data)) {
+            $personaId = $data['persona_id'] !== null && $data['persona_id'] !== ''
+                ? (int)$data['persona_id']
+                : null;
 
-        // Unlink this user from any previously associated persona
-        $stmt = $db->prepare("UPDATE personas SET user = NULL WHERE user = :user_id");
-        $stmt->execute([':user_id' => $savedId]);
+            $db = \Core\Database::getInstance();
+            $db->beginTransaction();
+            try {
+                if ($personaId !== null) {
+                    $persona = $this->personaRepo->findById($personaId);
+                    if (!$persona) {
+                        throw new \RuntimeException('La persona a vincular no existe.', 404);
+                    }
+                    if ($persona->getUser() !== null && (int)$persona->getUser()->getId() !== $savedId) {
+                        throw new \RuntimeException('La persona seleccionada ya está vinculada a otro usuario.', 409);
+                    }
+                }
 
-        if ($personaId !== null) {
-            $persona = $this->personaRepo->findById($personaId);
-            if (!$persona) {
-                throw new \RuntimeException('La persona a vincular no existe.', 404);
+                // Desvincula este usuario de cualquier persona previa
+                $stmt = $db->prepare("UPDATE personas SET user = NULL WHERE user = :user_id");
+                $stmt->execute([':user_id' => $savedId]);
+
+                if ($personaId !== null) {
+                    $stmt = $db->prepare("UPDATE personas SET user = :user_id WHERE id = :persona_id");
+                    $stmt->execute([':user_id' => $savedId, ':persona_id' => $personaId]);
+                }
+
+                $db->commit();
+            } catch (\Throwable $e) {
+                $db->rollBack();
+                throw $e;
             }
-            /*if ($persona->getUser() !== null && $persona->getUser()->getId() !== $savedId) {
-                throw new \RuntimeException('La persona seleccionada ya está vinculada a otro usuario.', 409);
-            }*/
-            $stmt = $db->prepare("UPDATE personas SET user = :user_id WHERE id = :persona_id");
-            $stmt->execute([':user_id' => $savedId, ':persona_id' => $personaId]);
         }
 
         return [

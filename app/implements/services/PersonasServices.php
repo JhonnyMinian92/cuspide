@@ -604,37 +604,42 @@ class PersonasServices implements PersonaServiceInterface
       $this->piRepo->save($piEntity);
     }
 
-    // Handle User (create or update)
-    $username = trim($data['username'] ?? '');
-    $password = $data['password'] ?? '';
-    $tipoUserNemonico = $data['tipo_user'] ?? '';
+    // Handle User (create or update). Solo tocamos el vínculo de acceso si el
+    // payload trae la llave 'username' explícitamente: si el formulario que
+    // hizo el request no maneja el acceso del empleado, no debe poder
+    // desvincular el usuario existente por omisión.
+    if (array_key_exists('username', $data)) {
+      $username = trim($data['username'] ?? '');
+      $password = $data['password'] ?? '';
+      $tipoUserNemonico = $data['tipo_user'] ?? '';
 
-    $existingUser = $this->userRepo->findByPersonaId((int)$saved->getId());
+      $existingUser = $this->userRepo->findByPersonaId((int)$saved->getId());
 
-    if (!empty($username)) {
-      if ($existingUser) {
-        if (!empty($password)) {
-          $existingUser->setUsername($username);
-          $existingUser->setType($tipoUserNemonico ?: 'TIPO_EST');
-          $existingUser->setPassword($password);
-          $this->userRepo->save($existingUser);
+      if (!empty($username)) {
+        if ($existingUser) {
+          if (!empty($password)) {
+            $existingUser->setUsername($username);
+            $existingUser->setType($tipoUserNemonico ?: 'TIPO_EST');
+            $existingUser->setPassword($password);
+            $this->userRepo->save($existingUser);
+          } else {
+            $this->userRepo->updateWithoutPassword(
+              (int)$existingUser->getId(),
+              $username,
+              $tipoUserNemonico ?: 'TIPO_EST',
+              $existingUser->getImage()
+            );
+          }
         } else {
-          $this->userRepo->updateWithoutPassword(
-            (int)$existingUser->getId(),
-            $username,
-            $tipoUserNemonico ?: 'TIPO_EST',
-            $existingUser->getImage()
-          );
+          $newUser = new User(null, $username, $password, $tipoUserNemonico ?: 'TIPO_EST', null);
+          $savedUser = $this->userRepo->save($newUser);
+          $db->prepare("UPDATE personas SET user = ? WHERE id = ?")
+            ->execute([(int)$savedUser->getId(), (int)$saved->getId()]);
         }
-      } else {
-        $newUser = new User(null, $username, $password, $tipoUserNemonico ?: 'TIPO_EST', null);
-        $savedUser = $this->userRepo->save($newUser);
-        $db->prepare("UPDATE personas SET user = ? WHERE id = ?")
-          ->execute([(int)$savedUser->getId(), (int)$saved->getId()]);
+      } else if ($existingUser) {
+        $db->prepare("UPDATE personas SET user = NULL WHERE id = ?")
+          ->execute([(int)$saved->getId()]);
       }
-    } else if ($existingUser) {
-      $db->prepare("UPDATE personas SET user = NULL WHERE id = ?")
-        ->execute([(int)$saved->getId()]);
     }
 
     // Save FichaMedica if medical fields are present

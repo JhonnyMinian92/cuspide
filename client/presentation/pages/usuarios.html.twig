@@ -712,12 +712,15 @@ function hideCrearForm() {
 }
 
 /* ── Formulario editar: mostrar / ocultar ── */
+var personaDesvinculadaEnEdicion = false;
+
 function openEditarUsuario(id, username, tipo, imagen, persona_id, nombre_completo) {
   if (tipo === 'TIPO_DEV') {
     showToast('No se permite editar usuarios de tipo Desarrollador.', 'warning');
     return;
   }
   hideCrearForm();
+  personaDesvinculadaEnEdicion = false;
   document.getElementById('e-user-id').value    = id;
   document.getElementById('e-username').value   = username || '';
   document.getElementById('e-password').value   = '';
@@ -751,6 +754,7 @@ function desvincularPersona() {
   document.getElementById('e-persona-search').value = '';
   document.getElementById('e-persona-id').value = '';
   document.getElementById('e-persona-search').focus();
+  personaDesvinculadaEnEdicion = true;
   var btn = document.getElementById('btn-desvincular-persona');
   if (btn) {
     btn.classList.add('d-none');
@@ -839,7 +843,14 @@ document.getElementById('form-editar-usuario').addEventListener('submit', functi
   var body = { username: username, tipo_user: tipo_user };
   if (password) body.password = password;
   if (imagen)   body.imagen   = imagen;
-  if (persona_id) body.persona_id = persona_id;
+  // El backend solo toca el vínculo con la persona si esta llave viene en el
+  // payload: se envía al reasignar una persona o al desvincular explícitamente
+  // (botón "Desvincular"); se omite si el formulario no tocó ese campo.
+  if (persona_id) {
+    body.persona_id = persona_id;
+  } else if (personaDesvinculadaEnEdicion) {
+    body.persona_id = null;
+  }
 
   Cuspide.api.call('PUT', CONFIG.ENDPOINTS.usuarios, 'save', body, { id: id })
     .then(function() {
