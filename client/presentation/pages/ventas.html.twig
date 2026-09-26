@@ -357,6 +357,7 @@
 <script>
 var detalleVentaModal;
 var currentDetalleData = null;
+var instNombre = '';
 
 /* --- Global Helper Functions --- */
 function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]; }); }
@@ -366,6 +367,7 @@ function showToast(msg, type) { type = type || 'success'; var t = document.creat
 var debounce = function(fn, ms) { var t; return function() { var a = arguments, ctx = this; clearTimeout(t); t = setTimeout(function() { fn.apply(ctx, a); }, ms); }; };
 
 document.addEventListener('DOMContentLoaded', function() {
+  Cuspide.api.institucion().then(function(d) { if (d && d.nombre) instNombre = d.nombre; }).catch(function() {});
   var institucionId = (window.CUSPIDE_STATE && window.CUSPIDE_STATE.currentInstitucionId) || 1;
   var allProducts = [], cliente = null, cart = [], formasPagoList = [];
   var ventaModal = new bootstrap.Modal(document.getElementById('modal-venta'));
@@ -780,7 +782,7 @@ function buildTicketHTML(d, isPDF) {
     +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'13px':'11px')+';}'
     +pg+'@media print{button{display:none!important;}}</style>'
     +'</head><body><div class="ticket">'
-    +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">TICKET DE VENTA</div></div>'
+    +'<div class="center"><div class="title">'+e2(String(instNombre).toUpperCase())+'</div><div class="sub">TICKET DE VENTA</div></div>'
     +'<hr class="div">'
     +'<div class="row2"><span><b>N°:</b></span><span>'+e2(d.venta.numero)+'</span></div>'
     +'<div class="row2"><span><b>Fecha:</b></span><span>'+e2(new Date(d.venta.fecha).toLocaleDateString())+'</span></div>'
@@ -1074,7 +1076,7 @@ function buildTicketVext(d, isPDF) {
     +'td{padding:'+(isPDF?'4px 0':'2px 0')+';vertical-align:top;}.total-row td{font-size:'+(isPDF?'20px':'14px')+';font-weight:bold;border-top:1px solid #000;padding-top:5px;}'
     +'.footer{text-align:center;margin-top:12px;font-size:'+(isPDF?'13px':'11px')+';}'
     +pg+'@media print{button{display:none!important;}}</style></head><body><div class="ticket">'
-    +'<div class="center"><div class="title">HUAQUILLAS F.C.</div><div class="sub">TICKET DE VENTA</div></div>'
+    +'<div class="center"><div class="title">'+e2(String(instNombre).toUpperCase())+'</div><div class="sub">TICKET DE VENTA</div></div>'
     +'<hr class="div">'
     +'<div class="row2"><span><b>N°:</b></span><span>'+e2(d.venta.numero)+'</span></div>'
     +'<div class="row2"><span><b>Fecha:</b></span><span>'+e2(new Date(d.venta.fecha).toLocaleDateString())+'</span></div>'

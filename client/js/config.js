@@ -6,7 +6,7 @@
   const apiBaseUrl = (runtimeConfig.API_BASE_URL || sameOrigin).replace(/\/+$/, '');
 
   window.CONFIG = Object.freeze({
-    APP_NAME: 'Huaquillas F.C.',
+    APP_NAME: 'SportAdmin',
     API_BASE_URL: apiBaseUrl,
     ROUTES: Object.freeze({
       login: '/',

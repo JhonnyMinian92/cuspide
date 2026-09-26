@@ -1,5 +1,5 @@
 /**
- * app.js — Lógica JS global del panel Huaquillas F.C.
+ * app.js — Lógica JS global del panel SportAdmin
  *
  * Gestiona la autenticación via JWT (localStorage) y las llamadas fetch
  * a los endpoints del backend usando CONFIG (config.js):
